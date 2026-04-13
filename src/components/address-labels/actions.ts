@@ -4,6 +4,7 @@ import React from 'react';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { pdf } from '@react-pdf/renderer';
+import { Packer } from 'docx';
 import { ToolService } from '@/services/toolService';
 import { AddressLabelService } from '@/services/addressLabelService';
 import { MPHelper } from '@/lib/providers/ministry-platform';
@@ -16,6 +17,7 @@ import type {
   FetchAddressLabelsResult,
 } from '@/lib/dto';
 import { LabelDocument } from './label-document';
+import { buildWordDocument } from './word-document';
 import { getLabelStock } from '@/lib/label-stock';
 import { imbEncode } from '@/lib/imb-encoder';
 import { postnetEncode } from '@/lib/postnet-encoder';
@@ -232,6 +234,74 @@ export async function generateLabelPdf(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'PDF generation failed',
+    };
+  }
+}
+
+export async function generateLabelDocx(
+  labels: LabelData[],
+  config: LabelConfig
+): Promise<{ success: true; data: string } | { success: false; error: string }> {
+  await getSession();
+
+  const stock = getLabelStock(config.stockId);
+  if (!stock) {
+    return { success: false, error: `Unknown label stock: ${config.stockId}` };
+  }
+
+  if (labels.length === 0) {
+    return { success: false, error: 'No labels to export' };
+  }
+
+  try {
+    imbSerialCounter = 0;
+
+    // Pre-encode barcodes (same logic as PDF)
+    const labelsWithBars = labels.map((label) => {
+      if (config.barcodeFormat === 'none') return label;
+
+      const routingCode = buildRoutingCode(label.postalCode, label.deliveryPointCode);
+
+      if (config.barcodeFormat === 'imb' && config.mailerId) {
+        try {
+          const trackingCode = buildImbTrackingCode(config.mailerId, config.serviceType);
+          const imbInput = trackingCode + routingCode;
+          const bars = imbEncode(imbInput);
+          return { ...label, barStates: bars.join(''), barType: 'imb' as const };
+        } catch {
+          // Fall through to POSTNET
+        }
+      }
+
+      if (config.barcodeFormat === 'postnet' || config.barcodeFormat === 'imb') {
+        if (routingCode) {
+          try {
+            const bars = postnetEncode(routingCode);
+            return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
+          } catch {
+            try {
+              const bars = postnetEncode(routingCode.substring(0, 5));
+              return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
+            } catch {
+              // No barcode possible
+            }
+          }
+        }
+      }
+
+      return label;
+    });
+
+    const doc = buildWordDocument(labelsWithBars, stock, config.startPosition);
+    const buffer = await Packer.toBuffer(doc);
+    const base64 = Buffer.from(buffer).toString('base64');
+
+    return { success: true, data: base64 };
+  } catch (error) {
+    console.error('generateLabelDocx error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Word generation failed',
     };
   }
 }

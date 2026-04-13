@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ToolContainer } from '@/components/tool';
 import { AddressLabelsForm, AddressLabelsSummary } from '@/components/address-labels';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileText, FileDown } from 'lucide-react';
 import { getLabelStock } from '@/lib/label-stock';
-import { fetchAddressLabels, generateLabelPdf } from '@/components/address-labels/actions';
+import { fetchAddressLabels, generateLabelPdf, generateLabelDocx } from '@/components/address-labels/actions';
 import type { ToolParams } from '@/lib/tool-params';
 import type { LabelData, SkipRecord, LabelConfig } from '@/lib/dto';
 
@@ -128,6 +128,49 @@ export function AddressLabels({ params }: AddressLabelsProps) {
     }
   };
 
+  const handleDownloadWord = async () => {
+    if (printable.length === 0) return;
+
+    if (config.barcodeFormat === 'imb') {
+      if (!config.mailerId || (config.mailerId.length !== 6 && config.mailerId.length !== 9)) {
+        setError('IMb requires a 6 or 9 digit USPS Mailer ID');
+        return;
+      }
+    }
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const result = await generateLabelDocx(printable, config);
+
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      const byteCharacters = atob(result.data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'address-labels.docx';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Word generation failed');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleClose = () => {
     router.back();
   };
@@ -168,8 +211,16 @@ export function AddressLabels({ params }: AddressLabelsProps) {
                 onClick={handleGenerate}
                 disabled={printable.length === 0 || isGenerating}
               >
-                {isGenerating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Generate & Print
+                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+                Generate PDF
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleDownloadWord}
+                disabled={printable.length === 0 || isGenerating}
+              >
+                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileDown className="h-4 w-4 mr-2" />}
+                Download Word
               </Button>
               <Button variant="outline" onClick={handleClose}>
                 Close

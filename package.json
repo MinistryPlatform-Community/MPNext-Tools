@@ -37,6 +37,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "docx": "^9.6.1",
     "dotenv": "^17.3.1",
     "grapesjs": "^0.22.14",
     "grapesjs-mjml": "^1.0.8",
