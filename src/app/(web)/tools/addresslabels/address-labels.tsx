@@ -78,6 +78,7 @@ export function AddressLabels({ params }: AddressLabelsProps) {
       const blob = new Blob([byteArray], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'PDF generation failed');
     } finally {

@@ -109,6 +109,22 @@ describe('fetchAddressLabels', () => {
     expect(result.skipped[0].reason).toBe('no_address');
   });
 
+  it('should skip contacts with missing postal code', async () => {
+    mockGetAddressForContact.mockResolvedValue({
+      Contact_ID: 4, Display_Name: 'No Zip Person', Household_ID: 400,
+      Household_Name: 'No Zip Family', Bulk_Mail_Opt_Out: false,
+      Address_Line_1: '456 Oak Ave', City: 'Portland', 'State/Region': 'OR',
+      Postal_Code: null, Bar_Code: null,
+    });
+
+    const params: ToolParams = { recordID: 4 };
+    const result = await fetchAddressLabels(params, defaultConfig);
+
+    expect(result.printable).toHaveLength(0);
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0].reason).toBe('no_postal_code');
+  });
+
   it('should skip contacts that opted out of bulk mail', async () => {
     mockGetAddressForContact.mockResolvedValue({
       Contact_ID: 3, Display_Name: 'Opted Out', Household_ID: 300,
