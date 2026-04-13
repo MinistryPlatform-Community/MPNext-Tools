@@ -39,9 +39,9 @@ export interface VwMpProjectedScheduledDonations {
   Gift_Frequency_ID: number /* 32-bit integer */; // Foreign Key -> Frequencies.Frequency_ID
 
   /**
-   * Max length: 50 characters
+   * Max length: 128 characters
    */
-  Gift_Frequency: string /* max 50 chars */;
+  Gift_Frequency: string /* max 128 chars */;
 
   Number_Of_Installments?: number /* 32-bit integer */ | null;
 

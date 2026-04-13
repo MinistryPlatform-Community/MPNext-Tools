@@ -25,8 +25,6 @@ export interface DpPublications {
 
   Available_Online?: boolean | null;
 
-  User_Group_ID?: number /* 32-bit integer */ | null; // Foreign Key -> dp_User_Groups.User_Group_ID
-
   Online_Sort_Order?: number /* 16-bit integer */ | null;
 
   /**

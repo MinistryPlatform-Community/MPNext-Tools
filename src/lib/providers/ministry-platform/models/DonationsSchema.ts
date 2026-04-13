@@ -19,7 +19,6 @@ export const DonationsSchema = z.object({
   Receipted: z.boolean(),
   Invoice_Number: z.string().max(25).nullable(),
   Receipt_Number: z.number().int().nullable(),
-  Recurring_Donation_ID: z.number().int().nullable(),
   Original_MICR: z.string().max(100).nullable(),
   Position: z.number().int().nullable(),
   OCR_Data: z.string().max(1000).nullable(),

@@ -23,7 +23,6 @@ export const AddressesSchema = z.object({
   County: z.string().max(50).nullable(),
   Validated: z.boolean().nullable(),
   Do_Not_Validate: z.boolean(),
-  Manual_Geocode: z.boolean().nullable(),
   Last_GeoCode_Attempt: z.string().datetime().nullable(),
   Country: z.string().max(100).nullable(),
 });

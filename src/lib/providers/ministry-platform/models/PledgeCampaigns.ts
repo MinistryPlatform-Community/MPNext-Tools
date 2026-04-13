@@ -21,10 +21,6 @@ export interface PledgeCampaigns {
 
   Pledge_Campaign_Type_ID: number /* 32-bit integer */; // Foreign Key -> Pledge_Campaign_Types.Pledge_Campaign_Type_ID
 
-  Trip_Is_Full: boolean; // Has Default
-
-  Trip_Is_Closed: boolean; // Has Default
-
   /**
    * Max length: 500 characters
    */
@@ -62,6 +58,8 @@ export interface PledgeCampaigns {
   Pledge_Beyond_End_Date: boolean; // Has Default
 
   Show_On_My_Pledges: boolean; // Has Default
+
+  Congregation_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Congregations.Congregation_ID
 
   Credit_Parishes: boolean; // Has Default
 

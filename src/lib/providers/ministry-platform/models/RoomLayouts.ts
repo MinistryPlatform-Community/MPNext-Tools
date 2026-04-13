@@ -20,6 +20,14 @@ export interface RoomLayouts {
   Description?: string /* max 255 chars */ | null;
 
   Capacity?: number /* 16-bit integer */ | null;
+
+  Table_Count?: number /* 16-bit integer */ | null;
+
+  Chair_Count?: number /* 16-bit integer */ | null;
+
+  Setup_Minutes?: number /* 16-bit integer */ | null;
+
+  Room_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Rooms.Room_ID
 }
 
 export type RoomLayoutsRecord = RoomLayouts;

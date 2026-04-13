@@ -13,16 +13,7 @@ export const FeedbackEntriesSchema = z.object({
   Assigned_To: z.number().int().nullable(),
   Care_Outcome_ID: z.number().int().nullable(),
   Outcome_Date: z.string().datetime().nullable(),
-  Prayer_Counter: z.number().int().nullable(),
-  Notes: z.string().max(2147483647).nullable(),
-  Web_Approved: z.boolean(),
   Approved: z.boolean(),
-  Anonymous: z.boolean(),
-  Flag_Cleared: z.boolean().nullable(),
-  Flagged: z.number().int(),
-  Last_Update_User: z.number().int().nullable(),
-  Prayer_Outcome_ID: z.number().int().nullable(),
-  Outcome_Notes: z.string().max(2000).nullable(),
   Care_Case_ID: z.number().int().nullable(),
 });
 

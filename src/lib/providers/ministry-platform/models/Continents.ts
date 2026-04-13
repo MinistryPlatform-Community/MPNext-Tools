@@ -1,7 +1,7 @@
 /**
  * Interface for Continents
 * Table: Continents
- * Access Level: ReadWriteAssignDelete
+ * Access Level: Read
  * Special Permissions: None
  * Generated from column metadata
  */

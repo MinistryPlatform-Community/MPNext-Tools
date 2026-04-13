@@ -15,7 +15,6 @@ export const EquipmentSchema = z.object({
   Date_Retired: z.string().datetime().nullable(),
   Equipment_Coordinator: z.number().int().nullable(),
   Auto_Approve: z.boolean(),
-  Equipment_Notes: z.string().max(2147483647).nullable(),
   Quantity: z.number().int(),
 });
 

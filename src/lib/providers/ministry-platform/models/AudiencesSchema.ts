@@ -9,7 +9,6 @@ export const AudiencesSchema = z.object({
   Last_Update_Date: z.string().datetime().nullable(),
   Last_Update_Status: z.string().max(256).nullable(),
   Next_Update_Date: z.string().datetime().nullable(),
-  Publication_ID: z.number().int().nullable(),
 });
 
 export type AudiencesInput = z.infer<typeof AudiencesSchema>;

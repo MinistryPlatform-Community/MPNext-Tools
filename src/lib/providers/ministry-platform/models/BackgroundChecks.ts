@@ -11,22 +11,18 @@ export interface BackgroundChecks {
 
   Contact_ID: number /* 32-bit integer */; // Foreign Key -> Contacts.Contact_ID
 
-  Background_Check_Status_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Background_Check_Statuses.Background_Check_Status_ID
-
-  Requesting_Program?: number /* 32-bit integer */ | null; // Foreign Key -> Programs.Program_ID
-
-  Background_Check_Started: string /* ISO datetime */; // Has Default
-
-  Background_Check_Type_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Background_Check_Types.Background_Check_Type_ID
+  Requesting_Ministry?: number /* 32-bit integer */ | null; // Foreign Key -> Ministries.Ministry_ID
 
   Background_Check_Submitted?: string /* ISO datetime */ | null;
 
   Background_Check_Returned?: string /* ISO datetime */ | null;
 
+  All_Clear?: boolean | null;
+
   /**
-   * Max length: 2147483647 characters
+   * Max length: 500 characters
    */
-  Notes?: string /* max 2147483647 chars */ | null;
+  Notes?: string /* max 500 chars */ | null;
 
   Theft?: boolean | null;
 
@@ -42,14 +38,7 @@ export interface BackgroundChecks {
 
   Other?: boolean | null;
 
-  SSN?: Blob | string /* binary data */ | null;
-
-  DL?: Blob | string /* binary data */ | null;
-
-  /**
-   * Max length: 50 characters
-   */
-  DL_State?: string /* max 50 chars */ | null;
+  Background_Check_Started: string /* ISO datetime */; // Has Default
 
   /**
    * Max length: 50 characters
@@ -57,6 +46,10 @@ export interface BackgroundChecks {
   Reference_Number?: string /* max 50 chars */ | null;
 
   Report_Url?: string /* URL */ | null;
+
+  Background_Check_Type_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Background_Check_Types.Background_Check_Type_ID
+
+  Background_Check_GUID: string /* GUID/UUID */; // Has Default
 
   /**
    * Max length: 50 characters
@@ -125,13 +118,14 @@ export interface BackgroundChecks {
    */
   Jurisdiction?: string /* max 128 chars */ | null;
 
-  Background_Check_GUID: string /* GUID/UUID */; // Has Default
-
-  Requesting_Ministry?: number /* 32-bit integer */ | null; // Foreign Key -> Ministries.Ministry_ID
-
-  All_Clear?: boolean | null;
+  /**
+   * Max length: 50 characters
+   */
+  DL_State?: string /* max 50 chars */ | null;
 
   Background_Check_Expires?: string /* ISO datetime */ | null;
+
+  Background_Check_Status_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Background_Check_Statuses.Background_Check_Status_ID
 
   Status_Date?: string /* ISO datetime */ | null;
 

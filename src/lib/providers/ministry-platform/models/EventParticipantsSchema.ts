@@ -17,7 +17,6 @@ export const EventParticipantsSchema = z.object({
   Call_Parents: z.boolean().nullable(),
   Group_Role_ID: z.number().int().nullable(),
   Response_ID: z.number().int().nullable(),
-  Shirt_Size_ID: z.number().int().nullable(),
   Registrant_Message_Sent: z.boolean(),
   Attendee_Message_Sent: z.boolean(),
   Attending_Online: z.boolean(),

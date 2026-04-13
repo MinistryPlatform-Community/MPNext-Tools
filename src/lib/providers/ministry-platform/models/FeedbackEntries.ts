@@ -37,31 +37,7 @@ export interface FeedbackEntries {
 
   Outcome_Date?: string /* ISO datetime */ | null;
 
-  Prayer_Counter?: number /* 32-bit integer */ | null; // Has Default
-
-  /**
-   * Max length: 2147483647 characters
-   */
-  Notes?: string /* max 2147483647 chars */ | null;
-
-  Web_Approved: boolean; // Has Default
-
   Approved: boolean; // Has Default
-
-  Anonymous: boolean; // Has Default
-
-  Flag_Cleared?: boolean | null;
-
-  Flagged: number /* 32-bit integer */; // Has Default
-
-  Last_Update_User?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Users.User_ID
-
-  Prayer_Outcome_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Prayer_Outcomes.Prayer_Outcome_ID
-
-  /**
-   * Max length: 2000 characters
-   */
-  Outcome_Notes?: string /* max 2000 chars */ | null;
 
   Care_Case_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Care_Cases.Care_Case_ID
 }

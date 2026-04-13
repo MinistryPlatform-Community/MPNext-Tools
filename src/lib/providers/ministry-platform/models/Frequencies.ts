@@ -2,7 +2,7 @@
  * Interface for Frequencies
 * Table: Frequencies
  * Access Level: ReadWriteAssignDelete
- * Special Permissions: FileAttach, DataExport, SecureRecord
+ * Special Permissions: None
  * Generated from column metadata
  */
 export interface Frequencies {
@@ -10,9 +10,9 @@ export interface Frequencies {
   Frequency_ID: number /* 32-bit integer */; // Primary Key
 
   /**
-   * Max length: 50 characters
+   * Max length: 128 characters
    */
-  Frequency: string /* max 50 chars */;
+  Frequency: string /* max 128 chars */;
 }
 
 export type FrequenciesRecord = Frequencies;

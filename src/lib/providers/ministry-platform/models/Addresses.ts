@@ -102,8 +102,6 @@ export interface Addresses {
 
   Do_Not_Validate: boolean; // Has Default
 
-  Manual_Geocode?: boolean | null;
-
   Last_GeoCode_Attempt?: string /* ISO datetime */ | null;
 
   /**

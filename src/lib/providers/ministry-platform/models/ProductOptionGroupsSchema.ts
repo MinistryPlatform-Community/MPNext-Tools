@@ -8,11 +8,7 @@ export const ProductOptionGroupsSchema = z.object({
   Mutually_Exclusive: z.boolean(),
   Required: z.boolean(),
   Note_Label: z.string().max(50).nullable(),
-  Shelby_Fund_Number: z.number().int().nullable(),
-  Shelby_Department_Number: z.number().int().nullable(),
-  Shelby_Account_Number: z.number().int().nullable(),
   Online_Sort_Order: z.number().int().nullable(),
-  Project_Code: z.string().max(15).nullable(),
 });
 
 export type ProductOptionGroupsInput = z.infer<typeof ProductOptionGroupsSchema>;

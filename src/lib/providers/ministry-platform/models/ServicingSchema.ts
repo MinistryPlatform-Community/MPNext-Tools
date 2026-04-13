@@ -9,6 +9,7 @@ export const ServicingSchema = z.object({
   Description: z.string().max(255).nullable(),
   Team_Group_ID: z.number().int().nullable(),
   Contact_ID: z.number().int().nullable(),
+  Standard_Service: z.boolean(),
   Auto_Approve: z.boolean(),
   Days_To_Remind: z.number().int().nullable(),
 });

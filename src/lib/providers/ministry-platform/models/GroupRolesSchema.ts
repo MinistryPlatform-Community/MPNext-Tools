@@ -9,7 +9,7 @@ export const GroupRolesSchema = z.object({
   Group_Role_Intensity_ID: z.number().int(),
   Ministry_ID: z.number().int().nullable(),
   Background_Check_Required: z.boolean(),
-  Omit_From_Portal: z.boolean(),
+  Omit_From_Portal: z.boolean().nullable(),
   Manages_Volunteers: z.boolean(),
 });
 

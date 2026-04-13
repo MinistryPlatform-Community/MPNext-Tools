@@ -12,9 +12,9 @@ export interface FormFields {
   Field_Order: number /* 16-bit integer */;
 
   /**
-   * Max length: 200 characters
+   * Max length: 128 characters
    */
-  Field_Label: string /* max 200 chars */;
+  Field_Label: string /* max 128 chars */;
 
   Field_Type_ID: number /* 32-bit integer */; // Foreign Key -> Form_Field_Types.Form_Field_Type_ID
 

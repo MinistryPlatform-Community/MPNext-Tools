@@ -44,8 +44,6 @@ export interface GroupParticipants {
 
   _Last_Attendance?: string /* ISO datetime */ | null; // Read Only
 
-  Last_Confirmation_Date?: string /* ISO datetime */ | null;
-
   Show_Email: boolean; // Has Default
 
   Show_Phone: boolean; // Has Default
@@ -65,8 +63,6 @@ export interface GroupParticipants {
   _Show_Address: boolean; // Read Only, Has Default
 
   _Show_Photo: boolean; // Read Only, Has Default
-
-  Group_Participant_GUID: string /* GUID/UUID */; // Has Default
 }
 
 export type GroupParticipantsRecord = GroupParticipants;

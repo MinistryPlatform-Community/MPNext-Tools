@@ -29,10 +29,6 @@ export interface EventTypes {
   Omit_From_Engagement_Attendance: boolean; // Has Default
 
   Auto_Close_Registrations: boolean; // Has Default
-
-  Milestone_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Milestones.Milestone_ID
-
-  Consolidate_Same_Day: boolean; // Has Default
 }
 
 export type EventTypesRecord = EventTypes;

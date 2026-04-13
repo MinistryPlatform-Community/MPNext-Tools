@@ -14,12 +14,18 @@ export interface Congregations {
    */
   Congregation_Name: string /* max 50 chars */;
 
-  Start_Date: string /* ISO datetime */;
-
   /**
    * Max length: 255 characters
    */
   Description?: string /* max 255 chars */ | null;
+
+  Start_Date: string /* ISO datetime */;
+
+  End_Date?: string /* ISO datetime */ | null;
+
+  Accounting_Company_ID: number /* 32-bit integer */; // Foreign Key -> Accounting_Companies.Accounting_Company_ID, Has Default
+
+  Available_Online: boolean; // Has Default
 
   Location_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Locations.Location_ID
 
@@ -29,49 +35,13 @@ export interface Congregations {
 
   Pastor: number /* 32-bit integer */; // Foreign Key -> dp_Users.User_ID
 
-  End_Date?: string /* ISO datetime */ | null;
-
-  /**
-   * Max length: 254 characters
-   */
-  Home_Page?: string /* max 254 chars */ | null;
-
-  Available_Online: boolean; // Has Default
-
-  /**
-   * Max length: 50 characters
-   */
-  Web_Template_Name?: string /* max 50 chars */ | null;
-
-  Accounting_Company_ID: number /* 32-bit integer */; // Foreign Key -> Accounting_Companies.Accounting_Company_ID, Has Default
-
-  Default_Giving_Program?: number /* 32-bit integer */ | null; // Foreign Key -> Programs.Program_ID
-
   Online_Sort_Order?: number /* 32-bit integer */ | null;
 
   Front_Desk_SMS_Phone?: string /* phone number */ | null;
 
-  Childcare_Size: number /* 32-bit integer */; // Has Default
-
-  Monday_Childcare_Size: number /* 32-bit integer */; // Has Default
-
-  Tuesday_Childcare_Size: number /* 32-bit integer */; // Has Default
-
-  Wednesday_Childcare_Size: number /* 32-bit integer */; // Has Default
-
-  Thursday_Childcare_Size: number /* 32-bit integer */; // Has Default
-
-  Friday_Childcare_Size: number /* 32-bit integer */; // Has Default
-
   Plan_A_Visit_Template?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Communication_Templates.Communication_Template_ID
 
-  Plan_A_Visit_Contact?: number /* 32-bit integer */ | null; // Foreign Key -> Contacts.Contact_ID
-
   Plan_A_Visit_User?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Users.User_ID
-
-  Discipleship_Admin?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Users.User_ID
-
-  Coming_Soon: boolean; // Has Default
 
   /**
    * Max length: 500 characters
@@ -82,6 +52,8 @@ export interface Congregations {
    * Max length: 500 characters
    */
   Logo_URL?: string /* max 500 chars */ | null;
+
+  Coming_Soon: boolean; // Has Default
 
   /**
    * Max length: 500 characters

@@ -1,7 +1,7 @@
 /**
  * Interface for Activity_Log
 * Table: Activity_Log
- * Access Level: ReadWriteAssignDelete
+ * Access Level: ReadWrite
  * Special Permissions: DataExport
  * Generated from column metadata
  */

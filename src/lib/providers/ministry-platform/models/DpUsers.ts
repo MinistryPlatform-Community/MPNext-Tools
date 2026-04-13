@@ -38,25 +38,7 @@ export interface DpUsers {
 
   Can_Impersonate: boolean; // Has Default
 
-  FaceBookID?: number /* 32-bit integer */ | null;
-
-  Is_Approved?: boolean | null;
-
-  Last_Login_Date?: string /* ISO datetime */ | null;
-
-  Failed_Login_Attempt_Count?: number /* 32-bit integer */ | null;
-
-  Failed_Login_Last_Date?: string /* ISO datetime */ | null;
-
   In_Recovery?: boolean | null;
-
-  Read_Permitted: boolean; // Has Default
-
-  Create_Permitted: boolean; // Has Default
-
-  Update_Permitted: boolean; // Has Default
-
-  Delete_Permitted: boolean; // Has Default
 
   Time_Zone?: unknown | null;
 
@@ -69,10 +51,13 @@ export interface DpUsers {
 
   Setup_Admin: boolean; // Has Default
 
-  /**
-   * Max length: 10 characters
-   */
-  Recovery_Code?: string /* max 10 chars */ | null;
+  Read_Permitted: boolean; // Has Default
+
+  Create_Permitted: boolean; // Has Default
+
+  Update_Permitted: boolean; // Has Default
+
+  Delete_Permitted: boolean; // Has Default
 
   Login_Attempts: number /* 32-bit integer */; // Has Default
 

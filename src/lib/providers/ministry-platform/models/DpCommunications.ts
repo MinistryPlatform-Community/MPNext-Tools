@@ -49,7 +49,7 @@ export interface DpCommunications {
 
   Bulk_Email: boolean; // Has Default
 
-  Template?: boolean | null;
+  Template: boolean; // Has Default
 
   Active: boolean; // Has Default
 
@@ -59,21 +59,11 @@ export interface DpCommunications {
 
   Template_User_Group?: number /* 32-bit integer */ | null; // Foreign Key -> dp_User_Groups.User_Group_ID
 
-  /**
-   * Max length: 255 characters
-   */
-  Tracking_Info?: string /* max 255 chars */ | null;
-
-  /**
-   * Max length: 16 characters
-   */
-  BG_Color?: string /* max 16 chars */ | null;
+  Communication_GUID: string /* GUID/UUID */; // Has Default
 
   Alternate_Email_Type_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Alternate_Email_Types.Alternate_Email_Type_ID
 
   Publication_ID?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Publications.Publication_ID
-
-  Deletion?: boolean | null;
 }
 
 export type DpCommunicationsRecord = DpCommunications;

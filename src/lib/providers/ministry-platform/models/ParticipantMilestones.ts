@@ -32,10 +32,6 @@ export interface ParticipantMilestones {
 
   Discontinue_Journey: boolean; // Has Default
 
-  First_Contact?: string /* ISO datetime */ | null;
-
-  Second_Contact?: string /* ISO datetime */ | null;
-
   /**
    * Max length: 150 characters
    */

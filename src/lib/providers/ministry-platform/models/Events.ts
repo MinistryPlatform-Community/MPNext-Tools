@@ -20,8 +20,6 @@ export interface Events {
 
   Location_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Locations.Location_ID
 
-  Offsite_Meeting_Address?: number /* 32-bit integer */ | null; // Foreign Key -> Addresses.Address_ID
-
   /**
    * Max length: 4000 characters
    */
@@ -72,20 +70,7 @@ export interface Events {
 
   Force_Login: boolean; // Has Default
 
-  Force_Closed: boolean; // Has Default
-
-  /**
-   * Max length: 100 characters
-   */
-  Secondary_Registration_Label?: string /* max 100 chars */ | null;
-
-  Secondary_Registration_URL?: string /* URL */ | null;
-
   "Allow_Check-in": boolean; // Has Default
-
-  Allow_Fastpass: boolean; // Has Default
-
-  Allow_QR_Check_In: boolean; // Has Default
 
   Ignore_Program_Groups: boolean; // Has Default
 
@@ -113,37 +98,6 @@ export interface Events {
 
   On_Connection_Card: boolean; // Has Default
 
-  /**
-   * Max length: 200 characters
-   */
-  AlternateURL?: string /* max 200 chars */ | null;
-
-  /**
-   * Max length: 2147483647 characters
-   */
-  WebHTML?: string /* max 2147483647 chars */ | null;
-
-  Enable_Event_Streaming?: boolean | null;
-
-  Do_Not_Stream_Latest_Teaching?: boolean | null;
-
-  /**
-   * Max length: 100 characters
-   */
-  Streaming_Banner_Title?: string /* max 100 chars */ | null;
-
-  /**
-   * Max length: 254 characters
-   */
-  Streaming_Banner_Image?: string /* max 254 chars */ | null;
-
-  /**
-   * Max length: 2000 characters
-   */
-  Purpose?: string /* max 2000 chars */ | null;
-
-  Big_Event_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Big_Events.Big_Event_ID
-
   On_Donation_Batch_Tool: boolean; // Has Default
 
   /**
@@ -151,28 +105,17 @@ export interface Events {
    */
   Project_Code?: string /* max 15 chars */ | null;
 
-  SMS_Template?: number /* 32-bit integer */ | null; // Foreign Key -> SMS_Communications.SMS_Communication_ID
-
-  Send_After?: string /* ISO datetime */ | null;
-
-  _Notification_Sent?: boolean | null; // Read Only
-
   /**
    * Max length: 2083 characters
    */
   Online_Meeting_Link?: string /* max 2083 chars */ | null;
 
-  Allow_Self_Checkin: boolean; // Has Default
-
-  /**
-   * Max length: 25 characters
-   */
-  BB_Account_Number?: string /* max 25 chars */ | null;
-
   /**
    * Max length: 1000 characters
    */
   Read_More_URL?: string /* max 1000 chars */ | null;
+
+  Allow_Self_Checkin: boolean; // Has Default
 
   Minor_Registration: boolean; // Has Default
 
@@ -180,18 +123,14 @@ export interface Events {
 
   Show_Building_Room_Info: boolean; // Has Default
 
-  Feature_On_Campus: boolean; // Has Default
-
-  Feature_On_Home: boolean; // Has Default
-
-  Show_On_Home_Events: boolean; // Has Default
-
-  Show_On_HomePage: boolean; // Has Default
+  Allow_QR_Check_In: boolean; // Has Default
 
   /**
    * Max length: 300 characters
    */
   QR_Redirect_Url?: string /* max 300 chars */ | null;
+
+  Allow_Fastpass: boolean; // Has Default
 }
 
 export type EventsRecord = Events;

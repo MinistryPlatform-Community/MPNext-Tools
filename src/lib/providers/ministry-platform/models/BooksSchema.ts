@@ -7,8 +7,7 @@ export const BooksSchema = z.object({
   Description: z.string().max(255).nullable(),
   Cost: z.number().nullable(),
   Start_Date: z.string().datetime().nullable(),
-  Active: z.boolean(),
-  Purchase_Url: z.string().max(255).nullable(),
+  Genre_ID: z.number().int().nullable(),
 });
 
 export type BooksInput = z.infer<typeof BooksSchema>;

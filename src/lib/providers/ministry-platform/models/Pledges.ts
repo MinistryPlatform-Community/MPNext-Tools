@@ -31,9 +31,9 @@ export interface Pledges {
   Notes?: string /* max 500 chars */ | null;
 
   /**
-   * Max length: 75 characters
+   * Max length: 50 characters
    */
-  Beneficiary?: string /* max 75 chars */ | null;
+  Beneficiary?: string /* max 50 chars */ | null;
 
   Trip_Leader: boolean; // Has Default
 
@@ -52,9 +52,9 @@ export interface Pledges {
 
   Send_Pledge_Statement: boolean; // Has Default
 
-  _Last_Installment_Date?: string /* ISO datetime */ | null; // Read Only, Computed
-
   _Original_Amount?: number /* currency amount */ | null; // Read Only
+
+  _Last_Installment_Date?: string /* ISO datetime */ | null; // Read Only, Computed
 
   Batch_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Batches.Batch_ID
 }

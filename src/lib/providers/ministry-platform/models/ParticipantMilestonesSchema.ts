@@ -12,8 +12,6 @@ export const ParticipantMilestonesSchema = z.object({
   Notes: z.string().max(2000).nullable(),
   Followed_Up: z.boolean(),
   Discontinue_Journey: z.boolean(),
-  First_Contact: z.string().datetime().nullable(),
-  Second_Contact: z.string().datetime().nullable(),
   Performed_By: z.string().max(150).nullable(),
   Place: z.string().max(255).nullable(),
   Sacramental_Name: z.string().max(150).nullable(),

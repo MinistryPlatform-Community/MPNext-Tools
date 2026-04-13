@@ -57,6 +57,8 @@ export interface Contacts {
 
   Household_Position_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Household_Positions.Household_Position_ID
 
+  Anniversary_Date?: string /* ISO date (YYYY-MM-DD) */ | null;
+
   Date_of_Death?: string /* ISO date (YYYY-MM-DD) */ | null;
 
   Participant_Record?: number /* 32-bit integer */ | null; // Foreign Key -> Participants.Participant_ID
@@ -72,11 +74,6 @@ export interface Contacts {
 
   Company_Phone?: string /* phone number */ | null;
 
-  /**
-   * Max length: 25 characters
-   */
-  Office_Extension?: string /* max 25 chars */ | null;
-
   Pager_Phone?: string /* phone number */ | null;
 
   Fax_Phone?: string /* phone number */ | null;
@@ -91,31 +88,11 @@ export interface Contacts {
    */
   Twitter_Account?: string /* max 50 chars */ | null;
 
-  /**
-   * Max length: 50 characters
-   */
-  MySpace_Account?: string /* max 50 chars */ | null;
-
-  /**
-   * Max length: 50 characters
-   */
-  IM_Account?: string /* max 50 chars */ | null;
-
-  /**
-   * Max length: 50 characters
-   */
-  LinkedIn_Account?: string /* max 50 chars */ | null;
-
   Web_Page?: string /* URL */ | null;
 
   Industry_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Industries.Industry_ID
 
   Occupation_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Occupations.Occupation_ID
-
-  /**
-   * Max length: 15 characters
-   */
-  "SSN/EIN"?: string /* max 15 chars */ | null;
 
   /**
    * Max length: 75 characters
@@ -124,15 +101,15 @@ export interface Contacts {
 
   HS_Graduation_Year?: number /* 16-bit integer */ | null;
 
+  Bulk_Email_Opt_Out: boolean; // Has Default
+
   Email_Unlisted: boolean; // Has Default
+
+  Do_Not_Text: boolean; // Has Default
 
   Mobile_Phone_Unlisted: boolean; // Has Default
 
   Remove_From_Directory: boolean; // Has Default
-
-  Bulk_Email_Opt_Out: boolean; // Has Default
-
-  Do_Not_Text: boolean; // Has Default
 
   User_Account?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Users.User_ID
 
@@ -143,28 +120,7 @@ export interface Contacts {
 
   Contact_GUID: string /* GUID/UUID */; // Has Default
 
-  Shirt_Size_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Shirt_Sizes.Shirt_Size_ID
-
   _Contact_Setup_Date: string /* ISO datetime */; // Read Only, Has Default
-
-  Anniversary_Date?: string /* ISO date (YYYY-MM-DD) */ | null;
-
-  Subscription_GUID?: string /* GUID/UUID */ | null;
-
-  Staff_Type_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Staff_Types.Staff_Type_ID
-
-  Staff_Status_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Staff_Statuses.Staff_Status_ID
-
-  /**
-   * Max length: 50 characters
-   */
-  Title?: string /* max 50 chars */ | null;
-
-  Department?: number /* 32-bit integer */ | null; // Foreign Key -> Staff_Departments.Staff_Department_ID
-
-  Supervisor?: number /* 32-bit integer */ | null; // Foreign Key -> Contacts.Contact_ID
-
-  Show_Photo_Online: boolean; // Has Default
 
   Email_Verified: boolean; // Has Default
 

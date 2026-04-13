@@ -14,14 +14,10 @@ export interface Opportunities {
    */
   Opportunity_Title: string /* max 50 chars */;
 
-  Quickserve: boolean; // Has Default
-
   /**
-   * Max length: 3000 characters
+   * Max length: 2000 characters
    */
-  Description?: string /* max 3000 chars */ | null;
-
-  Volunteer_Area_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Volunteer_Areas.Volunteer_Area_ID
+  Description?: string /* max 2000 chars */ | null;
 
   Group_Role_ID: number /* 32-bit integer */; // Foreign Key -> Group_Roles.Group_Role_ID
 
@@ -67,8 +63,6 @@ export interface Opportunities {
 
   Custom_Form?: number /* 32-bit integer */ | null; // Foreign Key -> Forms.Form_ID
 
-  _Approved: boolean; // Read Only, Has Default
-
   Response_Message?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Communication_Templates.Communication_Template_ID
 
   Close_Responses: boolean; // Has Default
@@ -78,8 +72,6 @@ export interface Opportunities {
   Optional_Reminder_Message?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Communication_Templates.Communication_Template_ID
 
   Send_To_Heads?: boolean | null; // Has Default
-
-  Feature_On_Campus: boolean; // Has Default
 
   _Maximum_Needed_Met: boolean; // Read Only, Has Default
 }

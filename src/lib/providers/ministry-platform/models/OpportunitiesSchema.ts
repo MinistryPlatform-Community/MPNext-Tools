@@ -3,9 +3,7 @@ import { z } from 'zod';
 export const OpportunitiesSchema = z.object({
   Opportunity_ID: z.number().int(),
   Opportunity_Title: z.string().max(50),
-  Quickserve: z.boolean(),
-  Description: z.string().max(3000).nullable(),
-  Volunteer_Area_ID: z.number().int().nullable(),
+  Description: z.string().max(2000).nullable(),
   Group_Role_ID: z.number().int(),
   Program_ID: z.number().int(),
   Visibility_Level_ID: z.number().int(),
@@ -25,13 +23,11 @@ export const OpportunitiesSchema = z.object({
   Shift_Start: z.string().nullable(),
   Shift_End: z.string().nullable(),
   Custom_Form: z.number().int().nullable(),
-  _Approved: z.boolean(),
   Response_Message: z.number().int().nullable(),
   Close_Responses: z.boolean(),
   Date_To_Remind: z.string().datetime().nullable(),
   Optional_Reminder_Message: z.number().int().nullable(),
   Send_To_Heads: z.boolean().nullable(),
-  Feature_On_Campus: z.boolean(),
   _Maximum_Needed_Met: z.boolean(),
 });
 

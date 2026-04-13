@@ -15,7 +15,7 @@ export const VwMpProjectedScheduledDonationsSchema = z.object({
   Notes: z.string().max(1000).nullable(),
   Payment_Type_ID: z.number().int(),
   Gift_Frequency_ID: z.number().int(),
-  Gift_Frequency: z.string().max(50),
+  Gift_Frequency: z.string().max(128),
   Number_Of_Installments: z.number().int().nullable(),
   Third_Party_Note: z.string().max(1000).nullable(),
   Projected_Donation_Date: z.string().datetime().nullable(),

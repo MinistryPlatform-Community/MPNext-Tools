@@ -19,36 +19,24 @@ export interface Ministries {
    */
   Nickname?: string /* max 50 chars */ | null;
 
-  Primary_Contact: number /* 32-bit integer */; // Foreign Key -> Contacts.Contact_ID
-
-  Start_Date: string /* ISO datetime */;
-
-  End_Date?: string /* ISO datetime */ | null;
-
-  Available_Online: boolean; // Has Default
-
-  Parent_Ministry?: number /* 32-bit integer */ | null; // Foreign Key -> Ministries.Ministry_ID
-
   /**
    * Max length: 255 characters
    */
   Description?: string /* max 255 chars */ | null;
 
-  /**
-   * Max length: 255 characters
-   */
-  Purpose_Statement?: string /* max 255 chars */ | null;
+  Start_Date: string /* ISO datetime */;
 
-  Leadership_Team?: number /* 32-bit integer */ | null; // Foreign Key -> Groups.Group_ID
+  End_Date?: string /* ISO datetime */ | null;
 
-  /**
-   * Max length: 254 characters
-   */
-  Home_Page_URL?: string /* max 254 chars */ | null;
+  Primary_Contact: number /* 32-bit integer */; // Foreign Key -> Contacts.Contact_ID
+
+  Parent_Ministry?: number /* 32-bit integer */ | null; // Foreign Key -> Ministries.Ministry_ID
+
+  Available_Online: boolean; // Has Default
 
   Priority_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Priorities.Priority_ID
 
-  Background_Check_Required?: boolean | null;
+  Leadership_Team?: number /* 32-bit integer */ | null; // Foreign Key -> Groups.Group_ID
 }
 
 export type MinistriesRecord = Ministries;

@@ -26,17 +26,6 @@ export interface Donors {
    */
   Notes?: string /* max 500 chars */ | null;
 
-  AUTHNet_ProfileID?: number /* 64-bit integer */ | null;
-
-  AUTHNet_Event_ProfileID?: number /* 64-bit integer */ | null;
-
-  /**
-   * Max length: 50 characters
-   */
-  Confirmed_Mobile_Giving_Number?: string /* max 50 chars */ | null;
-
-  Confirmed_Mobile_Date?: string /* ISO datetime */ | null;
-
   Always_Soft_Credit?: number /* 32-bit integer */ | null; // Foreign Key -> Donors.Donor_ID
 
   Always_Pledge_Credit?: number /* 32-bit integer */ | null; // Foreign Key -> Donors.Donor_ID

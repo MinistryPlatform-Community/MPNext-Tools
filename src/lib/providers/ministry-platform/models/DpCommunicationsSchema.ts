@@ -19,16 +19,14 @@ export const DpCommunicationsSchema = z.object({
   Time_Zone: z.unknown().nullable(),
   Locale: z.unknown().nullable(),
   Bulk_Email: z.boolean(),
-  Template: z.boolean().nullable(),
+  Template: z.boolean(),
   Active: z.boolean(),
   Expire_Date: z.string().datetime().nullable(),
   Template_User: z.number().int().nullable(),
   Template_User_Group: z.number().int().nullable(),
-  Tracking_Info: z.string().max(255).nullable(),
-  BG_Color: z.string().max(16).nullable(),
+  Communication_GUID: z.string().uuid(),
   Alternate_Email_Type_ID: z.number().int().nullable(),
   Publication_ID: z.number().int().nullable(),
-  Deletion: z.boolean().nullable(),
 });
 
 export type DpCommunicationsInput = z.infer<typeof DpCommunicationsSchema>;

@@ -18,10 +18,6 @@ export interface ProgramGroups {
   Start_Date: string /* ISO datetime */;
 
   End_Date?: string /* ISO datetime */ | null;
-
-  "Secure_Check-in"?: boolean | null;
-
-  Omit_from_Roster?: boolean | null;
 }
 
 export type ProgramGroupsRecord = ProgramGroups;

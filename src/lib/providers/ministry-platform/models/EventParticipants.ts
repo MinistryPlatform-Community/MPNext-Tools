@@ -45,8 +45,6 @@ export interface EventParticipants {
 
   Response_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Responses.Response_ID
 
-  Shirt_Size_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Shirt_Sizes.Shirt_Size_ID
-
   Registrant_Message_Sent: boolean; // Has Default
 
   Attendee_Message_Sent: boolean; // Has Default

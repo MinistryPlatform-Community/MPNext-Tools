@@ -10,7 +10,6 @@ export const ParticipantsSchema = z.object({
   Participant_Start_Date: z.string().datetime(),
   Participant_End_Date: z.string().datetime().nullable(),
   Notes: z.string().max(1000).nullable(),
-  Kid_Post_Card_Sent: z.string().datetime().nullable(),
   _First_Attendance_Ever: z.string().datetime().nullable(),
   _Second_Attendance_Ever: z.string().datetime().nullable(),
   _Third_Attendance_Ever: z.string().datetime().nullable(),

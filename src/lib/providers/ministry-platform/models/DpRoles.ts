@@ -25,6 +25,8 @@ export interface DpRoles {
 
   Role_Type_ID?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Role_Types.Role_Type_ID
 
+  Parish_Assignable: boolean; // Has Default
+
   Texting_Override: boolean; // Has Default
 }
 

@@ -29,7 +29,7 @@ export interface GroupRoles {
 
   Background_Check_Required: boolean; // Has Default
 
-  Omit_From_Portal: boolean; // Has Default
+  Omit_From_Portal?: boolean | null;
 
   Manages_Volunteers: boolean; // Has Default
 }

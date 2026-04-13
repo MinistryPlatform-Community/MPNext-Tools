@@ -7,7 +7,6 @@ export const DpPublicationsSchema = z.object({
   Description: z.string().max(255).nullable(),
   Moderator: z.number().int().nullable(),
   Available_Online: z.boolean().nullable(),
-  User_Group_ID: z.number().int().nullable(),
   Online_Sort_Order: z.number().int().nullable(),
   MailChimp_List: z.string().max(50).nullable(),
   Last_Sync_Date: z.string().datetime().nullable(),

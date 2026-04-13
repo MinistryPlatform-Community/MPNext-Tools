@@ -2,7 +2,7 @@
  * Interface for Books
 * Table: Books
  * Access Level: ReadWriteAssignDelete
- * Special Permissions: FileAttach
+ * Special Permissions: FileAttach, DataExport, SecureRecord
  * Generated from column metadata
  */
 export interface Books {
@@ -28,12 +28,7 @@ export interface Books {
 
   Start_Date?: string /* ISO datetime */ | null;
 
-  Active: boolean; // Has Default
-
-  /**
-   * Max length: 255 characters
-   */
-  Purchase_Url?: string /* max 255 chars */ | null;
+  Genre_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Genres.Genre_ID
 }
 
 export type BooksRecord = Books;

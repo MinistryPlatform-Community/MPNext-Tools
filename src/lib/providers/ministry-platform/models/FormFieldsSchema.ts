@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const FormFieldsSchema = z.object({
   Form_Field_ID: z.number().int(),
   Field_Order: z.number().int(),
-  Field_Label: z.string().max(200),
+  Field_Label: z.string().max(128),
   Field_Type_ID: z.number().int(),
   Field_Values: z.string().max(4000).nullable(),
   Required: z.boolean(),

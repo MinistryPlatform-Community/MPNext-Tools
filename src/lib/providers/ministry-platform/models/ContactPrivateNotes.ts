@@ -2,7 +2,7 @@
  * Interface for Contact_Private_Notes
 * Table: Contact_Private_Notes
  * Access Level: ReadWriteAssignDelete
- * Special Permissions: DataExport
+ * Special Permissions: None
  * Generated from column metadata
  */
 export interface ContactPrivateNotes {

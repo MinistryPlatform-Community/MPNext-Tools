@@ -1,7 +1,7 @@
 /**
  * Interface for Countries
 * Table: Countries
- * Access Level: ReadWriteAssignDelete
+ * Access Level: Read
  * Special Permissions: None
  * Generated from column metadata
  */

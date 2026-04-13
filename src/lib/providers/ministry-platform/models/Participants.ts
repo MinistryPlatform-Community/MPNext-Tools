@@ -31,8 +31,6 @@ export interface Participants {
    */
   Notes?: string /* max 1000 chars */ | null;
 
-  Kid_Post_Card_Sent?: string /* ISO datetime */ | null;
-
   _First_Attendance_Ever?: string /* ISO datetime */ | null; // Read Only
 
   _Second_Attendance_Ever?: string /* ISO datetime */ | null; // Read Only

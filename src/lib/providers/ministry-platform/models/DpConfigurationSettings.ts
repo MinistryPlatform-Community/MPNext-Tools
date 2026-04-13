@@ -1,7 +1,7 @@
 /**
  * Interface for dp_Configuration_Settings
 * Table: dp_Configuration_Settings
- * Access Level: ReadWriteAssignDelete
+ * Access Level: ReadWrite
  * Special Permissions: DataExport
  * Generated from column metadata
  */

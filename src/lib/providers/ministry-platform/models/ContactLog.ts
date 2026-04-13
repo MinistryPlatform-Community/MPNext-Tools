@@ -13,14 +13,14 @@ export interface ContactLog {
 
   Contact_Date: string /* ISO datetime */;
 
+  Contact_Log_Type_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Contact_Log_Types.Contact_Log_Type_ID
+
   Made_By: number /* 32-bit integer */; // Foreign Key -> dp_Users.User_ID
 
   /**
    * Max length: 2000 characters
    */
   Notes: string /* max 2000 chars */;
-
-  Contact_Log_Type_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Contact_Log_Types.Contact_Log_Type_ID
 
   Planned_Contact_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Planned_Contacts.Planned_Contact_ID
 

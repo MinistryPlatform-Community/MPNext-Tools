@@ -27,9 +27,9 @@ export interface EventEquipment {
   Cancelled: boolean; // Has Default
 
   /**
-   * Max length: 500 characters
+   * Max length: 2000 characters
    */
-  Notes?: string /* max 500 chars */ | null;
+  Notes?: string /* max 2000 chars */ | null;
 }
 
 export type EventEquipmentRecord = EventEquipment;

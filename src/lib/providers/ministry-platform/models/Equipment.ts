@@ -47,11 +47,6 @@ export interface Equipment {
 
   Auto_Approve: boolean; // Has Default
 
-  /**
-   * Max length: 2147483647 characters
-   */
-  Equipment_Notes?: string /* max 2147483647 chars */ | null;
-
   Quantity: number /* 32-bit integer */; // Has Default
 }
 

@@ -18,7 +18,6 @@ export const GroupParticipantsSchema = z.object({
   _Second_Attendance: z.string().datetime().nullable(),
   _Third_Attendance: z.string().datetime().nullable(),
   _Last_Attendance: z.string().datetime().nullable(),
-  Last_Confirmation_Date: z.string().datetime().nullable(),
   Show_Email: z.boolean(),
   Show_Phone: z.boolean(),
   Show_Last_Name: z.boolean(),
@@ -29,7 +28,6 @@ export const GroupParticipantsSchema = z.object({
   _Show_Mobile_Phone: z.boolean(),
   _Show_Address: z.boolean(),
   _Show_Photo: z.boolean(),
-  Group_Participant_GUID: z.string().uuid(),
 });
 
 export type GroupParticipantsInput = z.infer<typeof GroupParticipantsSchema>;

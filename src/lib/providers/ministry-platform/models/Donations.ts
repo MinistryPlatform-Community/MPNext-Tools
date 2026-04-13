@@ -64,8 +64,6 @@ export interface Donations {
 
   Receipt_Number?: number /* 32-bit integer */ | null;
 
-  Recurring_Donation_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Recurring_Donations.Recurring_Donation_ID
-
   /**
    * Max length: 100 characters
    */

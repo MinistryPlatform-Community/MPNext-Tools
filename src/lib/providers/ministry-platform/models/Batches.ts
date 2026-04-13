@@ -41,12 +41,12 @@ export interface Batches {
    */
   _Source_File?: string /* max 50 chars */ | null; // Read Only
 
-  Default_Payment_Type?: number /* 32-bit integer */ | null; // Foreign Key -> Payment_Types.Payment_Type_ID
+  Default_Payment_Type?: number /* 32-bit integer */ | null; // Foreign Key -> Payment_Types.Payment_Type_ID, Has Default
 
   /**
    * Max length: 25 characters
    */
-  Currency?: string /* max 25 chars */ | null;
+  Currency?: string /* max 25 chars */ | null; // Has Default
 
   Operator_User?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Users.User_ID
 

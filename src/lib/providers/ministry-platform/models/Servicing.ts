@@ -32,6 +32,8 @@ export interface Servicing {
 
   Contact_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Contacts.Contact_ID
 
+  Standard_Service: boolean; // Has Default
+
   Auto_Approve: boolean; // Has Default
 
   Days_To_Remind?: number /* 32-bit integer */ | null;

@@ -31,8 +31,6 @@ export interface Audiences {
   Last_Update_Status?: string /* max 256 chars */ | null;
 
   Next_Update_Date?: string /* ISO datetime */ | null;
-
-  Publication_ID?: number /* 32-bit integer */ | null; // Foreign Key -> dp_Publications.Publication_ID
 }
 
 export type AudiencesRecord = Audiences;

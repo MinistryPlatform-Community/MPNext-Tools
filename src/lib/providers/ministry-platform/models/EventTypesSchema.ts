@@ -8,8 +8,6 @@ export const EventTypesSchema = z.object({
   Show_On_MPMobile: z.boolean(),
   Omit_From_Engagement_Attendance: z.boolean(),
   Auto_Close_Registrations: z.boolean(),
-  Milestone_ID: z.number().int().nullable(),
-  Consolidate_Same_Day: z.boolean(),
 });
 
 export type EventTypesInput = z.infer<typeof EventTypesSchema>;

@@ -11,7 +11,7 @@ export const PledgesSchema = z.object({
   _Installment_Amount: z.number().nullable(),
   First_Installment_Date: z.string().datetime(),
   Notes: z.string().max(500).nullable(),
-  Beneficiary: z.string().max(75).nullable(),
+  Beneficiary: z.string().max(50).nullable(),
   Trip_Leader: z.boolean(),
   Currency: z.string().max(25).nullable(),
   Parish_Credited_ID: z.number().int().nullable(),
@@ -19,8 +19,8 @@ export const PledgesSchema = z.object({
   _Gift_Frequency: z.number().int().nullable(),
   Donation_Source_ID: z.number().int().nullable(),
   Send_Pledge_Statement: z.boolean(),
-  _Last_Installment_Date: z.string().datetime().nullable(),
   _Original_Amount: z.number().nullable(),
+  _Last_Installment_Date: z.string().datetime().nullable(),
   Batch_ID: z.number().int().nullable(),
 });
 

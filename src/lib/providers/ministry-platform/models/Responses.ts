@@ -16,9 +16,9 @@ export interface Responses {
   Participant_ID: number /* 32-bit integer */; // Foreign Key -> Participants.Participant_ID
 
   /**
-   * Max length: 1000 characters
+   * Max length: 2000 characters
    */
-  Comments?: string /* max 1000 chars */ | null;
+  Comments?: string /* max 2000 chars */ | null;
 
   /**
    * Max length: 50 characters

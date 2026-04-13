@@ -5,7 +5,7 @@ export const ResponsesSchema = z.object({
   Response_Date: z.string().datetime(),
   Opportunity_ID: z.number().int(),
   Participant_ID: z.number().int(),
-  Comments: z.string().max(1000).nullable(),
+  Comments: z.string().max(2000).nullable(),
   First_Name: z.string().max(50).nullable(),
   Last_Name: z.string().max(50).nullable(),
   Email: z.string().max(254).nullable(),
