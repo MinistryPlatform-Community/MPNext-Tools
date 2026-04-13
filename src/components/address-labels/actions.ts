@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { pdf } from '@react-pdf/renderer';
 import { ToolService } from '@/services/toolService';
 import { AddressLabelService } from '@/services/addressLabelService';
+import { MPHelper } from '@/lib/providers/ministry-platform';
 import type { ContactAddressRow } from '@/services/addressLabelService';
 import type { ToolParams } from '@/lib/tool-params';
 import type {
@@ -21,6 +22,22 @@ async function getSession() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) throw new Error('Unauthorized');
   return session;
+}
+
+async function getMPUserId(session: Awaited<ReturnType<typeof getSession>>): Promise<number> {
+  const userGuid = (session.user as Record<string, unknown>).userGuid as string | undefined;
+  if (!userGuid) throw new Error('User GUID not found in session');
+
+  const mp = new MPHelper();
+  const records = await mp.getTableRecords<{ User_ID: number }>({
+    table: 'dp_Users',
+    filter: `User_GUID = '${userGuid}'`,
+    select: 'User_ID',
+    top: 1,
+  });
+
+  if (!records || records.length === 0) throw new Error('MP user not found');
+  return records[0].User_ID;
 }
 
 function filterAndTransform(
@@ -83,14 +100,15 @@ export async function fetchAddressLabels(
   params: ToolParams,
   config: LabelConfig
 ): Promise<FetchAddressLabelsResult> {
-  await getSession();
+  const session = await getSession();
 
   const addressService = await AddressLabelService.getInstance();
 
   if (params.s && params.pageID) {
-    // Selection mode
+    // Selection mode — need MP User_ID for the selection stored proc
+    const userId = await getMPUserId(session);
     const toolService = await ToolService.getInstance();
-    const contactIds = await toolService.getSelectionRecordIds(params.pageID, params.s);
+    const contactIds = await toolService.getSelectionRecordIds(params.s, userId, params.pageID);
 
     if (contactIds.length === 0) {
       return { printable: [], skipped: [] };

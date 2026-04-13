@@ -71,6 +71,46 @@ describe('ToolService', () => {
     });
   });
 
+  describe('getSelectionRecordIds', () => {
+    it('should call api_CloudTools_GetSelection with correct params', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([
+        [{ Record_ID: 101 }, { Record_ID: 102 }, { Record_ID: 103 }],
+      ]);
+
+      const service = await ToolService.getInstance();
+      const result = await service.getSelectionRecordIds(270, 42, 292);
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_CloudTools_GetSelection', {
+        '@SelectionID': 270,
+        '@UserID': 42,
+        '@PageID': 292,
+      });
+      expect(result).toEqual([101, 102, 103]);
+    });
+
+    it('should return empty array when no records found', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[]]);
+
+      const service = await ToolService.getInstance();
+      const result = await service.getSelectionRecordIds(270, 42, 292);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should find Record_ID in any result set', async () => {
+      // Some procs return metadata in first result set, records in second
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([
+        [{ SomeMetadata: 'value' }],
+        [{ Record_ID: 201 }, { Record_ID: 202 }],
+      ]);
+
+      const service = await ToolService.getInstance();
+      const result = await service.getSelectionRecordIds(270, 42, 292);
+
+      expect(result).toEqual([201, 202]);
+    });
+  });
+
   describe('getUserTools', () => {
     it('should return tool paths array', async () => {
       mockExecuteProcedureWithBody.mockResolvedValueOnce([

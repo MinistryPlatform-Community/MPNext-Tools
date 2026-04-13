@@ -80,27 +80,32 @@ export class ToolService {
 
   /**
    * Retrieves the record IDs from a Ministry Platform selection.
-   * Calls the api_CCM_Web_GetSelectionData stored procedure which returns
-   * three result sets: page metadata, selection info, and selection records.
+   * Calls the api_CloudTools_GetSelection stored procedure.
    *
-   * @param pageId - The Ministry Platform Page ID
    * @param selectionId - The Selection ID
+   * @param userId - The Ministry Platform User ID
+   * @param pageId - The Ministry Platform Page ID
    * @returns Promise<number[]> - Array of Record_IDs from the selection
    */
-  public async getSelectionRecordIds(pageId: number, selectionId: number): Promise<number[]> {
-    console.log('ToolService.getSelectionRecordIds - Called with pageId:', pageId, 'selectionId:', selectionId);
+  public async getSelectionRecordIds(selectionId: number, userId: number, pageId: number): Promise<number[]> {
+    console.log('ToolService.getSelectionRecordIds - Called with selectionId:', selectionId, 'userId:', userId, 'pageId:', pageId);
 
     try {
-      const result = await this.mp!.executeProcedureWithBody('api_CCM_Web_GetSelectionData', {
-        '@pageId': pageId,
-        '@selectionId': selectionId,
+      const result = await this.mp!.executeProcedureWithBody('api_CloudTools_GetSelection', {
+        '@SelectionID': selectionId,
+        '@UserID': userId,
+        '@PageID': pageId,
       });
 
-      // Result set [2] contains the selection records with Record_ID
-      if (result && result.length > 2 && result[2].length > 0) {
-        const recordIds = (result[2] as Array<{ Record_ID: number }>).map((r) => r.Record_ID);
-        console.log('ToolService.getSelectionRecordIds - Found record IDs:', recordIds);
-        return recordIds;
+      // Find the result set containing Record_ID
+      if (result && result.length > 0) {
+        for (const resultSet of result) {
+          if (Array.isArray(resultSet) && resultSet.length > 0 && 'Record_ID' in resultSet[0]) {
+            const recordIds = (resultSet as Array<{ Record_ID: number }>).map((r) => r.Record_ID);
+            console.log('ToolService.getSelectionRecordIds - Found record IDs:', recordIds);
+            return recordIds;
+          }
+        }
       }
 
       console.log('ToolService.getSelectionRecordIds - No records found for selection:', selectionId);
