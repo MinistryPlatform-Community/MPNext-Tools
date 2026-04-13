@@ -162,14 +162,21 @@ export async function generateLabelPdf(
 
       // Fall back to POSTNET from Postal_Code + Delivery_Point_Code
       const zip = label.postalCode?.replace(/-/g, '').trim();
-      const dp = label.deliveryPointCode?.trim();
+      const dp = label.deliveryPointCode?.trim().padStart(2, '0');
       if (zip) {
         try {
-          const routingCode = dp ? zip + dp : zip;
+          // Build routing code: ZIP (5), ZIP+4 (9), or ZIP+4+DP (11)
+          const routingCode = dp && dp !== '00' ? zip + dp : zip;
           const bars = postnetEncode(routingCode);
           return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
         } catch {
-          // No barcode possible
+          // Invalid routing code length — try ZIP-only (first 5 digits)
+          try {
+            const bars = postnetEncode(zip.substring(0, 5));
+            return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
+          } catch {
+            // No barcode possible
+          }
         }
       }
 
