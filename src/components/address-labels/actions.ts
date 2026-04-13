@@ -1,0 +1,105 @@
+'use server';
+
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { ToolService } from '@/services/toolService';
+import { AddressLabelService } from '@/services/addressLabelService';
+import type { ContactAddressRow } from '@/services/addressLabelService';
+import type { ToolParams } from '@/lib/tool-params';
+import type {
+  LabelData,
+  SkipRecord,
+  LabelConfig,
+  FetchAddressLabelsResult,
+} from '@/lib/dto';
+
+async function getSession() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) throw new Error('Unauthorized');
+  return session;
+}
+
+function filterAndTransform(
+  rows: ContactAddressRow[],
+  config: LabelConfig
+): FetchAddressLabelsResult {
+  const printable: LabelData[] = [];
+  const skipped: SkipRecord[] = [];
+  const seenHouseholds = new Set<number>();
+
+  for (const row of rows) {
+    const name = config.addressMode === 'household'
+      ? (row.Household_Name ?? row.Display_Name)
+      : row.Display_Name;
+
+    if (row.Bulk_Mail_Opt_Out) {
+      skipped.push({ name, contactId: row.Contact_ID, reason: 'opted_out' });
+      continue;
+    }
+
+    if (!row.Address_Line_1) {
+      skipped.push({ name, contactId: row.Contact_ID, reason: 'no_address' });
+      continue;
+    }
+
+    if (!row.Postal_Code) {
+      skipped.push({ name, contactId: row.Contact_ID, reason: 'no_postal_code' });
+      continue;
+    }
+
+    if (!row.Bar_Code && !config.includeMissingBarcodes) {
+      skipped.push({ name, contactId: row.Contact_ID, reason: 'no_barcode' });
+      continue;
+    }
+
+    // Household dedup
+    if (config.addressMode === 'household' && row.Household_ID) {
+      if (seenHouseholds.has(row.Household_ID)) continue;
+      seenHouseholds.add(row.Household_ID);
+    }
+
+    printable.push({
+      name,
+      addressLine1: row.Address_Line_1,
+      addressLine2: row.Address_Line_2 ?? undefined,
+      city: row.City ?? '',
+      state: row['State/Region'] ?? '',
+      postalCode: row.Postal_Code,
+      barCode: row.Bar_Code ?? undefined,
+    });
+  }
+
+  // Defensive sort by postal code
+  printable.sort((a, b) => a.postalCode.localeCompare(b.postalCode));
+
+  return { printable, skipped };
+}
+
+export async function fetchAddressLabels(
+  params: ToolParams,
+  config: LabelConfig
+): Promise<FetchAddressLabelsResult> {
+  await getSession();
+
+  const addressService = await AddressLabelService.getInstance();
+
+  if (params.s && params.pageID) {
+    // Selection mode
+    const toolService = await ToolService.getInstance();
+    const contactIds = await toolService.getSelectionRecordIds(params.pageID, params.s);
+
+    if (contactIds.length === 0) {
+      return { printable: [], skipped: [] };
+    }
+
+    const rows = await addressService.getAddressesForContacts(contactIds);
+    return filterAndTransform(rows, config);
+  } else if (params.recordID && params.recordID !== -1) {
+    // Single record mode
+    const row = await addressService.getAddressForContact(params.recordID);
+    if (!row) return { printable: [], skipped: [] };
+    return filterAndTransform([row], config);
+  }
+
+  return { printable: [], skipped: [] };
+}
