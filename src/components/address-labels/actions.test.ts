@@ -48,7 +48,6 @@ vi.mock('@react-pdf/renderer', () => ({
   Page: 'Page',
   View: 'View',
   Text: 'Text',
-  Canvas: 'Canvas',
   StyleSheet: { create: (s: Record<string, unknown>) => s },
 }));
 
