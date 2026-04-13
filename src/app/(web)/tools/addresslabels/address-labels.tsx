@@ -1,0 +1,140 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { ToolContainer } from '@/components/tool';
+import { AddressLabelsForm, AddressLabelsSummary } from '@/components/address-labels';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { getLabelStock } from '@/lib/label-stock';
+import { fetchAddressLabels, generateLabelPdf } from '@/components/address-labels/actions';
+import type { ToolParams } from '@/lib/tool-params';
+import type { LabelData, SkipRecord, LabelConfig } from '@/lib/dto';
+
+interface AddressLabelsProps {
+  params: ToolParams;
+}
+
+export function AddressLabels({ params }: AddressLabelsProps) {
+  const router = useRouter();
+
+  const [config, setConfig] = useState<LabelConfig>({
+    stockId: '5160',
+    addressMode: 'household',
+    startPosition: 1,
+    includeMissingBarcodes: true,
+  });
+
+  const [printable, setPrintable] = useState<LabelData[]>([]);
+  const [skipped, setSkipped] = useState<SkipRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const stock = getLabelStock(config.stockId);
+  const maxStartPosition = stock ? stock.columns * stock.rows : 30;
+
+  // Only re-fetch when filtering-relevant config changes (mode, barcode toggle),
+  // NOT when layout-only config changes (stock, start position)
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await fetchAddressLabels(params, config);
+      setPrintable(result.printable);
+      setSkipped(result.skipped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load address data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [params, config.addressMode, config.includeMissingBarcodes]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleGenerate = async () => {
+    if (printable.length === 0) return;
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const result = await generateLabelPdf(printable, config.stockId, config.startPosition);
+
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      // Convert base64 to blob and open in new tab
+      const byteCharacters = atob(result.data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'PDF generation failed');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleClose = () => {
+    router.back();
+  };
+
+  return (
+    <ToolContainer
+      title="Address Labels"
+      onClose={handleClose}
+      hideFooter
+    >
+      <div className="px-6 py-4 space-y-6 max-w-2xl">
+        <AddressLabelsForm
+          config={config}
+          onChange={setConfig}
+          maxStartPosition={maxStartPosition}
+        />
+
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading address data...
+          </div>
+        ) : (
+          <>
+            <AddressLabelsSummary
+              printableCount={printable.length}
+              skipped={skipped}
+            />
+
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 rounded-md p-3">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                onClick={handleGenerate}
+                disabled={printable.length === 0 || isGenerating}
+              >
+                {isGenerating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Generate & Print
+              </Button>
+              <Button variant="outline" onClick={handleClose}>
+                Close
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </ToolContainer>
+  );
+}
