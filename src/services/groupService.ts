@@ -13,7 +13,7 @@ import type {
 } from '@/lib/dto';
 import type { Groups, GroupParticipants, GroupTags } from '@/lib/providers/ministry-platform/models';
 import type { TableRecord } from '@/lib/providers/ministry-platform/types';
-import { GROUP_ROLE_LEADER } from '@/components/team-wizard/schemas';
+import { GROUP_ROLE_LEADER } from '@/components/group-wizard/schemas';
 
 /**
  * GroupService - Singleton service for group-related Ministry Platform operations.

@@ -1,6 +1,6 @@
-# CLAUDE.md - CalvaryToolsNext Development Guide
+# CLAUDE.md - MPNext Tools Development Guide
 
-This guide provides essential information for AI assistants (like Claude) working on the CalvaryToolsNext project.
+This guide provides essential information for AI assistants (like Claude) working on the MPNext Tools project.
 
 ## Commands
 
@@ -71,9 +71,9 @@ This guide provides essential information for AI assistants (like Claude) workin
 ```
 src/components/
 ├── layout/               # Layout components (AuthWrapper)
+├── shared/               # Shared components (ContactSearchCombobox, TagManager, WizardStepper)
 ├── shared-actions/       # Shared actions used across features
 ├── tool/                 # Tool framework (Container, Header, Footer, ParamsDebug)
-├── team-wizard/          # Multi-step wizard (form steps, combobox, tag manager, schemas)
 ├── user-menu/            # User dropdown with OIDC sign-out
 ├── user-tools-debug/     # Dev helper: authorized tool paths
 ├── ui/                   # shadcn/ui components (22)

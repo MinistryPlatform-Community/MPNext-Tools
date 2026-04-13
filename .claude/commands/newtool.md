@@ -4,7 +4,7 @@ Scaffold a new Ministry Platform tool by copying the template tool pattern, upda
 
 ## Arguments
 
-- `$ARGUMENTS` - The tool name (e.g., `teamwizard`, `Team Wizard`, `group-wizard`). If not provided, ask the user for a tool name before proceeding.
+- `$ARGUMENTS` - The tool name (e.g., `contacts`, `Event Manager`, `group-wizard`). If not provided, ask the user for a tool name before proceeding.
 
 ## Instructions
 
@@ -12,12 +12,12 @@ Scaffold a new Ministry Platform tool by copying the template tool pattern, upda
 
 From the provided name, derive these variants:
 
-| Variant | Example (input: "Team Wizard") | Usage |
+| Variant | Example (input: "Event Manager") | Usage |
 |---------|-------------------------------|-------|
-| **routeName** | `teamwizard` | Route folder name — lowercase, no spaces, no hyphens |
-| **fileName** | `team-wizard` | Component file name — kebab-case |
-| **componentName** | `TeamWizard` | React component & interface names — PascalCase |
-| **displayName** | `Team Wizard` | Human-readable title shown in headers, cards, tooltips |
+| **routeName** | `eventmanager` | Route folder name — lowercase, no spaces, no hyphens |
+| **fileName** | `event-manager` | Component file name — kebab-case |
+| **componentName** | `EventManager` | React component & interface names — PascalCase |
+| **displayName** | `Event Manager` | Human-readable title shown in headers, cards, tooltips |
 
 If the input is ambiguous (e.g., single word like `contacts`), treat it as both the routeName and derive the rest:
 - `contacts` → routeName: `contacts`, fileName: `contacts`, componentName: `Contacts`, displayName: `Contacts`
@@ -170,7 +170,7 @@ After creating all files, confirm the new tool by listing the created files and 
 If the user provides multiple tool names (comma-separated or space-separated), repeat steps 2–4 for each tool. For example:
 
 ```
-/newtool teamwizard, groupwizard
+/newtool eventmanager, contacts
 ```
 
 Creates both tools and adds both cards to the homepage.
@@ -179,4 +179,4 @@ Creates both tools and adds both cards to the homepage.
 
 - The template includes dev-only debug components (`ToolParamsDebug`, `UserToolsDebug`) — these should be removed before production
 - The `page.tsx` uses a default export (Next.js requirement), but the tool component uses a named export per project convention
-- Route names should be lowercase with no separators (matching existing pattern: `template`, `teamwizard`, `groupwizard`)
+- Route names should be lowercase with no separators (matching existing pattern: `template`, `groupwizard`, `templateeditor`)

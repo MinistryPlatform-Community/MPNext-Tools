@@ -92,14 +92,14 @@ describe('proxy', () => {
     });
 
     it('should include callbackUrl when redirecting to /signin', async () => {
-      const request = createMockRequest('/tools/teamwizard?recordID=123&pageID=456');
+      const request = createMockRequest('/tools/groupwizard?recordID=123&pageID=456');
       mockGetSessionCookie.mockReturnValueOnce(null);
 
       await proxy(request);
 
       const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
       expect(redirectUrl.pathname).toBe('/signin');
-      expect(redirectUrl.searchParams.get('callbackUrl')).toBe('/tools/teamwizard?recordID=123&pageID=456');
+      expect(redirectUrl.searchParams.get('callbackUrl')).toBe('/tools/groupwizard?recordID=123&pageID=456');
     });
 
     it('should include callbackUrl without query string for simple paths', async () => {

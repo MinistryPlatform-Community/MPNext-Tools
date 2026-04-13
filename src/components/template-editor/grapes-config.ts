@@ -1,6 +1,6 @@
 import type { EditorConfig } from 'grapesjs';
 
-export const STORAGE_KEY = 'calvary-template-editor';
+export const STORAGE_KEY = 'mp-template-editor';
 
 export const DEFAULT_MJML_TEMPLATE = `<mjml>
   <mj-body background-color="#f4f4f4">

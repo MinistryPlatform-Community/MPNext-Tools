@@ -10,7 +10,19 @@ export const MEETING_TYPE_ONSITE = 1;
 export const MEETING_TYPE_OFFSITE = 2;
 export const MEETING_TYPE_ONLINE = 3;
 
-export { CONGREGATIONS, GROUP_FOCUS_MEN, GROUP_FOCUS_WOMEN, GROUP_FOCUS_MEN_AND_WOMEN, GROUP_ROLE_LEADER } from '@/components/team-wizard/schemas';
+export const GROUP_FOCUS_MEN = 6;
+export const GROUP_FOCUS_WOMEN = 7;
+export const GROUP_FOCUS_MEN_AND_WOMEN = 24;
+
+export const CONGREGATIONS = [
+  { id: 5, name: 'Melbourne' },
+  { id: 6, name: 'Viera' },
+  { id: 7, name: 'Sebastian' },
+  { id: 15, name: 'Espanol' },
+] as const;
+
+/** Group Role ID for "Leader" in Group_Roles table */
+export const GROUP_ROLE_LEADER = 7;
 
 export const MEETING_TYPE_OPTIONS = [
   { id: MEETING_TYPE_ONSITE, label: 'Onsite' },

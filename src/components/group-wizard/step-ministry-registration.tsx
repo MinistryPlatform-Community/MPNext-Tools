@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ContactSearchCombobox } from "@/components/team-wizard/contact-search-combobox";
+import { ContactSearchCombobox } from "@/components/shared/contact-search-combobox";
 import { BookSearchCombobox } from "./book-search-combobox";
 import { searchContacts } from "./actions";
 import {

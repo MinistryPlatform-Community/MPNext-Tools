@@ -2,10 +2,44 @@
  * DTOs for the Group Wizard feature (Small Groups).
  * These are hand-written application-level data transfer objects
  * used between server actions and UI components.
- *
- * Shared types reused from team-wizard.ts:
- *   MinistryOption, GroupFocusOption, TagOption, ContactSearchResult, OffsiteAddressData
  */
+
+// ============================================================
+// Shared types (used across multiple tools)
+// ============================================================
+
+export interface MinistryOption {
+  Ministry_ID: number;
+  Ministry_Name: string;
+}
+
+export interface GroupFocusOption {
+  Group_Focus_ID: number;
+  Group_Focus: string;
+}
+
+export interface TagOption {
+  Tag_ID: number;
+  Tag: string;
+}
+
+export interface ContactSearchResult {
+  Contact_ID: number;
+  Display_Name: string;
+  Participant_ID: number | null;
+}
+
+export interface OffsiteAddressData {
+  addressLine1: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+}
+
+// ============================================================
+// Group Wizard types
+// ============================================================
 
 export interface MeetingDayOption {
   Meeting_Day_ID: number;
@@ -36,9 +70,9 @@ export interface BookOption {
 }
 
 export interface GroupWizardLookupData {
-  ministries: import('./team-wizard').MinistryOption[];
-  groupFocuses: import('./team-wizard').GroupFocusOption[];
-  tags: import('./team-wizard').TagOption[];
+  ministries: MinistryOption[];
+  groupFocuses: GroupFocusOption[];
+  tags: TagOption[];
   meetingDays: MeetingDayOption[];
   meetingFrequencies: MeetingFrequencyOption[];
   meetingDurations: MeetingDurationOption[];
@@ -60,7 +94,7 @@ export interface GroupWizardFormData {
   hybrid: boolean;
   confidential: boolean;
   defaultRoom?: number;
-  offsiteAddress?: import('./team-wizard').OffsiteAddressData;
+  offsiteAddress?: OffsiteAddressData;
   children: 'no' | 'care' | 'welcome';
   tagIds: number[];
   ministryId: number;
@@ -92,7 +126,7 @@ export interface GroupWizardGroupData {
   Confidential: boolean;
   Default_Room: number | null;
   Offsite_Meeting_Address: number | null;
-  offsiteAddress: import('./team-wizard').OffsiteAddressData | null;
+  offsiteAddress: OffsiteAddressData | null;
   Is_Child_Care_Available: boolean;
   Kids_Welcome: boolean;
   Ministry_ID: number;

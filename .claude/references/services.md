@@ -1,6 +1,6 @@
 # Services Reference
 
-Reference guide for application services, server actions, DTOs, and Ministry Platform query patterns used in CalvaryToolsNext.
+Reference guide for application services, server actions, DTOs, and Ministry Platform query patterns used in MPNext Tools.
 
 ---
 
@@ -413,7 +413,7 @@ Returns `GroupParticipants & { Contact_ID: number } | null`. Finds the active le
 | Filter | `Group_ID = ${groupId} AND Group_Role_ID = ${GROUP_ROLE_LEADER} AND End_Date IS NULL` |
 | Top | `1` |
 
-- `GROUP_ROLE_LEADER = 7` (imported from `@/components/team-wizard/schemas`)
+- `GROUP_ROLE_LEADER = 7` (imported from `@/components/group-wizard/schemas`)
 - **FK traversal:** `Participant_ID_TABLE.Contact_ID` gets the Contact_ID from the Participants table
 
 #### addGroupLeader(groupId: number, participantId: number)
@@ -506,50 +506,6 @@ Server actions validate the session, call service singletons, and return data to
 - Returns `string[]` of authorized tool paths
 - Throws on: missing session, missing userGuid, user not found
 
-### Team Wizard Actions
-
-**File:** `src/components/team-wizard/actions.ts`
-
-#### loadWizardLookupData()
-
-- Validates session
-- Calls `GroupService.getInstance()`
-- Runs in parallel: `getMinistries()`, `getGroupFocuses()`, `getGroupTags()`
-- Returns `TeamWizardLookupData`
-
-#### loadGroupData(groupId: number)
-
-- Validates session
-- Calls `getGroupWithDisplayName(groupId)` — returns null if not found
-- Runs in parallel: `getGroupTagRecords(groupId)`, conditionally loads offsite address
-- Maps tag records to `tagIds: number[]`
-- Returns `TeamWizardGroupData | null`
-
-#### searchContacts(term: string)
-
-- Validates session
-- Returns `[]` if `term.length < 2`
-- Calls `searchApprovedVolunteers(term.trim())`
-- Returns `ContactSearchResult[]`
-
-#### saveTeamWizard(formData: TeamWizardFormData, existingGroupId?: number)
-
-Orchestrates a multi-step save operation:
-
-1. **Address creation** (conditional): If Quick Serve + offsite → `createAddress()`
-2. **Group create/update**: `createGroup()` or `updateGroup()` based on `existingGroupId`
-3. **Leader management** via `handleLeaderChange()`:
-   - Gets or creates participant record
-   - Compares new leader to current leader
-   - Ends old leader if different, adds new leader
-4. **Tag reconciliation** via `reconcileTags()`:
-   - Calculates delta between existing and desired tags
-   - Adds new tags and removes old tags in parallel
-
-Returns `TeamWizardSaveResult` (`{ success, groupId?, error? }`).
-
-**Error handling:** Top-level try-catch returns `{ success: false, error: message }`.
-
 ---
 
 ## DTOs
@@ -571,26 +527,23 @@ Hand-written application-level data transfer objects. Separate from auto-generat
 
 | Type | Purpose |
 |------|---------|
-| `TeamWizardLookupData` | Aggregates `ministries`, `groupFocuses`, `tags` for form initialization |
-| `TeamWizardFormData` | Complete form submission (group info, campus, ministry, leader, tags, registration, address) |
-| `TeamWizardGroupData` | Enriched group record for edit mode (includes `Primary_Contact_Display_Name`, `offsiteAddress`, `tagIds`) |
-| `TeamWizardSaveResult` | Operation result: `{ success: boolean, groupId?: number, error?: string }` |
+| `GroupWizardLookupData` | Aggregates `ministries`, `groupFocuses`, `tags`, meeting options for form initialization |
+| `GroupWizardFormData` | Complete form submission (group info, campus, ministry, leader, tags, registration, address) |
+| `GroupWizardGroupData` | Enriched group record for edit mode (includes `Primary_Contact_Display_Name`, `offsiteAddress`, `tagIds`) |
+| `GroupWizardSaveResult` | Operation result: `{ success: boolean, groupId?: number, error?: string }` |
 | `OffsiteAddressData` | Address fields: `addressLine1`, `addressLine2?`, `city?`, `state?`, `postalCode?` |
 
 ---
 
 ## Constants
 
-**File:** `src/components/team-wizard/schemas.ts`
+**File:** `src/components/group-wizard/schemas.ts`
 
 ### Group Types
 
 | Constant | Value | Label |
 |----------|-------|-------|
-| `GROUP_TYPE_MINISTRY_TEAM` | `2` | Ministry Team |
-| `GROUP_TYPE_MISSION_TRIP` | `6` | Mission Trip Team |
-| `GROUP_TYPE_QUICK_SERVE` | `12` | Quick Serve |
-| `GROUP_TYPE_COMMUNICATION` | `13` | Communication Group |
+| `GROUP_TYPE_SMALL_GROUP` | `1` | Small Group |
 
 ### Group Roles
 

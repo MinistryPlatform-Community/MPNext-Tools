@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
-import { WizardStepper } from "@/components/team-wizard/wizard-stepper";
+import { WizardStepper } from "@/components/shared/wizard-stepper";
 import { StepBasicInfo } from "./step-basic-info";
 import { StepLocationDetails } from "./step-location-details";
 import { StepMinistryRegistration } from "./step-ministry-registration";

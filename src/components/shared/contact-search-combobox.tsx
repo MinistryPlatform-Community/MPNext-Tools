@@ -12,7 +12,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import { searchContacts as defaultSearchContacts } from "./actions";
+import { searchContacts as defaultSearchContacts } from "@/components/group-wizard/actions";
 import type { ContactSearchResult } from "@/lib/dto";
 
 interface ContactSearchComboboxProps {
