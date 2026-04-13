@@ -48,9 +48,7 @@ vi.mock('@react-pdf/renderer', () => ({
   Page: 'Page',
   View: 'View',
   Text: 'Text',
-  Svg: 'Svg',
-  Rect: 'Rect',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock passthrough
+  Canvas: 'Canvas',
   StyleSheet: { create: (s: Record<string, unknown>) => s },
 }));
 
