@@ -129,16 +129,40 @@ export async function fetchAddressLabels(
   return { printable: [], skipped: [] };
 }
 
+/**
+ * Build routing code from postal code + delivery point.
+ * Returns 5, 9, or 11 digits (or empty string if invalid).
+ */
+function buildRoutingCode(postalCode?: string, deliveryPointCode?: string): string {
+  const zip = postalCode?.replace(/-/g, '').trim() ?? '';
+  if (!zip) return '';
+  const dp = deliveryPointCode?.trim().padStart(2, '0') ?? '00';
+  if (dp && dp !== '00') return zip + dp;
+  return zip;
+}
+
+/**
+ * Build a full 20-digit IMb tracking code from org settings.
+ * Format: [Barcode ID: 2][Service Type: 3][Mailer ID: 6 or 9][Serial: 9 or 6]
+ */
+let imbSerialCounter = 0;
+function buildImbTrackingCode(mailerId: string, serviceType: string): string {
+  const barcodeId = '00';
+  imbSerialCounter++;
+  const serialLength = mailerId.length === 6 ? 9 : 6;
+  const serial = String(imbSerialCounter).padStart(serialLength, '0');
+  return barcodeId + serviceType + mailerId + serial;
+}
+
 export async function generateLabelPdf(
   labels: LabelData[],
-  stockId: string,
-  startPosition: number
+  config: LabelConfig
 ): Promise<{ success: true; data: string } | { success: false; error: string }> {
   await getSession();
 
-  const stock = getLabelStock(stockId);
+  const stock = getLabelStock(config.stockId);
   if (!stock) {
-    return { success: false, error: `Unknown label stock: ${stockId}` };
+    return { success: false, error: `Unknown label stock: ${config.stockId}` };
   }
 
   if (labels.length === 0) {
@@ -146,36 +170,41 @@ export async function generateLabelPdf(
   }
 
   try {
+    // Reset serial counter for each print job
+    imbSerialCounter = 0;
+
     // Pre-encode barcodes before passing to PDF renderer
-    // (imbEncode uses BigInt which may not work inside react-pdf's render context)
     const labelsWithBars = labels.map((label) => {
-      // Try IMb first (full Bar_Code field)
-      const barCode = label.barCode?.trim();
-      if (barCode) {
+      if (config.barcodeFormat === 'none') return label;
+
+      const routingCode = buildRoutingCode(label.postalCode, label.deliveryPointCode);
+
+      if (config.barcodeFormat === 'imb' && config.mailerId) {
+        // Construct full IMb from org settings + routing data
         try {
-          const bars = imbEncode(barCode);
+          const trackingCode = buildImbTrackingCode(config.mailerId, config.serviceType);
+          const imbInput = trackingCode + routingCode;
+          const bars = imbEncode(imbInput);
           return { ...label, barStates: bars.join(''), barType: 'imb' as const };
         } catch {
           // Fall through to POSTNET
         }
       }
 
-      // Fall back to POSTNET from Postal_Code + Delivery_Point_Code
-      const zip = label.postalCode?.replace(/-/g, '').trim();
-      const dp = label.deliveryPointCode?.trim().padStart(2, '0');
-      if (zip) {
-        try {
-          // Build routing code: ZIP (5), ZIP+4 (9), or ZIP+4+DP (11)
-          const routingCode = dp && dp !== '00' ? zip + dp : zip;
-          const bars = postnetEncode(routingCode);
-          return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
-        } catch {
-          // Invalid routing code length — try ZIP-only (first 5 digits)
+      if (config.barcodeFormat === 'postnet' || config.barcodeFormat === 'imb') {
+        // POSTNET from routing data (also serves as IMb fallback)
+        if (routingCode) {
           try {
-            const bars = postnetEncode(zip.substring(0, 5));
+            const bars = postnetEncode(routingCode);
             return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
           } catch {
-            // No barcode possible
+            // Try ZIP-only fallback
+            try {
+              const bars = postnetEncode(routingCode.substring(0, 5));
+              return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
+            } catch {
+              // No barcode possible
+            }
           }
         }
       }
@@ -186,7 +215,7 @@ export async function generateLabelPdf(
     const doc = React.createElement(LabelDocument, {
       labels: labelsWithBars,
       stock,
-      startPosition,
+      startPosition: config.startPosition,
     });
 
     // pdf() expects ReactElement<DocumentProps> but our wrapper component has its own props.

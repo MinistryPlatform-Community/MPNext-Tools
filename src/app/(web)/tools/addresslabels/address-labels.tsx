@@ -11,6 +11,36 @@ import { fetchAddressLabels, generateLabelPdf } from '@/components/address-label
 import type { ToolParams } from '@/lib/tool-params';
 import type { LabelData, SkipRecord, LabelConfig } from '@/lib/dto';
 
+const STORAGE_KEY = 'address-labels-config';
+
+function loadSavedConfig(): Partial<LabelConfig> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return {};
+    return JSON.parse(saved);
+  } catch {
+    return {};
+  }
+}
+
+function saveConfig(config: LabelConfig) {
+  if (typeof window === 'undefined') return;
+  try {
+    // Persist barcode settings + stock preference (not start position or transient options)
+    const toSave = {
+      stockId: config.stockId,
+      barcodeFormat: config.barcodeFormat,
+      mailerId: config.mailerId,
+      serviceType: config.serviceType,
+      addressMode: config.addressMode,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 interface AddressLabelsProps {
   params: ToolParams;
 }
@@ -18,11 +48,17 @@ interface AddressLabelsProps {
 export function AddressLabels({ params }: AddressLabelsProps) {
   const router = useRouter();
 
-  const [config, setConfig] = useState<LabelConfig>({
-    stockId: '5160',
-    addressMode: 'household',
-    startPosition: 1,
-    includeMissingBarcodes: true,
+  const [config, setConfig] = useState<LabelConfig>(() => {
+    const saved = loadSavedConfig();
+    return {
+      stockId: saved.stockId ?? '5160',
+      addressMode: saved.addressMode ?? 'household',
+      startPosition: 1,
+      includeMissingBarcodes: true,
+      barcodeFormat: saved.barcodeFormat ?? 'postnet',
+      mailerId: saved.mailerId ?? '',
+      serviceType: saved.serviceType ?? '040',
+    };
   });
 
   const [printable, setPrintable] = useState<LabelData[]>([]);
@@ -34,8 +70,14 @@ export function AddressLabels({ params }: AddressLabelsProps) {
   const stock = getLabelStock(config.stockId);
   const maxStartPosition = stock ? stock.columns * stock.rows : 30;
 
+  // Persist config to localStorage on change
+  const handleConfigChange = useCallback((newConfig: LabelConfig) => {
+    setConfig(newConfig);
+    saveConfig(newConfig);
+  }, []);
+
   // Only re-fetch when filtering-relevant config changes (mode, barcode toggle),
-  // NOT when layout-only config changes (stock, start position)
+  // NOT when layout-only config changes (stock, start position, barcode format)
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -57,11 +99,19 @@ export function AddressLabels({ params }: AddressLabelsProps) {
   const handleGenerate = async () => {
     if (printable.length === 0) return;
 
+    // Validate IMb config
+    if (config.barcodeFormat === 'imb') {
+      if (!config.mailerId || (config.mailerId.length !== 6 && config.mailerId.length !== 9)) {
+        setError('IMb requires a 6 or 9 digit USPS Mailer ID');
+        return;
+      }
+    }
+
     setIsGenerating(true);
     setError(null);
 
     try {
-      const result = await generateLabelPdf(printable, config.stockId, config.startPosition);
+      const result = await generateLabelPdf(printable, config);
 
       if (!result.success) {
         setError(result.error);
@@ -99,7 +149,7 @@ export function AddressLabels({ params }: AddressLabelsProps) {
       <div className="px-6 py-4 space-y-6 max-w-2xl">
         <AddressLabelsForm
           config={config}
-          onChange={setConfig}
+          onChange={handleConfigChange}
           maxStartPosition={maxStartPosition}
         />
 

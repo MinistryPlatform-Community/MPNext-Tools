@@ -65,6 +65,9 @@ describe('fetchAddressLabels', () => {
     addressMode: 'household',
     startPosition: 1,
     includeMissingBarcodes: true,
+    barcodeFormat: 'postnet',
+    mailerId: '',
+    serviceType: '040',
   };
 
   beforeEach(() => {
@@ -205,6 +208,16 @@ describe('fetchAddressLabels', () => {
 });
 
 describe('generateLabelPdf', () => {
+  const pdfConfig: LabelConfig = {
+    stockId: '5160',
+    addressMode: 'household',
+    startPosition: 1,
+    includeMissingBarcodes: true,
+    barcodeFormat: 'postnet',
+    mailerId: '',
+    serviceType: '040',
+  };
+
   beforeEach(() => {
     mockGetSession.mockResolvedValue({ user: { id: 'user-1' } });
     mockToBlob.mockReset();
@@ -221,7 +234,7 @@ describe('generateLabelPdf', () => {
       city: 'Test', state: 'TX', postalCode: '75001',
     }];
 
-    const result = await generateLabelPdf(labels, '5160', 1);
+    const result = await generateLabelPdf(labels, pdfConfig);
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -234,7 +247,7 @@ describe('generateLabelPdf', () => {
       name: 'Test', addressLine1: '123 Main',
       city: 'Test', state: 'TX', postalCode: '75001',
     }];
-    const result = await generateLabelPdf(labels, '9999', 1);
+    const result = await generateLabelPdf(labels, { ...pdfConfig, stockId: '9999' });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain('Unknown label stock');
@@ -242,7 +255,7 @@ describe('generateLabelPdf', () => {
   });
 
   it('should return error for empty labels', async () => {
-    const result = await generateLabelPdf([], '5160', 1);
+    const result = await generateLabelPdf([], pdfConfig);
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain('No labels to print');

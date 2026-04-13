@@ -21,12 +21,24 @@ export interface SkipRecord {
 }
 
 export type AddressMode = 'household' | 'individual';
+export type BarcodeFormat = 'imb' | 'postnet' | 'none';
+
+export const SERVICE_TYPES = [
+  { id: '040', name: 'First-Class Mail' },
+  { id: '300', name: 'Marketing Mail (Standard)' },
+  { id: '044', name: 'First-Class Mail (Presorted)' },
+  { id: '700', name: 'Periodicals' },
+  { id: '200', name: 'Priority Mail' },
+] as const;
 
 export interface LabelConfig {
   stockId: string;
   addressMode: AddressMode;
   startPosition: number;
   includeMissingBarcodes: boolean;
+  barcodeFormat: BarcodeFormat;
+  mailerId: string;
+  serviceType: string;
 }
 
 export interface FetchAddressLabelsResult {
