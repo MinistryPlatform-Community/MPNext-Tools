@@ -131,9 +131,13 @@ export async function generateLabelPdf(
       startPosition,
     });
 
-    const instance = pdf(doc);
-    const buffer = await instance.toBuffer();
-    const base64 = Buffer.from(buffer).toString('base64');
+    // pdf() expects ReactElement<DocumentProps> but our wrapper component has its own props.
+    // LabelDocument renders <Document> at its root, so the cast is safe at runtime.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const instance = pdf(doc as any);
+    const blob = await instance.toBlob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
 
     return { success: true, data: base64 };
   } catch (error) {

@@ -4,7 +4,7 @@ const mockGetSession = vi.hoisted(() => vi.fn());
 const mockGetSelectionRecordIds = vi.hoisted(() => vi.fn());
 const mockGetAddressesForContacts = vi.hoisted(() => vi.fn());
 const mockGetAddressForContact = vi.hoisted(() => vi.fn());
-const mockToBuffer = vi.hoisted(() => vi.fn());
+const mockToBlob = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth', () => ({
   auth: {
@@ -36,14 +36,15 @@ vi.mock('@/services/addressLabelService', () => ({
 }));
 
 vi.mock('@react-pdf/renderer', () => ({
-  pdf: vi.fn().mockReturnValue({ toBuffer: mockToBuffer }),
+  pdf: vi.fn().mockReturnValue({ toBlob: mockToBlob }),
   Document: 'Document',
   Page: 'Page',
   View: 'View',
   Text: 'Text',
   Svg: 'Svg',
   Rect: 'Rect',
-  StyleSheet: { create: (s: any) => s },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock passthrough
+  StyleSheet: { create: (s: Record<string, unknown>) => s },
 }));
 
 vi.mock('./label-document', () => ({
@@ -184,12 +185,14 @@ describe('fetchAddressLabels', () => {
 describe('generateLabelPdf', () => {
   beforeEach(() => {
     mockGetSession.mockResolvedValue({ user: { id: 'user-1' } });
-    mockToBuffer.mockReset();
+    mockToBlob.mockReset();
   });
 
   it('should generate PDF and return base64', async () => {
-    const fakeBuffer = Buffer.from('fake-pdf-content');
-    mockToBuffer.mockResolvedValue(fakeBuffer);
+    const fakeContent = 'fake-pdf-content';
+    const fakeArrayBuffer = new TextEncoder().encode(fakeContent).buffer;
+    const fakeBlob = new Blob([fakeArrayBuffer]);
+    mockToBlob.mockResolvedValue(fakeBlob);
 
     const labels: LabelData[] = [{
       name: 'Test', addressLine1: '123 Main',
@@ -200,7 +203,7 @@ describe('generateLabelPdf', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data).toBe(fakeBuffer.toString('base64'));
+      expect(result.data).toBe(Buffer.from(fakeArrayBuffer).toString('base64'));
     }
   });
 
