@@ -14,3 +14,12 @@ export type {
   GroupWizardGroupData,
   GroupWizardSaveResult,
 } from './group-wizard';
+
+export type {
+  LabelData,
+  SkipReason,
+  SkipRecord,
+  AddressMode,
+  LabelConfig,
+  FetchAddressLabelsResult,
+} from './address-label.dto';
