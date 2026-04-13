@@ -27,15 +27,7 @@ function loadSavedConfig(): Partial<LabelConfig> {
 function saveConfig(config: LabelConfig) {
   if (typeof window === 'undefined') return;
   try {
-    // Persist barcode settings + stock preference (not start position or transient options)
-    const toSave = {
-      stockId: config.stockId,
-      barcodeFormat: config.barcodeFormat,
-      mailerId: config.mailerId,
-      serviceType: config.serviceType,
-      addressMode: config.addressMode,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
   } catch {
     // localStorage unavailable
   }
@@ -53,8 +45,8 @@ export function AddressLabels({ params }: AddressLabelsProps) {
     return {
       stockId: saved.stockId ?? '5160',
       addressMode: saved.addressMode ?? 'household',
-      startPosition: 1,
-      includeMissingBarcodes: true,
+      startPosition: saved.startPosition ?? 1,
+      includeMissingBarcodes: saved.includeMissingBarcodes ?? true,
       barcodeFormat: saved.barcodeFormat ?? 'postnet',
       mailerId: saved.mailerId ?? '',
       serviceType: saved.serviceType ?? '040',
