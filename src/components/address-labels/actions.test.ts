@@ -4,6 +4,7 @@ const mockGetSession = vi.hoisted(() => vi.fn());
 const mockGetSelectionRecordIds = vi.hoisted(() => vi.fn());
 const mockGetAddressesForContacts = vi.hoisted(() => vi.fn());
 const mockGetAddressForContact = vi.hoisted(() => vi.fn());
+const mockToBuffer = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth', () => ({
   auth: {
@@ -34,8 +35,23 @@ vi.mock('@/services/addressLabelService', () => ({
   },
 }));
 
-import { fetchAddressLabels } from './actions';
-import type { LabelConfig } from '@/lib/dto';
+vi.mock('@react-pdf/renderer', () => ({
+  pdf: vi.fn().mockReturnValue({ toBuffer: mockToBuffer }),
+  Document: 'Document',
+  Page: 'Page',
+  View: 'View',
+  Text: 'Text',
+  Svg: 'Svg',
+  Rect: 'Rect',
+  StyleSheet: { create: (s: any) => s },
+}));
+
+vi.mock('./label-document', () => ({
+  LabelDocument: 'LabelDocument',
+}));
+
+import { fetchAddressLabels, generateLabelPdf } from './actions';
+import type { LabelConfig, LabelData } from '@/lib/dto';
 import type { ToolParams } from '@/lib/tool-params';
 
 describe('fetchAddressLabels', () => {
@@ -162,5 +178,49 @@ describe('fetchAddressLabels', () => {
     expect(result.printable).toHaveLength(0);
     expect(result.skipped).toHaveLength(1);
     expect(result.skipped[0].reason).toBe('no_barcode');
+  });
+});
+
+describe('generateLabelPdf', () => {
+  beforeEach(() => {
+    mockGetSession.mockResolvedValue({ user: { id: 'user-1' } });
+    mockToBuffer.mockReset();
+  });
+
+  it('should generate PDF and return base64', async () => {
+    const fakeBuffer = Buffer.from('fake-pdf-content');
+    mockToBuffer.mockResolvedValue(fakeBuffer);
+
+    const labels: LabelData[] = [{
+      name: 'Test', addressLine1: '123 Main',
+      city: 'Test', state: 'TX', postalCode: '75001',
+    }];
+
+    const result = await generateLabelPdf(labels, '5160', 1);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toBe(fakeBuffer.toString('base64'));
+    }
+  });
+
+  it('should return error for unknown stock', async () => {
+    const labels: LabelData[] = [{
+      name: 'Test', addressLine1: '123 Main',
+      city: 'Test', state: 'TX', postalCode: '75001',
+    }];
+    const result = await generateLabelPdf(labels, '9999', 1);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('Unknown label stock');
+    }
+  });
+
+  it('should return error for empty labels', async () => {
+    const result = await generateLabelPdf([], '5160', 1);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('No labels to print');
+    }
   });
 });

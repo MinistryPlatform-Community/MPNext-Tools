@@ -1,7 +1,9 @@
 'use server';
 
+import React from 'react';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
+import { pdf } from '@react-pdf/renderer';
 import { ToolService } from '@/services/toolService';
 import { AddressLabelService } from '@/services/addressLabelService';
 import type { ContactAddressRow } from '@/services/addressLabelService';
@@ -12,6 +14,8 @@ import type {
   LabelConfig,
   FetchAddressLabelsResult,
 } from '@/lib/dto';
+import { LabelDocument } from './label-document';
+import { getLabelStock } from '@/lib/label-stock';
 
 async function getSession() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -102,4 +106,41 @@ export async function fetchAddressLabels(
   }
 
   return { printable: [], skipped: [] };
+}
+
+export async function generateLabelPdf(
+  labels: LabelData[],
+  stockId: string,
+  startPosition: number
+): Promise<{ success: true; data: string } | { success: false; error: string }> {
+  await getSession();
+
+  const stock = getLabelStock(stockId);
+  if (!stock) {
+    return { success: false, error: `Unknown label stock: ${stockId}` };
+  }
+
+  if (labels.length === 0) {
+    return { success: false, error: 'No labels to print' };
+  }
+
+  try {
+    const doc = React.createElement(LabelDocument, {
+      labels,
+      stock,
+      startPosition,
+    });
+
+    const instance = pdf(doc);
+    const buffer = await instance.toBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+
+    return { success: true, data: base64 };
+  } catch (error) {
+    console.error('generateLabelPdf error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'PDF generation failed',
+    };
+  }
 }
