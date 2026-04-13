@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { ImbBarcode } from './imb-barcode';
+import { PostnetBarcode } from './postnet-barcode';
 import type { LabelData } from '@/lib/dto';
 
 const styles = StyleSheet.create({
@@ -46,9 +47,14 @@ export function AddressLabel({ data, width, height }: AddressLabelProps) {
         <Text style={styles.addressLine}>{data.addressLine2}</Text>
       )}
       <Text style={styles.cityStateZip}>{cityStateZip}</Text>
-      {data.barStates && (
+      {data.barStates && data.barType === 'imb' && (
         <View style={styles.barcodeContainer}>
-          <ImbBarcode barStates={data.barStates} width={200} height={20} />
+          <ImbBarcode barStates={data.barStates} width={width * 0.7} height={10} />
+        </View>
+      )}
+      {data.barStates && data.barType === 'postnet' && (
+        <View style={styles.barcodeContainer}>
+          <PostnetBarcode barStates={data.barStates} width={width * 0.5} height={8} />
         </View>
       )}
     </View>

@@ -18,6 +18,7 @@ import type {
 import { LabelDocument } from './label-document';
 import { getLabelStock } from '@/lib/label-stock';
 import { imbEncode } from '@/lib/imb-encoder';
+import { postnetEncode } from '@/lib/postnet-encoder';
 
 async function getSession() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -88,6 +89,7 @@ function filterAndTransform(
       state: row['State/Region'] ?? '',
       postalCode: row.Postal_Code,
       barCode: row.Bar_Code ?? undefined,
+      deliveryPointCode: row.Delivery_Point_Code ?? undefined,
     });
   }
 
@@ -147,14 +149,31 @@ export async function generateLabelPdf(
     // Pre-encode barcodes before passing to PDF renderer
     // (imbEncode uses BigInt which may not work inside react-pdf's render context)
     const labelsWithBars = labels.map((label) => {
+      // Try IMb first (full Bar_Code field)
       const barCode = label.barCode?.trim();
-      if (!barCode) return label;
-      try {
-        const bars = imbEncode(barCode);
-        return { ...label, barStates: bars.join('') };
-      } catch {
-        return label;
+      if (barCode) {
+        try {
+          const bars = imbEncode(barCode);
+          return { ...label, barStates: bars.join(''), barType: 'imb' as const };
+        } catch {
+          // Fall through to POSTNET
+        }
       }
+
+      // Fall back to POSTNET from Postal_Code + Delivery_Point_Code
+      const zip = label.postalCode?.replace(/-/g, '').trim();
+      const dp = label.deliveryPointCode?.trim();
+      if (zip) {
+        try {
+          const routingCode = dp ? zip + dp : zip;
+          const bars = postnetEncode(routingCode);
+          return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
+        } catch {
+          // No barcode possible
+        }
+      }
+
+      return label;
     });
 
     const doc = React.createElement(LabelDocument, {

@@ -14,6 +14,7 @@ export interface ContactAddressRow {
   'State/Region': string | null;
   Postal_Code: string | null;
   Bar_Code: string | null;
+  Delivery_Point_Code: string | null;
 }
 
 const BATCH_SIZE = 100;
@@ -32,6 +33,7 @@ const SELECT_FIELDS = [
   'Household_ID_TABLE_Address_ID_TABLE.[State/Region]',
   'Household_ID_TABLE_Address_ID_TABLE.Postal_Code',
   'Household_ID_TABLE_Address_ID_TABLE.Bar_Code',
+  'Household_ID_TABLE_Address_ID_TABLE.Delivery_Point_Code',
 ].join(', ');
 
 /**
