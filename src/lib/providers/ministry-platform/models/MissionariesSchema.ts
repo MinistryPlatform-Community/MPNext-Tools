@@ -1,0 +1,35 @@
+import { z } from 'zod';
+
+export const MissionariesSchema = z.object({
+  Missionary_ID: z.number().int(),
+  Missionary_Title: z.string().max(50).nullable(),
+  Contact_ID: z.number().int(),
+  Start_Date: z.string().datetime(),
+  End_Date: z.string().datetime().nullable(),
+  Ministry_Description: z.string().max(1000).nullable(),
+  Country_ID: z.number().int().nullable(),
+  Show_On_Web: z.boolean(),
+  Newsletter_Url: z.string().max(250).nullable(),
+  Program_ID: z.number().int().nullable(),
+  Monthly_Goal: z.number(),
+  Agency: z.number().int().nullable(),
+  CCM_Support: z.number(),
+  Restricted_Mail: z.boolean().nullable(),
+  Confidential_Phone: z.string().max(25).nullable(),
+  Confidential_Email: z.string().email().max(254).nullable(),
+  Confidential_Address: z.number().int().nullable(),
+  Care_Team: z.number().int().nullable(),
+  Website_Email: z.string().email().max(254).nullable(),
+  Furlough: z.string().max(500).nullable(),
+  Last_Conference: z.string().datetime().nullable(),
+  MAP_Salutation: z.string().max(50).nullable(),
+  Last_Care_Call: z.string().datetime().nullable(),
+  Application_Date: z.string().datetime().nullable(),
+  General_Comments: z.string().max(1000).nullable(),
+  Sensitive_Comments: z.string().max(1000).nullable(),
+  Name_On_Website: z.string().max(128).nullable(),
+  Facebook_Url: z.string().max(250).nullable(),
+  Missionary_GUID: z.string().uuid(),
+});
+
+export type MissionariesInput = z.infer<typeof MissionariesSchema>;

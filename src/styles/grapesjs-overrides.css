@@ -1,0 +1,293 @@
+/* ==========================================================
+   GrapesJS Overrides — CalvaryTools Template Editor
+   ========================================================== */
+
+/* ---- Layout & Container ---- */
+
+.gjs-editor {
+  position: relative !important;
+}
+
+/* Hide the built-in device switcher panel (we use our own toolbar) */
+.gjs-pn-devices-c {
+  display: none !important;
+}
+
+/* Right sidebar panel — blocks, layers, styles */
+.gjs-pn-views-container {
+  background-color: #1e293b;
+  width: 240px !important;
+  right: 0 !important;
+  left: auto !important;
+  top: 0 !important;
+  padding-top: 0 !important;
+  border-left: 1px solid #334155;
+  box-shadow: none !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Canvas: fill remaining space minus the right panel.
+   Width is toggled via inline style from editor-toolbar.tsx */
+.gjs-cv-canvas.gjs-cui {
+  left: 0 !important;
+  transition: width 0.15s ease;
+}
+
+/* Canvas background */
+.gjs-cv-canvas {
+  background-color: #e2e8f0;
+}
+
+/* Frame wrapper — center the email canvas with padding */
+.gjs-frame-wrapper {
+  height: 100% !important;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* The actual iframe */
+.gjs-frame {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+/* ---- Block Manager ---- */
+
+.gjs-blocks-cs {
+  background-color: transparent;
+  padding: 8px;
+}
+
+/* Block category headers */
+.gjs-block-categories {
+  padding: 0;
+}
+
+.gjs-block-category {
+  border-bottom: 1px solid #334155;
+}
+
+.gjs-block-category .gjs-title {
+  background-color: transparent !important;
+  color: #94a3b8 !important;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 8px 6px;
+  border: none;
+}
+
+.gjs-block-category .gjs-caret-icon {
+  color: #64748b;
+}
+
+/* Individual block tiles */
+.gjs-block {
+  background-color: #334155;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 8px 4px;
+  margin: 3px;
+  min-height: auto;
+  width: calc(50% - 6px) !important;
+  color: #cbd5e1;
+  font-size: 11px;
+  transition: all 0.15s ease;
+  justify-content: center;
+}
+
+.gjs-block:hover {
+  background-color: #475569;
+  border-color: #0891b2;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px #0891b2;
+}
+
+.gjs-block svg {
+  fill: #94a3b8;
+}
+
+.gjs-block:hover svg {
+  fill: #ffffff;
+}
+
+.gjs-block__media {
+  margin-bottom: 4px;
+}
+
+/* ---- Layer Manager ---- */
+
+.gjs-layers {
+  background-color: transparent;
+  padding: 8px;
+}
+
+.gjs-layer {
+  background-color: #334155;
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+
+.gjs-layer-name {
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.gjs-layer.gjs-selected .gjs-layer-name {
+  color: #ffffff;
+}
+
+/* ---- Style Manager ---- */
+
+.gjs-sm-sector {
+  background-color: transparent;
+  border-bottom: 1px solid #334155;
+}
+
+.gjs-sm-sector-title {
+  background-color: transparent !important;
+  color: #94a3b8 !important;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: none !important;
+  padding: 10px 8px 6px;
+}
+
+.gjs-sm-properties {
+  padding: 4px 8px;
+}
+
+.gjs-sm-label {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.gjs-field {
+  background-color: #334155;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  color: #e2e8f0;
+}
+
+.gjs-field:focus-within {
+  border-color: #0891b2;
+}
+
+/* ---- Traits Manager ---- */
+
+.gjs-trt-traits {
+  background-color: transparent;
+  padding: 8px;
+}
+
+.gjs-trt-trait {
+  color: #cbd5e1;
+}
+
+.gjs-trt-trait .gjs-label-wrp {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+/* ---- Canvas Interactions ---- */
+
+/* Selected component highlight */
+.gjs-selected {
+  outline: 2px solid #0891b2 !important;
+  outline-offset: -2px;
+}
+
+/* Hovered component highlight */
+.gjs-hovered {
+  outline: 1px dashed #06b6d4 !important;
+}
+
+/* Badge (component name tag) */
+.gjs-badge {
+  background-color: #0891b2 !important;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+/* Toolbar on selected component */
+.gjs-toolbar {
+  background-color: #1e293b;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.gjs-toolbar-item {
+  padding: 3px 5px;
+  color: #cbd5e1;
+  transition: color 0.15s ease;
+}
+
+.gjs-toolbar-item:hover {
+  color: #ffffff;
+}
+
+/* Component drag indicator */
+.gjs-placeholder {
+  border-color: #0891b2 !important;
+  border-width: 2px !important;
+}
+
+/* ---- Rich Text Editor ---- */
+
+.gjs-rte-toolbar {
+  z-index: 30 !important;
+  background-color: #1e293b;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.gjs-rte-actionbar .gjs-rte-action {
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+.gjs-rte-actionbar .gjs-rte-action:hover {
+  color: #ffffff;
+}
+
+.gjs-rte-actionbar .gjs-rte-active {
+  color: #0891b2;
+}
+
+/* ---- Modal/Dialog z-index ---- */
+
+.gjs-mdl-dialog {
+  z-index: 40 !important;
+}
+
+/* Ensure Radix portals render above GrapesJS */
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}
+
+/* ---- Scrollbar styling for right panel ---- */
+
+.gjs-pn-views-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.gjs-pn-views-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gjs-pn-views-container::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+.gjs-pn-views-container::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
