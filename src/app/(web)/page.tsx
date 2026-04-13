@@ -51,6 +51,20 @@ export default function Home() {
             </Link>
           </CardContent>
         </Card>
+
+        <Card className="flex flex-col">
+          <CardHeader>
+            <CardTitle>Address Labels</CardTitle>
+            <CardDescription>
+              Print address labels with USPS Intelligent Mail Barcodes
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Link href="/tools/addresslabels">
+              <Button className="w-full">Open Tool</Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
