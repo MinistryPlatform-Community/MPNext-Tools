@@ -23,7 +23,7 @@ const SELECT_FIELDS = [
   'Display_Name',
   'First_Name',
   'Last_Name',
-  'Household_ID',
+  'Contacts.Household_ID',
   'Household_ID_TABLE.Household_Name',
   'Household_ID_TABLE.Bulk_Mail_Opt_Out',
   'Household_ID_TABLE_Address_ID_TABLE.Address_Line_1',
