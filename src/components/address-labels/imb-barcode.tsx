@@ -1,56 +1,42 @@
-import { Canvas } from '@react-pdf/renderer';
-import { imbEncode, type BarState } from '@/lib/imb-encoder';
+import { View } from '@react-pdf/renderer';
+import type { BarState } from '@/lib/imb-encoder';
 
 interface ImbBarcodeProps {
-  data: string;
-  width?: number;  // total width in points
-  height?: number; // total height in points
+  /** Pre-encoded bar states string (65 chars of T/D/A/F) */
+  barStates: string;
+  width?: number;
+  height?: number;
 }
 
 const BAR_COUNT = 65;
-const BAR_WIDTH_RATIO = 0.38;
 
-// Normalized positions for 4 bar states (0 = top, 1 = bottom)
-const BAR_DIMENSIONS: Record<BarState, { y: number; height: number }> = {
-  T: { y: 0.35, height: 0.3 },
-  D: { y: 0.15, height: 0.85 },
-  A: { y: 0, height: 0.65 },
-  F: { y: 0, height: 1.0 },
+const BAR_DIMS: Record<string, { topOffset: number; barHeight: number }> = {
+  T: { topOffset: 0.35, barHeight: 0.3 },
+  D: { topOffset: 0.15, barHeight: 0.85 },
+  A: { topOffset: 0, barHeight: 0.65 },
+  F: { topOffset: 0, barHeight: 1.0 },
 };
 
-export function ImbBarcode({ data, width = 90, height = 10 }: ImbBarcodeProps) {
-  let bars: BarState[];
-  try {
-    bars = imbEncode(data);
-  } catch (err) {
-    console.error('ImbBarcode encode error:', err, 'data:', data);
-    return null;
-  }
+export function ImbBarcode({ barStates, width = 90, height = 10 }: ImbBarcodeProps) {
+  if (!barStates || barStates.length !== BAR_COUNT) return null;
 
   const pitch = width / BAR_COUNT;
-  const barWidth = pitch * BAR_WIDTH_RATIO;
-
-  // Pre-compute bar positions (Canvas paint fn can't close over component-level lets)
-  const barRects = bars.map((state, i) => {
-    const dims = BAR_DIMENSIONS[state];
-    return {
-      x: i * pitch,
-      y: dims.y * height,
-      w: barWidth,
-      h: dims.height * height,
-    };
-  });
+  const barWidth = Math.max(pitch * 0.38, 0.5);
 
   return (
-    <Canvas
-      style={{ width, height }}
-      paint={(painter) => {
-        painter.fillColor('#000000');
-        for (const bar of barRects) {
-          painter.rect(bar.x, bar.y, bar.w, bar.h).fill();
-        }
-        return null;
-      }}
-    />
+    <View style={{ width, height, flexDirection: 'row' }}>
+      {Array.from(barStates).map((state, i) => {
+        const dims = BAR_DIMS[state];
+        if (!dims) return null;
+        const barH = dims.barHeight * height;
+        const topPad = dims.topOffset * height;
+        return (
+          <View key={i} style={{ width: pitch, height }}>
+            <View style={{ height: topPad }} />
+            <View style={{ width: barWidth, height: barH, backgroundColor: '#000000' }} />
+          </View>
+        );
+      })}
+    </View>
   );
 }

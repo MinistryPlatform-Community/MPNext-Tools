@@ -6,6 +6,8 @@ export interface LabelData {
   state: string;
   postalCode: string;
   barCode?: string;
+  /** Pre-encoded IMb bar states (65 chars of T/D/A/F), computed before PDF generation */
+  barStates?: string;
 }
 
 export type SkipReason = 'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode';

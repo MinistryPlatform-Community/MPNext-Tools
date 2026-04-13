@@ -17,6 +17,7 @@ import type {
 } from '@/lib/dto';
 import { LabelDocument } from './label-document';
 import { getLabelStock } from '@/lib/label-stock';
+import { imbEncode } from '@/lib/imb-encoder';
 
 async function getSession() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -143,8 +144,21 @@ export async function generateLabelPdf(
   }
 
   try {
+    // Pre-encode barcodes before passing to PDF renderer
+    // (imbEncode uses BigInt which may not work inside react-pdf's render context)
+    const labelsWithBars = labels.map((label) => {
+      const barCode = label.barCode?.trim();
+      if (!barCode) return label;
+      try {
+        const bars = imbEncode(barCode);
+        return { ...label, barStates: bars.join('') };
+      } catch {
+        return label;
+      }
+    });
+
     const doc = React.createElement(LabelDocument, {
-      labels,
+      labels: labelsWithBars,
       stock,
       startPosition,
     });

@@ -46,9 +46,9 @@ export function AddressLabel({ data, width, height }: AddressLabelProps) {
         <Text style={styles.addressLine}>{data.addressLine2}</Text>
       )}
       <Text style={styles.cityStateZip}>{cityStateZip}</Text>
-      {data.barCode && (
+      {data.barStates && (
         <View style={styles.barcodeContainer}>
-          <ImbBarcode data={data.barCode} width={width * 0.7} height={8} />
+          <ImbBarcode barStates={data.barStates} width={200} height={20} />
         </View>
       )}
     </View>
