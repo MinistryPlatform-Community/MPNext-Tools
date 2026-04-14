@@ -19,8 +19,7 @@ import type {
 import { LabelDocument } from './label-document';
 import { buildWordDocument } from './word-document';
 import { getLabelStock } from '@/lib/label-stock';
-import { imbEncode } from '@/lib/imb-encoder';
-import { postnetEncode } from '@/lib/postnet-encoder';
+import { preEncodeBarcodes } from '@/lib/barcode-helpers';
 
 async function getSession() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -131,31 +130,6 @@ export async function fetchAddressLabels(
   return { printable: [], skipped: [] };
 }
 
-/**
- * Build routing code from postal code + delivery point.
- * Returns 5, 9, or 11 digits (or empty string if invalid).
- */
-function buildRoutingCode(postalCode?: string, deliveryPointCode?: string): string {
-  const zip = postalCode?.replace(/-/g, '').trim() ?? '';
-  if (!zip) return '';
-  const dp = deliveryPointCode?.trim().padStart(2, '0') ?? '00';
-  if (dp && dp !== '00') return zip + dp;
-  return zip;
-}
-
-/**
- * Build a full 20-digit IMb tracking code from org settings.
- * Format: [Barcode ID: 2][Service Type: 3][Mailer ID: 6 or 9][Serial: 9 or 6]
- */
-let imbSerialCounter = 0;
-function buildImbTrackingCode(mailerId: string, serviceType: string): string {
-  const barcodeId = '00';
-  imbSerialCounter++;
-  const serialLength = mailerId.length === 6 ? 9 : 6;
-  const serial = String(imbSerialCounter).padStart(serialLength, '0');
-  return barcodeId + serviceType + mailerId + serial;
-}
-
 export async function generateLabelPdf(
   labels: LabelData[],
   config: LabelConfig
@@ -172,47 +146,7 @@ export async function generateLabelPdf(
   }
 
   try {
-    // Reset serial counter for each print job
-    imbSerialCounter = 0;
-
-    // Pre-encode barcodes before passing to PDF renderer
-    const labelsWithBars = labels.map((label) => {
-      if (config.barcodeFormat === 'none') return label;
-
-      const routingCode = buildRoutingCode(label.postalCode, label.deliveryPointCode);
-
-      if (config.barcodeFormat === 'imb' && config.mailerId) {
-        // Construct full IMb from org settings + routing data
-        try {
-          const trackingCode = buildImbTrackingCode(config.mailerId, config.serviceType);
-          const imbInput = trackingCode + routingCode;
-          const bars = imbEncode(imbInput);
-          return { ...label, barStates: bars.join(''), barType: 'imb' as const };
-        } catch {
-          // Fall through to POSTNET
-        }
-      }
-
-      if (config.barcodeFormat === 'postnet' || config.barcodeFormat === 'imb') {
-        // POSTNET from routing data (also serves as IMb fallback)
-        if (routingCode) {
-          try {
-            const bars = postnetEncode(routingCode);
-            return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
-          } catch {
-            // Try ZIP-only fallback
-            try {
-              const bars = postnetEncode(routingCode.substring(0, 5));
-              return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
-            } catch {
-              // No barcode possible
-            }
-          }
-        }
-      }
-
-      return label;
-    });
+    const labelsWithBars = preEncodeBarcodes(labels, config);
 
     const doc = React.createElement(LabelDocument, {
       labels: labelsWithBars,
@@ -254,43 +188,7 @@ export async function generateLabelDocx(
   }
 
   try {
-    imbSerialCounter = 0;
-
-    // Pre-encode barcodes (same logic as PDF)
-    const labelsWithBars = labels.map((label) => {
-      if (config.barcodeFormat === 'none') return label;
-
-      const routingCode = buildRoutingCode(label.postalCode, label.deliveryPointCode);
-
-      if (config.barcodeFormat === 'imb' && config.mailerId) {
-        try {
-          const trackingCode = buildImbTrackingCode(config.mailerId, config.serviceType);
-          const imbInput = trackingCode + routingCode;
-          const bars = imbEncode(imbInput);
-          return { ...label, barStates: bars.join(''), barType: 'imb' as const };
-        } catch {
-          // Fall through to POSTNET
-        }
-      }
-
-      if (config.barcodeFormat === 'postnet' || config.barcodeFormat === 'imb') {
-        if (routingCode) {
-          try {
-            const bars = postnetEncode(routingCode);
-            return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
-          } catch {
-            try {
-              const bars = postnetEncode(routingCode.substring(0, 5));
-              return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
-            } catch {
-              // No barcode possible
-            }
-          }
-        }
-      }
-
-      return label;
-    });
+    const labelsWithBars = preEncodeBarcodes(labels, config);
 
     const doc = buildWordDocument(labelsWithBars, stock, config.startPosition);
     const buffer = await Packer.toBuffer(doc);
