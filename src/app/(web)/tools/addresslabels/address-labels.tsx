@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ToolContainer } from '@/components/tool';
 import { AddressLabelsForm, AddressLabelsSummary } from '@/components/address-labels';
+import { MailMergeTab } from '@/components/address-labels/mail-merge-tab';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileText, FileDown } from 'lucide-react';
 import { getLabelStock } from '@/lib/label-stock';
@@ -58,6 +59,7 @@ export function AddressLabels({ params }: AddressLabelsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'labels' | 'merge'>('labels');
 
   const stock = getLabelStock(config.stockId);
   const maxStartPosition = stock ? stock.columns * stock.rows : 30;
@@ -195,37 +197,71 @@ export function AddressLabels({ params }: AddressLabelsProps) {
           </div>
         ) : (
           <>
-            <AddressLabelsSummary
-              printableCount={printable.length}
-              skipped={skipped}
-            />
-
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 rounded-md p-3">
-                {error}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <Button
-                onClick={handleGenerate}
-                disabled={printable.length === 0 || isGenerating}
+            {/* Tab navigation */}
+            <div className="flex border-b">
+              <button
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'labels'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setActiveTab('labels')}
               >
-                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-                Generate PDF
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleDownloadWord}
-                disabled={printable.length === 0 || isGenerating}
+                Labels
+              </button>
+              <button
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'merge'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setActiveTab('merge')}
               >
-                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileDown className="h-4 w-4 mr-2" />}
-                Download Word
-              </Button>
-              <Button variant="outline" onClick={handleClose}>
-                Close
-              </Button>
+                Mail Merge
+              </button>
             </div>
+
+            {activeTab === 'labels' ? (
+              <>
+                <AddressLabelsSummary
+                  printableCount={printable.length}
+                  skipped={skipped}
+                />
+
+                {error && (
+                  <div className="text-sm text-red-600 bg-red-50 rounded-md p-3">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={printable.length === 0 || isGenerating}
+                  >
+                    {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+                    Generate PDF
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={handleDownloadWord}
+                    disabled={printable.length === 0 || isGenerating}
+                  >
+                    {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileDown className="h-4 w-4 mr-2" />}
+                    Download Word
+                  </Button>
+                  <Button variant="outline" onClick={handleClose}>
+                    Close
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <MailMergeTab
+                printable={printable}
+                skipped={skipped}
+                config={config}
+              />
+            )}
           </>
         )}
       </div>
