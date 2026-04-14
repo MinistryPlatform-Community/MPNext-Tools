@@ -23,7 +23,7 @@ Create a standalone `SelectionDebug` component in `src/components/tool/` followi
 1. **`src/components/tool/index.ts`** — Add barrel export for `SelectionDebug`
 2. **`src/app/(web)/tools/template/template-tool.tsx`** — Add `<SelectionDebug>` between `ToolParamsDebug` and `UserToolsDebug`
 
-### Server Action: `getSelectionRecordIds`
+### Server Action: `resolveSelection`
 
 File: `src/components/tool/selection-debug-actions.ts`
 
@@ -38,7 +38,7 @@ File: `src/components/tool/selection-debug-actions.ts`
 // Output: { recordIds: number[], count: number } or throws error
 ```
 
-This follows the same auth → User_ID → stored proc pattern used in address-labels `actions.ts` lines 28-48 and 115-119.
+Named `resolveSelection` (not `getSelectionRecordIds`) to distinguish the server action from the `ToolService` method it wraps. Follows the same auth → User_ID → stored proc pattern used in address-labels `actions.ts` lines 28-48 and 115-119.
 
 ### Component: `SelectionDebug`
 
@@ -46,19 +46,25 @@ File: `src/components/tool/selection-debug.tsx`
 
 **Props:** `{ params: ToolParams }`
 
-**Guard:** Returns `null` if `params.s` is `undefined` or `<= 0`.
+**Guard:** Returns `null` if `params.s` is `undefined` or `<= 0`, or if `params.pageID` is `undefined`. Both are required for the stored procedure call.
+
+**Data sources for info cards:**
+- Selection ID → `params.s`
+- Page name → `params.pageData?.Display_Name` (already resolved by `parseToolParams`), falls back to raw `params.pageID` if `pageData` is undefined
+- Table name → `params.pageData?.Table_Name`, falls back to "N/A"
+- Record Count + Record IDs → from server action result
 
 **States:**
 - **Loading:** Blue dashed box, spinner icon, "Loading selection..."
 - **Error:** Red dashed box, error message
 - **Success:** Blue dashed box with:
   - `ListChecks` icon + "Development Mode - Selection Details"
-  - Grid of info cards: Selection ID, Page (Display_Name), Table (Table_Name), Record Count
+  - Grid of info cards: Selection ID, Page name, Table name, Record Count
   - First 5 Record IDs displayed as compact items, with "+N more" if count > 5
   - Collapsible "View Raw JSON" with full record ID array
   - "Remove this component before deploying to production" italic footer
 
-**Visual pattern:** Matches `ToolParamsDebug` exactly:
+**Visual pattern:** Uses blue theme (same as `UserToolsDebug` authorized state):
 - `bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg p-4 mb-6`
 - White card items with `border-blue-200`
 - Divider with `border-blue-200`
@@ -79,7 +85,7 @@ In `template-tool.tsx`, add between the existing debug components:
 ```
 template-tool.tsx (client)
   └─ <SelectionDebug params={params} />
-       └─ useEffect → getSelectionRecordIds(s, pageID)  [server action]
+       └─ useEffect → resolveSelection(s, pageID)  [server action]
             ├─ auth.api.getSession()
             ├─ MPHelper.getTableRecords('dp_Users', ...) → User_ID
             └─ ToolService.getSelectionRecordIds(s, userId, pageID)
