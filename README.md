@@ -1,6 +1,6 @@
-# CalvaryToolsNext
+# MPNext-Tools
 
-A custom Ministry Platform tools application built for Calvary Chapel, powered by Next.js 16, React 19, Better Auth, and a comprehensive Ministry Platform REST API integration with TypeScript and Zod validation.
+A Ministry Platform page tools application powered by Next.js 16, React 19, Better Auth, and a comprehensive Ministry Platform REST API integration with TypeScript and Zod validation.
 
 ## Table of Contents
 
@@ -98,7 +98,7 @@ The interactive setup wizard automates the entire configuration process:
 
 ```bash
 git clone <repository-url>
-cd CalvaryToolsNext
+cd MPNext-Tools
 npm install
 npm run setup
 ```
@@ -133,7 +133,7 @@ Once setup completes, run `npm run dev` and visit http://localhost:3000.
 
 ```bash
 git clone <repository-url>
-cd CalvaryToolsNext
+cd MPNext-Tools
 npm install
 ```
 
@@ -163,7 +163,7 @@ MINISTRY_PLATFORM_BASE_URL=https://your-instance.ministryplatform.com/ministrypl
 
 # Public Keys
 NEXT_PUBLIC_MINISTRY_PLATFORM_FILE_URL=https://your-instance.ministryplatform.com/ministryplatformapi/files
-NEXT_PUBLIC_APP_NAME=CalvaryToolsNext
+NEXT_PUBLIC_APP_NAME=MPNext-Tools
 ```
 
 #### 3. Generate Ministry Platform Types
@@ -214,7 +214,7 @@ Log in as an administrator and navigate to **Administration > API Clients**.
 #### Basic Settings
 - **Client ID**: Your client ID (must match `OIDC_CLIENT_ID` in `.env.local`)
 - **Client Secret**: Generate a secure secret
-- **Display Name**: CalvaryToolsNext
+- **Display Name**: MPNext-Tools (or your preferred name)
 - **Client User**: Create a scoped user or use API User
 
 #### Redirect URIs (Required)
@@ -257,7 +257,7 @@ openssl rand -base64 32
 ## Project Structure
 
 ```
-CalvaryToolsNext/
+MPNext-Tools/
 ├── src/
 │   ├── app/                              # Next.js App Router
 │   │   ├── (web)/                        # Protected route group (AuthWrapper + Providers)
@@ -355,7 +355,7 @@ A multi-step form wizard for creating and editing Ministry Platform groups/teams
 
 **Steps:**
 1. **Basic Info** — Group name, type (Ministry Team, Mission Trip, Quick Serve, Communication), description, dates, max size
-2. **Ministry & Campus** — Congregation (Melbourne, Viera, Sebastian, Espanol), ministry, group focus, primary contact/leader, tags
+2. **Ministry & Campus** — Congregation, ministry, group focus, primary contact/leader, tags
 3. **Registration** (Quick Serve only) — Registration dates, meeting location (on campus vs offsite with address)
 
 **Components** (`src/components/team-wizard/`):
@@ -379,18 +379,18 @@ A multi-step form wizard for creating and editing Ministry Platform Small Groups
 
 **Features:**
 - 3-step wizard for small group creation and editing
-- Dynamic room dropdown loaded by campus (Onsite meeting type)
+- Dynamic room dropdown loaded by congregation/campus (Onsite meeting type)
 - Offsite address entry for off-campus groups
 - Hybrid meeting support (Onsite/Offsite + Online)
 - Book search combobox for required group materials
 - Children/childcare options (No Children, Childcare Available, Children Welcome)
 - Multi-select tag management, contact search for leader assignment
-- Campus-specific room filtering via multi-level FK traversal
+- Congregation-specific room filtering via multi-level FK traversal
 - Success screen with options to create new, reopen, or close
 
 **Steps:**
 1. **Basic Info** — Group name, description, start/end dates, meeting time, meeting day/frequency/duration, Facebook group URL, target size
-2. **Location & Details** — Campus (Melbourne, Viera, Sebastian, Espanol), meeting type (Onsite/Offsite/Online), hybrid toggle, confidential flag, room selection or offsite address, children/childcare options, tags
+2. **Location & Details** — Congregation/campus, meeting type (Onsite/Offsite/Online), hybrid toggle, confidential flag, room selection or offsite address, children/childcare options, tags
 3. **Ministry & Registration** — Ministry, group focus (Men/Women/Men & Women), primary contact/leader, required book toggle with search, registration dates, group is full flag
 
 **Components** (`src/components/group-wizard/`):
