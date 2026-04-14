@@ -230,13 +230,17 @@ export async function mergeTemplate(
   try {
     const labelsWithBars = preEncodeBarcodes(labels, config);
 
-    // Build merge data array
+    // Build barcode image map — the image module resolves string keys via getImage,
+    // not Buffer objects directly (which it misinterprets as cached results)
+    const barcodeMap = new Map<string, Buffer>();
     const addresses = labelsWithBars.map((label, i) => {
-      let barcodeBuffer: Buffer | null = null;
+      let barcodeKey = '';
       if (label.barStates && label.barType) {
-        barcodeBuffer = label.barType === 'imb'
+        const buf = label.barType === 'imb'
           ? imbBarcodeToBmp(label.barStates, 300, 40)
           : postnetBarcodeToBmp(label.barStates, 300, 30);
+        barcodeKey = `barcode_${i}`;
+        barcodeMap.set(barcodeKey, buf);
       }
 
       return {
@@ -246,7 +250,7 @@ export async function mergeTemplate(
         City: label.city,
         State: label.state,
         PostalCode: label.postalCode,
-        Barcode: barcodeBuffer || '',
+        Barcode: barcodeKey,
         isNotLast: i < labelsWithBars.length - 1,
       };
     });
@@ -258,7 +262,10 @@ export async function mergeTemplate(
     // Configure image module
     const imageModule = new ImageModule({
       centered: false,
-      getImage: (tagValue: unknown) => tagValue as Buffer,
+      getImage: (tagValue: unknown) => {
+        const buf = barcodeMap.get(tagValue as string);
+        return buf || Buffer.alloc(0);
+      },
       getSize: (_img: Buffer | string, _tagValue: unknown, tagName: string) => {
         if (tagName === 'Barcode') return [200, 25] as [number, number];
         return [100, 100] as [number, number];
