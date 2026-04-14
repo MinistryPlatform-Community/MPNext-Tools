@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ToolContainer, ToolParamsDebug } from "@/components/tool";
+import { ToolContainer, ToolParamsDebug, SelectionDebug } from "@/components/tool";
 import { UserToolsDebug } from "@/components/user-tools-debug";
 import { Users } from "lucide-react";
 import { ToolParams, isNewRecord } from "@/lib/tool-params";
@@ -64,7 +64,10 @@ export function TemplateTool({ params }: TemplateToolProps) {
 
         {/* Development Helper - Remove before production */}
         <ToolParamsDebug params={params} />
-        
+
+        {/* Selection Debug - Remove before production */}
+        <SelectionDebug params={params} />
+
         {/* User Tools Debug - Remove before production */}
         <UserToolsDebug />
 
