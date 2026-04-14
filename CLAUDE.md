@@ -8,6 +8,7 @@ This guide provides essential information for AI assistants (like Claude) workin
 - **Build**: `npm run build` (production build with Turbopack, runs type checking)
 - **Lint**: `npm run lint` (ESLint CLI — `next lint` was removed in Next.js 16)
 - **Generate MP Types**: `npm run mp:generate:models` (generates TypeScript types + Zod schemas from Ministry Platform API, cleans output directory first)
+- **Generate MP Stored Procs**: `npm run mp:generate:storedprocs` (generates stored procedure reference from Ministry Platform API)
 - **Tests**: `npm test` (Vitest in watch mode), `npm run test:run` (single run), `npm run test:coverage` (with coverage)
 - **Setup**: `npm run setup` (interactive project setup wizard), `npm run setup:check` (validate setup without changes)
 
@@ -206,4 +207,5 @@ For detailed context on specific areas, see:
 - **[Components Reference](.claude/references/components.md)** - Detailed inventory of all components, their purposes, server actions, and compliance status
 - **[Services Reference](.claude/references/services.md)** - Service layer docs, MP query patterns, ambiguous column rules, `_TABLE` FK traversal, DTOs, constants, and server actions
 - **[Ministry Platform Schema](.claude/references/ministryplatform.schema.md)** - Auto-generated summary of Ministry Platform database tables, primary keys, and foreign key relationships
+- **[Ministry Platform Stored Procedures](.claude/references/ministryplatform.storedprocs.md)** - Auto-generated reference of stored procedures, parameters, data types, and directions
 - **[Testing Reference](.claude/references/testing.md)** - Vitest setup, mock patterns (`vi.hoisted`, MPHelper, auth), coverage data, and test file inventory

@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "mp:generate": "tsx src/lib/providers/ministry-platform/scripts/generate-types.ts",
     "mp:generate:models": "tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models --zod --clean",
+    "mp:generate:storedprocs": "tsx src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts",
     "setup": "tsx scripts/setup.ts",
     "setup:check": "tsx scripts/setup.ts --check"
   },
