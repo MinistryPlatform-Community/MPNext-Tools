@@ -6,6 +6,8 @@ const mockGetAddressesForContacts = vi.hoisted(() => vi.fn());
 const mockGetAddressForContact = vi.hoisted(() => vi.fn());
 const mockToBlob = vi.hoisted(() => vi.fn());
 const mockMPGetTableRecords = vi.hoisted(() => vi.fn());
+const mockDocxtemplaterRender = vi.hoisted(() => vi.fn());
+const mockDocxtemplaterGetZip = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth', () => ({
   auth: {
@@ -55,7 +57,35 @@ vi.mock('./label-document', () => ({
   LabelDocument: 'LabelDocument',
 }));
 
-import { fetchAddressLabels, generateLabelPdf } from './actions';
+vi.mock('docxtemplater', () => ({
+  default: class {
+    render = mockDocxtemplaterRender;
+    getZip = mockDocxtemplaterGetZip.mockReturnValue({
+      generate: vi.fn().mockReturnValue(Buffer.from('merged-doc')),
+    });
+  },
+}));
+
+vi.mock('pizzip', () => ({
+  default: class {},
+}));
+
+vi.mock('docxtemplater-image-module-free', () => ({
+  default: class {},
+}));
+
+vi.mock('@/lib/barcode-helpers', () => ({
+  preEncodeBarcodes: vi.fn().mockImplementation((labels: LabelData[]) =>
+    labels.map((l) => ({ ...l, barStates: 'TDAF', barType: 'postnet' as const }))
+  ),
+}));
+
+vi.mock('@/lib/barcode-image', () => ({
+  imbBarcodeToBmp: vi.fn().mockReturnValue(Buffer.from('fake-imb-bmp')),
+  postnetBarcodeToBmp: vi.fn().mockReturnValue(Buffer.from('fake-postnet-bmp')),
+}));
+
+import { fetchAddressLabels, generateLabelPdf, mergeTemplate } from './actions';
 import type { LabelConfig, LabelData } from '@/lib/dto';
 import type { ToolParams } from '@/lib/tool-params';
 
@@ -260,5 +290,56 @@ describe('generateLabelPdf', () => {
     if (!result.success) {
       expect(result.error).toContain('No labels to print');
     }
+  });
+});
+
+describe('mergeTemplate', () => {
+  const mergeConfig: LabelConfig = {
+    stockId: '5160',
+    addressMode: 'household',
+    startPosition: 1,
+    includeMissingBarcodes: true,
+    barcodeFormat: 'postnet',
+    mailerId: '',
+    serviceType: '040',
+  };
+
+  beforeEach(() => {
+    mockGetSession.mockResolvedValue({ user: { id: 'user-1' } });
+    mockDocxtemplaterRender.mockClear();
+    mockDocxtemplaterGetZip.mockClear();
+  });
+
+  it('should merge template with address data', async () => {
+    const labels: LabelData[] = [{
+      name: 'Test', addressLine1: '123 Main',
+      city: 'Test', state: 'TX', postalCode: '75001',
+    }];
+    const templateBase64 = Buffer.from('fake-template').toString('base64');
+
+    const result = await mergeTemplate(templateBase64, labels, mergeConfig);
+
+    expect(result.success).toBe(true);
+    expect(mockDocxtemplaterRender).toHaveBeenCalledWith(
+      expect.objectContaining({
+        addresses: expect.arrayContaining([
+          expect.objectContaining({ Name: 'Test', City: 'Test' }),
+        ]),
+      })
+    );
+  });
+
+  it('should return error for empty labels', async () => {
+    const result = await mergeTemplate('dGVzdA==', [], mergeConfig);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain('No addresses');
+  });
+
+  it('should return error for oversized template', async () => {
+    const hugeBase64 = Buffer.alloc(6 * 1024 * 1024).toString('base64');
+    const labels: LabelData[] = [{ name: 'T', addressLine1: 'A', city: 'C', state: 'S', postalCode: '12345' }];
+    const result = await mergeTemplate(hugeBase64, labels, mergeConfig);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain('5MB');
   });
 });

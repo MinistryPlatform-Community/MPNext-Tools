@@ -20,6 +20,10 @@ import { LabelDocument } from './label-document';
 import { buildWordDocument } from './word-document';
 import { getLabelStock } from '@/lib/label-stock';
 import { preEncodeBarcodes } from '@/lib/barcode-helpers';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
+import ImageModule from 'docxtemplater-image-module-free';
+import { imbBarcodeToBmp, postnetBarcodeToBmp } from '@/lib/barcode-image';
 
 async function getSession() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -201,5 +205,84 @@ export async function generateLabelDocx(
       success: false,
       error: error instanceof Error ? error.message : 'Word generation failed',
     };
+  }
+}
+
+const MAX_TEMPLATE_SIZE = 5 * 1024 * 1024; // 5MB
+
+export async function mergeTemplate(
+  templateBase64: string,
+  labels: LabelData[],
+  config: LabelConfig
+): Promise<{ success: true; data: string } | { success: false; error: string }> {
+  await getSession();
+
+  if (labels.length === 0) {
+    return { success: false, error: 'No addresses to merge' };
+  }
+
+  // Validate template size
+  const templateSize = Math.ceil(templateBase64.length * 0.75);
+  if (templateSize > MAX_TEMPLATE_SIZE) {
+    return { success: false, error: 'Template file exceeds 5MB limit' };
+  }
+
+  try {
+    const labelsWithBars = preEncodeBarcodes(labels, config);
+
+    // Build merge data array
+    const addresses = labelsWithBars.map((label, i) => {
+      let barcodeBuffer: Buffer | null = null;
+      if (label.barStates && label.barType) {
+        barcodeBuffer = label.barType === 'imb'
+          ? imbBarcodeToBmp(label.barStates, 300, 40)
+          : postnetBarcodeToBmp(label.barStates, 300, 30);
+      }
+
+      return {
+        Name: label.name,
+        AddressLine1: label.addressLine1,
+        AddressLine2: label.addressLine2 || '',
+        City: label.city,
+        State: label.state,
+        PostalCode: label.postalCode,
+        Barcode: barcodeBuffer || '',
+        isNotLast: i < labelsWithBars.length - 1,
+      };
+    });
+
+    // Parse template
+    const templateBuffer = Buffer.from(templateBase64, 'base64');
+    const zip = new PizZip(templateBuffer);
+
+    // Configure image module
+    const imageModule = new ImageModule({
+      centered: false,
+      getImage: (tagValue: unknown) => tagValue as Buffer,
+      getSize: (_img: Buffer | string, _tagValue: unknown, tagName: string) => {
+        if (tagName === 'Barcode') return [200, 25] as [number, number];
+        return [100, 100] as [number, number];
+      },
+    });
+
+    const doc = new Docxtemplater(zip, {
+      modules: [imageModule],
+      paragraphLoop: true,
+      linebreaks: true,
+    });
+
+    doc.render({ addresses });
+
+    const output = doc.getZip().generate({ type: 'nodebuffer' });
+    const base64 = Buffer.from(output).toString('base64');
+
+    return { success: true, data: base64 };
+  } catch (error) {
+    console.error('mergeTemplate error:', error);
+    const message = error instanceof Error ? error.message : 'Template merge failed';
+    if (message.includes('tag')) {
+      return { success: false, error: `Template error: ${message}. Check that merge tokens are correctly formatted.` };
+    }
+    return { success: false, error: message };
   }
 }
