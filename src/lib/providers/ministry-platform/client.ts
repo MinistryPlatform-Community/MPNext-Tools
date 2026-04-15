@@ -1,5 +1,6 @@
 import { getClientCredentialsToken } from "./auth/client-credentials";
 import { HttpClient } from "./utils/http-client";
+import { logger } from "./utils/logger";
 
 // Token refresh interval - refresh 5 minutes before actual expiration for safety
 const TOKEN_LIFE = 5 * 60 * 1000; // 5 minutes
@@ -35,13 +36,13 @@ export class MinistryPlatformClient {
      * @throws Error if token refresh fails
      */
     public async ensureValidToken(): Promise<void> {
-        console.log("Checking token validity...");
-        console.log("Expires at: ", this.expiresAt);
-        console.log("Current time: ", new Date());
+        logger.debug("Checking token validity...");
+        logger.debug("Expires at:", this.expiresAt);
+        logger.debug("Current time:", new Date());
 
         // Check if token is expired or about to expire
         if (this.expiresAt < new Date()) {
-            console.log("Token expired, refreshing...");
+            logger.debug("Token expired, refreshing...");
             
             try {
                 // Get new access token using client credentials flow
@@ -51,9 +52,9 @@ export class MinistryPlatformClient {
                 // Set expiration time with safety buffer (TOKEN_LIFE before actual expiration)
                 this.expiresAt = new Date(Date.now() + TOKEN_LIFE);
                 
-                console.log("Token refreshed. Expires at: ", this.expiresAt);
+                logger.debug("Token refreshed. Expires at:", this.expiresAt);
             } catch (error) {
-                console.error("Failed to refresh token:", error);
+                logger.error("Failed to refresh token:", error);
                 throw error;
             }
         }
