@@ -85,18 +85,6 @@ const TEMPLATE_REPO_PATTERNS = [
 const ENV_VARS: EnvVar[] = [
   // Required variables
   {
-    name: 'OIDC_CLIENT_ID',
-    required: true,
-    sensitive: false,
-    description: 'OAuth client ID for user authentication',
-  },
-  {
-    name: 'OIDC_CLIENT_SECRET',
-    required: true,
-    sensitive: true,
-    description: 'OAuth client secret for user authentication',
-  },
-  {
     name: 'MINISTRY_PLATFORM_CLIENT_ID',
     required: true,
     sensitive: false,
@@ -1035,30 +1023,6 @@ async function runInteractiveSetup(options: SetupOptions): Promise<number> {
     console.log(chalk.green(`  ✓ NEXT_PUBLIC_MINISTRY_PLATFORM_FILE_URL = ${derived.fileUrl}`));
   }
 
-  // Always ask for OIDC_CLIENT_ID with default
-  console.log(chalk.yellow('\n  OAuth Client Configuration'));
-  const currentOidcClientId = currentEnv.get('OIDC_CLIENT_ID') || 'TM.Widgets';
-
-  const oidcClientId = await input({
-    message: 'Enter OIDC_CLIENT_ID (OAuth client ID for user authentication):',
-    default: currentOidcClientId,
-  });
-
-  if (oidcClientId) {
-    updates.set('OIDC_CLIENT_ID', oidcClientId);
-    console.log(chalk.green(`  ✓ OIDC_CLIENT_ID = ${oidcClientId}`));
-  }
-
-  // Ask for OIDC_CLIENT_SECRET, showing the client ID for reference
-  const oidcClientSecret = await password({
-    message: `Enter OIDC_CLIENT_SECRET (${oidcClientId}):`,
-  });
-
-  if (oidcClientSecret) {
-    updates.set('OIDC_CLIENT_SECRET', oidcClientSecret);
-    console.log(chalk.green(`  ✓ OIDC_CLIENT_SECRET = ********`));
-  }
-
   // Always ask for MINISTRY_PLATFORM_CLIENT_ID with default
   console.log(chalk.yellow('\n  Ministry Platform API Client Configuration'));
   const currentMpClientId = currentEnv.get('MINISTRY_PLATFORM_CLIENT_ID') || 'MPNext';
@@ -1086,8 +1050,6 @@ async function runInteractiveSetup(options: SetupOptions): Promise<number> {
   // Variables handled specially (skip in regular loop)
   const speciallyHandledVars = [
     ...mpDerivedVars,
-    'OIDC_CLIENT_ID',
-    'OIDC_CLIENT_SECRET',
     'MINISTRY_PLATFORM_CLIENT_ID',
     'MINISTRY_PLATFORM_CLIENT_SECRET',
   ];

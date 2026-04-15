@@ -154,10 +154,6 @@ cp .env.example .env.local
 Update `.env.local` with your configuration:
 
 ```env
-# Better Auth Configuration
-OIDC_CLIENT_ID=TM.Widgets
-OIDC_CLIENT_SECRET=your_client_secret
-
 # Generate with: openssl rand -base64 32
 BETTER_AUTH_SECRET=your_generated_secret
 
@@ -220,7 +216,7 @@ Before running the application, configure an OAuth 2.0 / OIDC client in Ministry
 Log in as an administrator and navigate to **Administration > API Clients**.
 
 #### Basic Settings
-- **Client ID**: Your client ID (must match `OIDC_CLIENT_ID` in `.env.local`)
+- **Client ID**: Your client ID (must match `MINISTRY_PLATFORM_CLIENT_ID` in `.env.local`)
 - **Client Secret**: Generate a secure secret
 - **Display Name**: MPNext-Tools (or your preferred name)
 - **Client User**: Create a scoped user or use API User

@@ -242,8 +242,8 @@ function MyComponent() {
 | `MINISTRY_PLATFORM_BASE_URL` | Yes | MP server URL (OAuth discovery, API) |
 | `BETTER_AUTH_URL` | Yes* | App URL for callbacks. Fallback: `NEXTAUTH_URL` |
 | `BETTER_AUTH_SECRET` | Yes* | Session signing secret. Fallback: `NEXTAUTH_SECRET` |
-| `OIDC_CLIENT_ID` | Yes | OAuth client ID registered in MP |
-| `OIDC_CLIENT_SECRET` | Yes | OAuth client secret |
+| `MINISTRY_PLATFORM_CLIENT_ID` | Yes | OAuth + API client ID registered in MP |
+| `MINISTRY_PLATFORM_CLIENT_SECRET` | Yes | OAuth + API client secret |
 
 *Fallback variables allow gradual migration from NextAuth.
 

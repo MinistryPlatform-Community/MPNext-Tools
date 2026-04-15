@@ -34,8 +34,8 @@ const options = {
         {
           providerId: "ministry-platform",
           discoveryUrl: `${mpBaseUrl}/oauth/.well-known/openid-configuration`,
-          clientId: process.env.OIDC_CLIENT_ID!,
-          clientSecret: process.env.OIDC_CLIENT_SECRET!,
+          clientId: process.env.MINISTRY_PLATFORM_CLIENT_ID!,
+          clientSecret: process.env.MINISTRY_PLATFORM_CLIENT_SECRET!,
           scopes: [
             "openid",
             "offline_access",
