@@ -27,7 +27,7 @@ This guide provides essential information for AI assistants (like Claude) workin
   - **Critical**: `session.user.id` is Better Auth's internal ID, NOT the MP User_GUID. Use `session.user.userGuid` for all MP API lookups.
   - **Stateless Sessions**: JWT cookie cache, no database; `customSession` does name splitting only (no API calls)
   - **Required Environment Variables**: `MINISTRY_PLATFORM_BASE_URL`, `BETTER_AUTH_URL` (or `NEXTAUTH_URL` fallback), `BETTER_AUTH_SECRET` (or `NEXTAUTH_SECRET` fallback)
-- **Services Layer**: Singleton service classes in `src/services/` wrap MPHelper for domain logic (ToolService, UserService, GroupService)
+- **Services Layer**: Singleton service classes in `src/services/` wrap MPHelper for domain logic (ToolService, UserService)
 - **Contexts**: React context providers in `src/contexts/` (UserProvider) composed in `src/app/providers.tsx`; `useAppSession()` wraps Better Auth's `authClient.useSession()`
 - **UI**: Radix UI primitives + shadcn/ui components in `src/components/ui/`, Tailwind CSS v4
 - **Validation**: Zod v4 (`zod@^4.3`) — note: different API from Zod v3 (e.g., `z.object()` vs `z.interface()`)
@@ -72,7 +72,7 @@ This guide provides essential information for AI assistants (like Claude) workin
 ```
 src/components/
 ├── layout/               # Layout components (AuthWrapper)
-├── shared/               # Shared components (ContactSearchCombobox, TagManager, WizardStepper)
+├── shared/               # Shared components
 ├── shared-actions/       # Shared actions used across features
 ├── tool/                 # Tool framework (Container, Header, Footer, ParamsDebug)
 ├── user-menu/            # User dropdown with OIDC sign-out
@@ -104,7 +104,6 @@ import { ToolContainer, ToolHeader, ToolFooter } from '@/components/tool';
 // Service classes (used in server actions)
 import { ToolService } from '@/services/toolService';
 import { UserService } from '@/services/userService';
-import { GroupService } from '@/services/groupService';
 
 // React contexts
 import { UserProvider, useUser, useAppSession } from '@/contexts';

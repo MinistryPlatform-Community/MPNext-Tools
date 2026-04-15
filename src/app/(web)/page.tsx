@@ -26,20 +26,6 @@ export default function Home() {
 
         <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle>Group Wizard</CardTitle>
-            <CardDescription>
-              Create and manage groups in Ministry Platform
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <Link href="/tools/groupwizard">
-              <Button className="w-full">Open Tool</Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col">
-          <CardHeader>
             <CardTitle>Template Editor</CardTitle>
             <CardDescription>
               Create and edit templates in Ministry Platform
