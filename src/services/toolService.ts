@@ -100,7 +100,7 @@ export class ToolService {
       // Find the result set containing Record_ID
       if (result && result.length > 0) {
         for (const resultSet of result) {
-          if (Array.isArray(resultSet) && resultSet.length > 0 && 'Record_ID' in resultSet[0]) {
+          if (Array.isArray(resultSet) && resultSet.length > 0 && typeof resultSet[0] === 'object' && resultSet[0] !== null && 'Record_ID' in resultSet[0]) {
             const recordIds = (resultSet as Array<{ Record_ID: number }>).map((r) => r.Record_ID);
             console.log('ToolService.getSelectionRecordIds - Found record IDs:', recordIds);
             return recordIds;
