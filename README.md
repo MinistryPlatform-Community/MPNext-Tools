@@ -1,5 +1,11 @@
 # MPNext-Tools
 
+[![Tests](https://github.com/MinistryPlatform-Community/MPNext-Tools/actions/workflows/test.yml/badge.svg)](https://github.com/MinistryPlatform-Community/MPNext-Tools/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/MinistryPlatform-Community/MPNext-Tools/graph/badge.svg)](https://codecov.io/gh/MinistryPlatform-Community/MPNext-Tools)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+
 A Ministry Platform page tools application powered by Next.js 16, React 19, Better Auth, and a comprehensive Ministry Platform REST API integration with TypeScript and Zod validation.
 
 ## Table of Contents
@@ -13,8 +19,8 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
   - [OAuth Client Setup](#oauth-client-setup)
 - [Project Structure](#project-structure)
 - [Tools](#tools)
-  - [Team Wizard](#team-wizard)
-  - [Group Wizard](#group-wizard)
+  - [Address Labels](#address-labels)
+  - [Template Editor](#template-editor)
   - [Template Tool](#template-tool)
   - [Building Custom Tools](#building-custom-tools)
 - [Ministry Platform Integration](#ministry-platform-integration)
@@ -30,14 +36,14 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 
 - **Authentication**: Better Auth with Ministry Platform OAuth (genericOAuth plugin), stateless JWT sessions, and OIDC RP-initiated logout
 - **Tools Framework**: Reusable components for building Ministry Platform page tools with URL parameter parsing and dual-mode support (create/edit)
-- **Team Wizard**: Multi-step wizard for creating and managing Ministry Platform teams with Zod-validated forms
-- **Group Wizard**: Multi-step wizard for creating and managing Small Groups with dynamic room selection, book search, and offsite address handling
+- **Address Labels**: Print address labels with USPS Intelligent Mail Barcodes (IMb), POSTNET fallback, and Word document mail merge
+- **Template Editor**: Visual email/document template editor with GrapesJS, merge field support, and MP template integration
 - **Modern UI**: 22 Radix UI + shadcn/ui components with Tailwind CSS v4
 - **Type-Safe API**: Full TypeScript strict mode with 873 auto-generated model and schema files from Ministry Platform
 - **REST API Client**: Six specialized services covering tables, procedures, communications, files, metadata, and domain operations
 - **Type Generation**: CLI tool to generate TypeScript interfaces and Zod v4 schemas from MP database schema
 - **Validation**: Optional Zod v4 runtime validation in MPHelper before API calls
-- **Testing**: 230+ test cases across 18 files with 95%+ statement coverage (Vitest 4.0)
+- **Testing**: 241 test cases across 21 files with Vitest 4.1
 - **Setup Wizard**: Interactive CLI setup with environment configuration, dependency management, and build verification
 
 ## Architecture
@@ -46,10 +52,10 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 
 - **Next.js 16** with App Router and Turbopack (default bundler for dev and build)
 - **React 19** with Server Components by default
-- **TypeScript 5.9** in strict mode
+- **TypeScript 6.0** in strict mode
 - **Tailwind CSS v4** with `@tailwindcss/postcss` plugin
 - **Zod v4** for runtime validation
-- **Vitest 4.0** for testing with v8 coverage
+- **Vitest 4.1** for testing with v8 coverage
 
 ### Ministry Platform Integration
 
@@ -57,10 +63,10 @@ Custom provider at `src/lib/providers/ministry-platform/` with a layered archite
 
 ```
 MPHelper (Public API Facade)
-  → MinistryPlatformProvider (Singleton Orchestrator)
-    → MinistryPlatformClient (HTTP + OAuth2 Token Management)
-      → Six Specialized Services
-        → HttpClient (Raw HTTP with Bearer Auth)
+  -> MinistryPlatformProvider (Singleton Orchestrator)
+    -> MinistryPlatformClient (HTTP + OAuth2 Token Management)
+      -> Six Specialized Services
+        -> HttpClient (Raw HTTP with Bearer Auth)
 ```
 
 - REST API client with automatic OAuth2 client credentials token management (5-minute refresh buffer)
@@ -81,7 +87,7 @@ Better Auth with Ministry Platform OAuth via genericOAuth plugin (`src/lib/auth.
 ### Data Flow
 
 ```
-Component → Server Action → Service (singleton) → MPHelper → Ministry Platform API
+Component -> Server Action -> Service (singleton) -> MPHelper -> Ministry Platform API
 ```
 
 ## Prerequisites
@@ -265,9 +271,9 @@ MPNext-Tools/
 │   │   │   ├── home/                     # Redirect to /
 │   │   │   ├── tools/                    # Tools section
 │   │   │   │   ├── layout.tsx            # Full-height gray background
-│   │   │   │   ├── template/             # Template tool (scaffold)
-│   │   │   │   ├── teamwizard/           # Team/Group creation wizard
-│   │   │   │   └── groupwizard/          # Group management wizard
+│   │   │   │   ├── addresslabels/        # Address label printing tool
+│   │   │   │   ├── template/             # Template tool (scaffold/demo)
+│   │   │   │   └── templateeditor/       # Visual template editor
 │   │   │   └── layout.tsx                # Auth + Providers wrapper
 │   │   ├── api/auth/[...all]/            # Better Auth route handler
 │   │   ├── signin/                       # OAuth sign-in page
@@ -275,13 +281,14 @@ MPNext-Tools/
 │   │   └── providers.tsx                 # Context providers (UserProvider)
 │   │
 │   ├── components/                       # React components
+│   │   ├── address-labels/               # Address label printing & mail merge
 │   │   ├── layout/                       # AuthWrapper (server component)
-│   │   ├── tool/                         # Tool framework (Container, Header, Footer, ParamsDebug)
-│   │   ├── team-wizard/                  # Multi-step wizard forms + validation
-│   │   ├── user-menu/                    # User dropdown with OIDC sign-out
-│   │   ├── user-tools-debug/             # Dev helper: authorized tool paths
 │   │   ├── shared-actions/               # Cross-feature server actions
-│   │   └── ui/                           # 22 shadcn/ui components
+│   │   ├── template-editor/              # GrapesJS template editor
+│   │   ├── tool/                         # Tool framework (Container, Header, Footer, ParamsDebug, SelectionDebug)
+│   │   ├── ui/                           # 22 shadcn/ui components
+│   │   ├── user-menu/                    # User dropdown with OIDC sign-out
+│   │   └── user-tools-debug/             # Dev helper: authorized tool paths
 │   │
 │   ├── contexts/                         # React Context providers
 │   │   ├── user-context.tsx              # UserProvider (MP profile + roles)
@@ -294,6 +301,10 @@ MPNext-Tools/
 │   │   ├── dto/                          # Hand-written DTOs/ViewModels
 │   │   ├── tool-params.ts                # Tool URL parameter parsing
 │   │   ├── utils.ts                      # Tailwind cn() utility
+│   │   ├── imb-encoder.ts                # USPS Intelligent Mail barcode encoder
+│   │   ├── postnet-encoder.ts            # POSTNET barcode encoder
+│   │   ├── barcode-helpers.ts            # Barcode generation utilities
+│   │   ├── label-stock.ts                # Label stock definitions (Avery 5160, etc.)
 │   │   └── providers/
 │   │       └── ministry-platform/        # Ministry Platform provider
 │   │           ├── auth/                 # Client credentials OAuth
@@ -309,9 +320,9 @@ MPNext-Tools/
 │   │           └── index.ts              # Barrel export
 │   │
 │   ├── services/                         # Application services (singletons)
-│   │   ├── userService.ts                # User profile with roles/groups
+│   │   ├── addressLabelService.ts        # Address fetching & label data
 │   │   ├── toolService.ts                # Page data and user permissions
-│   │   └── groupService.ts               # Group CRUD, participants, tags
+│   │   └── userService.ts                # User profile with roles/groups
 │   │
 │   ├── proxy.ts                          # Route protection (session cookie check)
 │   └── test-setup.ts                     # Vitest environment setup
@@ -321,14 +332,13 @@ MPNext-Tools/
 │
 ├── .claude/                              # Claude Code configuration
 │   ├── commands/                         # 5 Claude Code skills
-│   └── references/                       # 4 reference documents
+│   └── references/                       # 6 reference documents
 │
 ├── .env.example                          # Environment template
 ├── CLAUDE.md                             # Development guide
 ├── vitest.config.ts                      # Vitest configuration
 ├── components.json                       # shadcn/ui config (new-york style, slate theme)
 ├── next.config.ts                        # Next.js configuration
-├── tailwind.config.js                    # Tailwind CSS v4 configuration
 ├── tsconfig.json                         # TypeScript strict mode, @/* alias
 └── package.json                          # Dependencies and scripts
 ```
@@ -337,80 +347,51 @@ MPNext-Tools/
 
 The application provides a dashboard at `/` with cards linking to each available tool. All tools are protected behind Ministry Platform OAuth authentication.
 
-### Team Wizard
+### Address Labels
 
-**Route**: `/tools/teamwizard`
+**Route**: `/tools/addresslabels`
 
-A multi-step form wizard for creating and editing Ministry Platform groups/teams. This is the primary production tool.
-
-**Features:**
-- Dynamic step count based on group type (2 steps for most types, 3 for Quick Serve)
-- Full create and edit mode with existing group data loading
-- Zod v4 per-step validation with React Hook Form integration
-- Searchable contact combobox for leader assignment with debounced search
-- Multi-select tag management
-- Offsite address handling for Quick Serve groups
-- Leader reassignment with proper participant record management
-- Success screen with options to create new, reopen, or close
-
-**Steps:**
-1. **Basic Info** — Group name, type (Ministry Team, Mission Trip, Quick Serve, Communication), description, dates, max size
-2. **Ministry & Campus** — Congregation, ministry, group focus, primary contact/leader, tags
-3. **Registration** (Quick Serve only) — Registration dates, meeting location (on campus vs offsite with address)
-
-**Components** (`src/components/team-wizard/`):
-- `TeamWizardForm` — Main orchestrator with step navigation
-- `StepBasicInfo`, `StepMinistryCampus`, `StepRegistration` — Step form components
-- `ContactSearchCombobox` — Debounced contact search with popover
-- `TagManager` — Multi-select tag picker
-- `WizardStepper` — Visual step progress indicator
-
-**Server Actions** (`src/components/team-wizard/actions.ts`):
-- `loadWizardLookupData()` — Fetches ministries, group focuses, tags
-- `loadGroupData(groupId)` — Loads existing group for editing
-- `searchContacts(term)` — Searches approved volunteers
-- `saveTeamWizard(formData, existingGroupId?)` — Creates/updates group with address, leader, and tag reconciliation
-
-### Group Wizard
-
-**Route**: `/tools/groupwizard`
-
-A multi-step form wizard for creating and editing Ministry Platform Small Groups (Group_Type_ID = 1). Shares the wizard architecture with Team Wizard, reusing shared components.
+A tool for printing address labels with USPS Intelligent Mail Barcodes (IMb) and optional Word document mail merge.
 
 **Features:**
-- 3-step wizard for small group creation and editing
-- Dynamic room dropdown loaded by congregation/campus (Onsite meeting type)
-- Offsite address entry for off-campus groups
-- Hybrid meeting support (Onsite/Offsite + Online)
-- Book search combobox for required group materials
-- Children/childcare options (No Children, Childcare Available, Children Welcome)
-- Multi-select tag management, contact search for leader assignment
-- Congregation-specific room filtering via multi-level FK traversal
-- Success screen with options to create new, reopen, or close
+- Fetch addresses from Ministry Platform selections or saved selections
+- Generate USPS Intelligent Mail Barcodes (IMb) with configurable Mailer ID
+- POSTNET barcode fallback for simpler addressing
+- Print-ready label sheets (Avery 5160 and other stock formats)
+- Word document mail merge with `.docx` template support
+- Address validation and skip reporting
+- Configurable label formats and barcode options
 
-**Steps:**
-1. **Basic Info** — Group name, description, start/end dates, meeting time, meeting day/frequency/duration, Facebook group URL, target size
-2. **Location & Details** — Congregation/campus, meeting type (Onsite/Offsite/Online), hybrid toggle, confidential flag, room selection or offsite address, children/childcare options, tags
-3. **Ministry & Registration** — Ministry, group focus (Men/Women/Men & Women), primary contact/leader, required book toggle with search, registration dates, group is full flag
+**Components** (`src/components/address-labels/`):
+- `AddressLabelsForm` — Configuration form (address source, barcode format, label stock)
+- `AddressLabelsSummary` — Results summary with skip reporting
+- `LabelDocument` — Print-ready label sheet layout
+- `AddressLabel` — Individual label rendering
+- `ImbBarcode` — USPS Intelligent Mail barcode SVG
+- `PostnetBarcode` — POSTNET barcode SVG
+- `MailMergeTab` — Word document mail merge interface
 
-**Components** (`src/components/group-wizard/`):
-- `GroupWizardForm` — Main orchestrator with step navigation and save logic
-- `StepBasicInfo`, `StepLocationDetails`, `StepMinistryRegistration` — Step form components
-- `RoomSelect` — Dynamic room dropdown filtered by congregation
-- `BookSearchCombobox` — Debounced book title search with popover
+### Template Editor
 
-**Shared components** (imported from `team-wizard/`):
-- `WizardStepper` — Visual step progress indicator
-- `ContactSearchCombobox` — Debounced contact search (accepts `onSearch` prop)
-- `TagManager` — Multi-select tag picker
+**Route**: `/tools/templateeditor`
 
-**Server Actions** (`src/components/group-wizard/actions.ts`):
-- `loadGroupWizardLookupData()` — Fetches ministries, group focuses, tags, meeting days/frequencies/durations
-- `loadGroupData(groupId)` — Loads existing group with tags and address for editing
-- `searchContacts(term)` — Searches approved volunteers
-- `searchBooks(term)` — Searches active books by title
-- `loadRoomsByCongregation(congregationId)` — Fetches rooms filtered by campus
-- `saveGroupWizard(formData, existingGroupId?)` — Creates/updates group with address, leader, and tag reconciliation
+A visual email/document template editor built with GrapesJS for creating and editing Ministry Platform templates.
+
+**Features:**
+- Visual drag-and-drop template editing via GrapesJS
+- Merge field picker for Ministry Platform data tokens
+- HTML code editor for advanced editing
+- Template import/export
+- MP template integration
+
+**Components** (`src/components/template-editor/`):
+- `TemplateEditorForm` — Main editor orchestrator
+- `EditorCanvas` — GrapesJS editor wrapper
+- `EditorToolbar` — Editor action toolbar
+- `EditorCodeDialog` — HTML source code editor
+- `EditorImportDialog` — Template import dialog
+- `EditorExportDialog` — Template export dialog
+- `MergeFieldPicker` — MP merge field selection
 
 ### Template Tool
 
@@ -561,11 +542,12 @@ Alert, Alert Dialog, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Command,
 - **ToolHeader** — Dark slate title bar with optional info tooltip
 - **ToolFooter** — Close/Save action buttons with loading state
 - **ToolParamsDebug** — Development helper showing parsed URL parameters (remove before production)
+- **SelectionDebug** — Development helper for debugging MP selection data
 
 ### Feature Components
 
-- **team-wizard/** — 7 form components + stepper + validation schemas (see [Team Wizard](#team-wizard))
-- **group-wizard/** — 10 components for small group wizard (see [Group Wizard](#group-wizard))
+- **address-labels/** — 12 components for address label printing, barcode generation, and mail merge
+- **template-editor/** — 12 components for visual template editing with GrapesJS
 - **user-menu/** — User dropdown with profile display and OIDC sign-out action
 - **user-tools-debug/** — Development helper showing authorized tool paths (remove before production)
 - **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile`)
@@ -580,23 +562,23 @@ Application services provide business logic abstraction with the singleton patte
 |---------|------|---------|-------------|
 | **UserService** | `userService.ts` | User profile with roles and groups | `getUserProfile(userGuid)` — parallel queries for user data, roles, and group memberships |
 | **ToolService** | `toolService.ts` | Page metadata and permissions | `getPageData(pageID)`, `getUserTools(domainId, userId)` — via stored procedures |
-| **GroupService** | `groupService.ts` | Group/team CRUD and management | `createGroup`, `updateGroup`, `getGroupLeader`, `addGroupLeader`, `searchApprovedVolunteers`, `getGroupTags`, `addGroupTags`, `removeGroupTags`, `createAddress`, and more |
+| **AddressLabelService** | `addressLabelService.ts` | Address fetching and label data | Address queries from MP selections and saved selections for label printing |
 
 **Data flow:**
 ```
-Server Action → Service.getInstance() → MPHelper → Ministry Platform API
+Server Action -> Service.getInstance() -> MPHelper -> Ministry Platform API
 ```
 
-**DTOs** (`src/lib/dto/`): Hand-written application-level types including `TeamWizardFormData`, `TeamWizardLookupData`, `GroupWizardFormData`, `GroupWizardLookupData`, `ContactSearchResult`, `OffsiteAddressData`, `RoomOption`, `BookOption`, and more.
+**DTOs** (`src/lib/dto/`): Hand-written application-level types including `LabelData`, `LabelConfig`, `SkipRecord`, `AddressMode`, `BarcodeFormat`, and more.
 
 ## Testing
 
 ### Overview
 
-- **Framework**: Vitest 4.0 with jsdom environment
+- **Framework**: Vitest 4.1 with jsdom environment
 - **Libraries**: @testing-library/react, @testing-library/jest-dom
-- **Coverage**: v8 provider — **95%+ statement coverage**
-- **Total**: **230+ test cases across 18 test files**
+- **Coverage**: v8 provider
+- **Total**: **241 test cases across 21 test files**
 
 ### Running Tests
 
@@ -608,25 +590,29 @@ npm run test:coverage # With coverage report
 
 ### Test Coverage
 
-| Area | Test File | Tests | What's Covered |
-|------|-----------|-------|----------------|
-| MPHelper | `helper.test.ts` | 54 | All CRUD operations, Zod validation, domain/metadata/procedure/file methods |
-| HTTP Client | `http-client.test.ts` | 26 | URL building, GET/POST/PUT/DELETE, FormData uploads, error handling |
-| Table Service | `table.service.test.ts` | 21 | Table CRUD with query params, error codes (404, 401, 409) |
-| Group Service | `groupService.test.ts` | 25 | Group CRUD, participants, leaders, tags, contact search, meeting lookups, rooms, books, addresses |
-| Group Wizard Actions | `actions.test.ts` | 20 | Lookup data, group save/update, contact/book search, room loading, children/hybrid mapping |
-| Team Wizard Actions | `actions.test.ts` | 12 | Lookup data loading, group save/update, contact search |
-| MP Client | `client.test.ts` | 12 | OAuth token lifecycle, refresh, concurrent calls, expiry buffer |
-| Auth | `auth.test.ts` | 11 | Custom session, name splitting, OAuth config, userGuid mapping |
-| Provider | `provider.test.ts` | 9 | Singleton pattern, service delegation |
-| Proxy | `proxy.test.ts` | 8 | Route protection, public paths, session cookie checks |
-| Tool Service | `toolService.test.ts` | 8 | Page data, user tools, stored procedure calls |
-| User Context | `user-context.test.tsx` | 6 | UserProvider lifecycle, profile loading, error handling |
-| User Service | `userService.test.ts` | 5 | Profile with roles/groups, parallel queries |
-| User Tools Debug | `actions.test.ts` | 4 | Authorization checks, session validation |
-| User Menu | `actions.test.ts` | 3 | Sign-out action, OIDC logout redirect |
-| Shared Actions | `user.test.ts` | 2 | getCurrentUserProfile delegation |
-| Session Context | `session-context.test.tsx` | 2 | useAppSession hook wrapper |
+| Area | Test File | What's Covered |
+|------|-----------|----------------|
+| MPHelper | `helper.test.ts` | All CRUD operations, Zod validation, domain/metadata/procedure/file methods |
+| HTTP Client | `http-client.test.ts` | URL building, GET/POST/PUT/DELETE, FormData uploads, error handling |
+| Table Service | `table.service.test.ts` | Table CRUD with query params, error codes (404, 401, 409) |
+| Address Label Service | `addressLabelService.test.ts` | Address fetching, label data generation |
+| Address Label Actions | `actions.test.ts` | Address label server actions |
+| MP Client | `client.test.ts` | OAuth token lifecycle, refresh, concurrent calls, expiry buffer |
+| Auth | `auth.test.ts` | Custom session, name splitting, OAuth config, userGuid mapping |
+| Provider | `provider.test.ts` | Singleton pattern, service delegation |
+| Proxy | `proxy.test.ts` | Route protection, public paths, session cookie checks |
+| Tool Service | `toolService.test.ts` | Page data, user tools, stored procedure calls |
+| Selection Debug | `selection-debug-actions.test.ts` | Selection resolution server actions |
+| User Context | `user-context.test.tsx` | UserProvider lifecycle, profile loading, error handling |
+| User Service | `userService.test.ts` | Profile with roles/groups, parallel queries |
+| User Tools Debug | `actions.test.ts` | Authorization checks, session validation |
+| User Menu | `actions.test.ts` | Sign-out action, OIDC logout redirect |
+| Shared Actions | `user.test.ts` | getCurrentUserProfile delegation |
+| Session Context | `session-context.test.tsx` | useAppSession hook wrapper |
+| IMb Encoder | `imb-encoder.test.ts` | USPS Intelligent Mail barcode encoding |
+| POSTNET Encoder | `postnet-encoder.test.ts` | POSTNET barcode encoding |
+| Barcode Helpers | `barcode-helpers.test.ts` | Barcode generation utilities |
+| Label Stock | `label-stock.test.ts` | Label stock definitions and calculations |
 
 ### Key Testing Patterns
 
@@ -653,8 +639,8 @@ npm run test:run         # Single test run
 npm run test:coverage    # Coverage report
 
 # Ministry Platform
-npm run mp:generate          # Generate types (basic)
-npm run mp:generate:models   # Generate types + Zod schemas to models/ (recommended)
+npm run mp:generate:models      # Generate types + Zod schemas to models/ (recommended)
+npm run mp:generate:storedprocs # Generate stored procedure reference
 
 # Setup
 npm run setup            # Interactive setup wizard
@@ -665,16 +651,15 @@ npm run setup:check      # Validate setup without changes
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| next | ^16.1.6 | App Router, Turbopack, React Server Components |
+| next | ^16.1.7 | App Router, Turbopack, React Server Components |
 | react | ^19.2.4 | UI framework |
-| better-auth | ^1.4.18 | OAuth authentication with genericOAuth plugin |
+| better-auth | ^1.5.5 | OAuth authentication with genericOAuth plugin |
 | zod | ^4.3.6 | Runtime validation (v4 API) |
 | react-hook-form | ^7.71.1 | Form state management |
-| @hookform/resolvers | ^5.2.2 | Zod resolver for React Hook Form |
 | tailwindcss | ^4.2.0 | Utility-first CSS |
-| lucide-react | ^0.575.0 | Icon library |
-| vitest | ^4.0.18 | Test framework |
-| typescript | ^5.9.3 | Type safety |
+| lucide-react | ^1.8.0 | Icon library |
+| vitest | ^4.1.0 | Test framework |
+| typescript | ^6.0.2 | Type safety |
 
 ## Claude Code Commands
 
@@ -752,8 +737,10 @@ Uses calver format: `v{YYYY}.{MM}.{DD}.{HHmm}`. Categorizes PRs as features, fix
 | **[Type Generator](src/lib/providers/ministry-platform/scripts/README.md)** | CLI tool for generating TypeScript types from MP schema |
 | **[Auth Reference](.claude/references/auth.md)** | Better Auth config, OAuth flow, session access, userGuid vs user.id |
 | **[Components Reference](.claude/references/components.md)** | Component inventory with compliance status |
+| **[Services Reference](.claude/references/services.md)** | Service layer docs, MP query patterns, DTOs |
 | **[Testing Reference](.claude/references/testing.md)** | Vitest patterns, mock setup, coverage data |
 | **[MP Schema Reference](.claude/references/ministryplatform.schema.md)** | Auto-generated database schema (436 tables) |
+| **[MP Stored Procedures](.claude/references/ministryplatform.storedprocs.md)** | Auto-generated stored procedure reference |
 
 ## Code Style & Conventions
 
@@ -764,8 +751,7 @@ Use the `@/*` path alias for all internal imports:
 import { MPHelper } from '@/lib/providers/ministry-platform';
 import { Button } from '@/components/ui/button';
 import { AuthWrapper } from '@/components/layout';
-import { ToolContainer } from '@/components/tool';
-import { TeamWizardForm } from '@/components/team-wizard';
+import { ToolContainer, SelectionDebug } from '@/components/tool';
 import { useUser, useAppSession } from '@/contexts';
 ```
 
@@ -790,12 +776,12 @@ import { useUser, useAppSession } from '@/contexts';
 
 ```
 src/components/
-├── shared-actions/       # Cross-feature server actions
-├── ui/                   # shadcn/ui components (22)
+├── address-labels/       # Address label printing & mail merge (12 files)
 ├── layout/               # AuthWrapper
-├── tool/                 # Tool framework (Container, Header, Footer)
-├── team-wizard/          # Team wizard (7 components + schemas)
-├── group-wizard/         # Group wizard (10 components + schemas)
+├── shared-actions/       # Cross-feature server actions
+├── template-editor/      # Visual template editor (12 files)
+├── tool/                 # Tool framework (Container, Header, Footer, ParamsDebug, SelectionDebug)
+├── ui/                   # shadcn/ui components (22)
 ├── user-menu/            # User dropdown + sign-out action
 └── user-tools-debug/     # Dev authorization helper
 ```

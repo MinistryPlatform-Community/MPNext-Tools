@@ -14,7 +14,7 @@ Ministry Platform's REST API performs implicit joins when querying tables with f
 
 2. **Use `_TABLE` suffix** to traverse foreign key relationships. The pattern is `{ForeignKeyColumn}_TABLE.{TargetColumn}` — this tells the API to follow the FK and select a column from the related table.
 
-3. **Multi-level FK traversal** is supported by chaining `_TABLE_` between FK columns, with a dot (`.`) only before the **final output field**. Pattern: `{FK1}_TABLE_{FK2}_TABLE.{TargetColumn}`. Example: `Building_ID_TABLE_Location_ID_TABLE.Congregation_ID` traverses Rooms → Buildings → Locations → Congregations. **Important:** do NOT use dots between intermediate levels (`Building_ID_TABLE.Location_ID_TABLE.Column` is invalid).
+3. **Multi-level FK traversal** is supported by chaining `_TABLE_` between FK columns, with a dot (`.`) only before the **final output field**. Pattern: `{FK1}_TABLE_{FK2}_TABLE.{TargetColumn}`. Example: `Building_ID_TABLE_Location_ID_TABLE.Congregation_ID` traverses Rooms -> Buildings -> Locations -> Congregations. **Important:** do NOT use dots between intermediate levels (`Building_ID_TABLE.Location_ID_TABLE.Column` is invalid).
 
 4. **Direct table prefix** (`TableName.ColumnName`) disambiguates columns on the **current** table when joins create ambiguity.
 
@@ -34,52 +34,28 @@ Ministry Platform's REST API performs implicit joins when querying tables with f
 
 ### Examples From This Codebase
 
-**Disambiguating `Contact_ID` (exists in both Contacts and Participants):**
-```typescript
-// groupService.ts — searchApprovedVolunteers()
-select: 'Contacts.Contact_ID, Display_Name, Participant_Record_TABLE.Participant_ID'
-//       ^^^^^^^^^^^^^^^^ prefixed to avoid ambiguity with Participant's Contact_ID
-//                         ^^^^^^^^^^^^ unambiguous — only on Contacts
-//                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ FK traversal
-```
-
 **Traversing FK to get related Contact fields from dp_Users:**
 ```typescript
 // userService.ts — getUserProfile()
 select: 'User_ID, User_GUID, Contact_ID_TABLE.First_Name, Contact_ID_TABLE.Nickname, Contact_ID_TABLE.Last_Name, Contact_ID_TABLE.Email_Address, Contact_ID_TABLE.Mobile_Phone, Contact_ID_TABLE.dp_fileUniqueId AS Image_GUID'
 //       ^^^^^^^^ no prefix needed — unambiguous on dp_Users
-//                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^ FK traversal: dp_Users.Contact_ID → Contacts.First_Name
+//                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^ FK traversal: dp_Users.Contact_ID -> Contacts.First_Name
 ```
 
 **Traversing FK to get role names from dp_User_Roles:**
 ```typescript
 // userService.ts — getUserProfile() roles query
 select: 'Role_ID_TABLE.Role_Name'
-//       ^^^^^^^^^^^^^^^^^^^^^^^^ FK traversal: dp_User_Roles.Role_ID → Roles.Role_Name
+//       ^^^^^^^^^^^^^^^^^^^^^^^^ FK traversal: dp_User_Roles.Role_ID -> Roles.Role_Name
 ```
 
-**Traversing FK to get leader display name from Groups:**
+**Multi-level FK traversal (Contacts -> Households -> Addresses):**
 ```typescript
-// groupService.ts — getGroupWithDisplayName()
-select: '*, Primary_Contact_TABLE.Display_Name AS Primary_Contact_Display_Name'
-//       ^^ all Group columns
-//          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ FK traversal with alias
-```
-
-**Traversing FK to get Contact_ID from Group_Participants:**
-```typescript
-// groupService.ts — getGroupLeader()
-select: 'Group_Participant_ID, Participant_ID_TABLE.Contact_ID, Group_Role_ID, Start_Date, End_Date'
-//                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ FK traversal: Group_Participants.Participant_ID → Participants.Contact_ID
-```
-
-**Multi-level FK traversal (Rooms → Buildings → Locations → Congregations):**
-```typescript
-// groupService.ts — getRoomsByCongregation()
-filter: 'Building_ID_TABLE_Location_ID_TABLE.Congregation_ID = 5'
-//       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//       Chains: Rooms.Building_ID → Buildings.Location_ID → Locations.Congregation_ID
+// addressLabelService.ts — getAddressesForContacts()
+select: 'Contact_ID, Display_Name, Contacts.Household_ID, Household_ID_TABLE.Household_Name, Household_ID_TABLE_Address_ID_TABLE.Address_Line_1, Household_ID_TABLE_Address_ID_TABLE.City, Household_ID_TABLE_Address_ID_TABLE.[State/Region], Household_ID_TABLE_Address_ID_TABLE.Postal_Code'
+//       Chains: Contacts.Household_ID -> Households.Address_ID -> Addresses.City
 //       Note: underscores between _TABLE_ levels, dot ONLY before the final field
+//       [State/Region] uses bracket notation for the special character in the column name
 ```
 
 ### When to Prefix
@@ -89,7 +65,7 @@ filter: 'Building_ID_TABLE_Location_ID_TABLE.Congregation_ID = 5'
 | Column unique to queried table | No | `Display_Name` on Contacts |
 | Column shared across joined tables | **Yes — use `Table.Column`** | `Contacts.Contact_ID` when Participants also joined |
 | Column from a related (FK) table | **Yes — use `FK_TABLE.Column`** | `Contact_ID_TABLE.First_Name` |
-| Column across multiple FK levels | **Yes — use `FK1_TABLE_FK2_TABLE.Column`** | `Building_ID_TABLE_Location_ID_TABLE.Congregation_ID` |
+| Column across multiple FK levels | **Yes — use `FK1_TABLE_FK2_TABLE.Column`** | `Household_ID_TABLE_Address_ID_TABLE.Postal_Code` |
 | All columns from queried table | No | `*` |
 | Filtering on ambiguous column | **Yes — use `Table.Column`** | `filter: 'Contacts.Contact_ID = 123'` |
 
@@ -99,8 +75,7 @@ filter: 'Building_ID_TABLE_Location_ID_TABLE.Congregation_ID = 5'
 |--------|------------------------|------------|
 | `Contact_ID` | Contacts, dp_Users, Participants, Group_Participants, many more | Prefix with table name: `Contacts.Contact_ID` |
 | `User_ID` | dp_Users, dp_User_Roles, dp_User_User_Groups | Prefix with table name when joining |
-| `Start_Date` | Groups, Group_Participants, Participants | Prefix if querying joins |
-| `End_Date` | Groups, Group_Participants, Participants | Prefix if querying joins |
+| `Household_ID` | Contacts, Households | Prefix: `Contacts.Household_ID` |
 | `Display_Name` | Contacts, Groups, Ministries, many more | Prefix when joining related tables |
 
 ---
@@ -111,7 +86,7 @@ Some Ministry Platform columns contain special characters that require quoting i
 
 | Column | Table | Issue | Usage |
 |--------|-------|-------|-------|
-| `State/Region` | Addresses | Contains `/` | Must be quoted in code: `'State/Region'` |
+| `State/Region` | Addresses | Contains `/` | Must be quoted in code: `'State/Region'` or bracket notation `[State/Region]` in select |
 | `Allow_Check-in` | Events | Contains `-` | Access with bracket notation: `event["Allow_Check-in"]` |
 
 ---
@@ -120,13 +95,13 @@ Some Ministry Platform columns contain special characters that require quoting i
 
 ```
 Server Action ("use server")
-  → validates session via auth.api.getSession()
-  → calls Service.getInstance() (singleton)
-    → Service method calls MPHelper
-      → MPHelper normalizes params + optional Zod validation
-        → MinistryPlatformProvider delegates to specialized service
-          → TableService / ProcedureService / etc.
-            → HttpClient makes authenticated HTTP request
+  -> validates session via auth.api.getSession()
+  -> calls Service.getInstance() (singleton)
+    -> Service method calls MPHelper
+      -> MPHelper normalizes params + optional Zod validation
+        -> MinistryPlatformProvider delegates to specialized service
+          -> TableService / ProcedureService / etc.
+            -> HttpClient makes authenticated HTTP request
 ```
 
 ### Singleton Pattern
@@ -253,220 +228,55 @@ Returns `string[]` of tool paths the user is authorized to access.
 | Procedure | `api_Tools_GetUserTools` |
 | Body | `{ "@DomainId": domainId, "@UserId": userId }` |
 
-- Maps `result[0]` → extracts `Tool_Path` from each row
+- Maps `result[0]` -> extracts `Tool_Path` from each row
 - Returns empty array if no tools found
 
 ---
 
-## GroupService
+## AddressLabelService
 
-**File:** `src/services/groupService.ts`
-**Purpose:** Comprehensive group/team management including CRUD, lookups, participants, leaders, tags, and addresses.
+**File:** `src/services/addressLabelService.ts`
+**Purpose:** Fetches contact addresses from Ministry Platform via multi-level FK joins (Contacts -> Households -> Addresses) for address label generation.
 
-### Lookup Methods
+### getAddressesForContacts(contactIds: number[])
 
-#### getMinistries()
-
-Returns `MinistryOption[]`. Fetches active ministries.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Ministries` |
-| Select | `Ministry_ID, Ministry_Name` |
-| Filter | `End_Date IS NULL` |
-| OrderBy | `Ministry_Name` |
-
-#### getGroupFocuses()
-
-Returns `GroupFocusOption[]`. Fetches hardcoded group focus options.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Group_Focuses` |
-| Select | `Group_Focus_ID, Group_Focus` |
-| Filter | `Group_Focus_ID IN (6, 7, 24)` |
-
-Hardcoded IDs: `6` = Men, `7` = Women, `24` = Men and Women.
-
-#### getGroupTags()
-
-Returns `TagOption[]`. Fetches tags in the "Groups" tag group.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Tags` |
-| Select | `Tag_ID, Tag` |
-| Filter | `Tag_Group = 'Groups'` |
-| OrderBy | `Tag` |
-
-### Contact Search
-
-#### searchApprovedVolunteers(term: string)
-
-Returns `ContactSearchResult[]`. Fuzzy-searches active contacts by display name.
+Returns `ContactAddressRow[]`. Fetches addresses for multiple contacts, batching large arrays (100 per batch) to avoid oversized filter clauses.
 
 | Parameter | Value |
 |-----------|-------|
 | Table | `Contacts` |
-| Select | `Contacts.Contact_ID, Display_Name, Participant_Record_TABLE.Participant_ID` |
-| Filter | `Display_Name LIKE '%${safeTerm}%' AND Contact_Status_ID = 1` |
-| OrderBy | `Last_Name, First_Name` |
-| Top | `20` |
+| Select | `Contact_ID, Display_Name, First_Name, Last_Name, Contacts.Household_ID, Household_ID_TABLE.Household_Name, Household_ID_TABLE.Bulk_Mail_Opt_Out, Household_ID_TABLE_Address_ID_TABLE.Address_Line_1, Household_ID_TABLE_Address_ID_TABLE.Address_Line_2, Household_ID_TABLE_Address_ID_TABLE.City, Household_ID_TABLE_Address_ID_TABLE.[State/Region], Household_ID_TABLE_Address_ID_TABLE.Postal_Code, Household_ID_TABLE_Address_ID_TABLE.Bar_Code, Household_ID_TABLE_Address_ID_TABLE.Delivery_Point_Code` |
+| Filter | `Contact_ID IN (${batch})` |
+| OrderBy | `Household_ID_TABLE_Address_ID_TABLE.Postal_Code` |
 
-- **SQL injection protection:** `term.replace(/'/g, "''")` escapes single quotes
-- **Ambiguous column:** `Contacts.Contact_ID` is prefixed because the `Participant_Record` join also has a `Contact_ID`
-- **FK traversal:** `Participant_Record_TABLE.Participant_ID` follows the FK from Contacts to Participants
+- **Multi-level FK traversal:** `Household_ID_TABLE_Address_ID_TABLE.City` chains Contacts -> Households -> Addresses
+- **Bracket notation:** `[State/Region]` for the special character in the column name
+- **Batching:** Splits large contact ID lists into batches of 100 to avoid API limits
+- **Ambiguous column:** `Contacts.Household_ID` is prefixed because the Households join also has it
 
-### Group CRUD
+### getAddressForContact(contactId: number)
 
-#### getGroup(groupId: number)
+Returns `ContactAddressRow | null`. Fetches the address for a single contact. Same select/query as above with `top: 1`.
 
-Returns `Groups | null`. Fetches a single group record.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Groups` |
-| Filter | `Group_ID = ${groupId}` |
-| Top | `1` |
-
-#### getGroupWithDisplayName(groupId: number)
-
-Returns `Groups & { Primary_Contact_Display_Name: string } | null`. Fetches group with leader's display name.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Groups` |
-| Select | `*, Primary_Contact_TABLE.Display_Name AS Primary_Contact_Display_Name` |
-| Filter | `Group_ID = ${groupId}` |
-| Top | `1` |
-
-- **FK traversal:** `Primary_Contact_TABLE.Display_Name` follows the `Primary_Contact` FK to get the contact's name
-
-#### createGroup(data: Partial\<Groups\>)
-
-Returns `{ Group_ID: number; Group_Name: string }[]`. Creates a group record.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Groups` |
-| $select | `Group_ID, Group_Name` |
-
-#### updateGroup(data: Partial\<Groups\>)
-
-Returns `void`. Updates an existing group record. Data must include `Group_ID`.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Groups` |
-
-### Address Management
-
-#### createAddress(data: OffsiteAddressData)
-
-Returns `number` (Address_ID). Creates an address for offsite meetings.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Addresses` |
-| $select | `Address_ID` |
-
-**Field mapping from DTO to MP columns:**
-| DTO Field | MP Column |
-|-----------|-----------|
-| `addressLine1` | `Address_Line_1` |
-| `addressLine2` | `Address_Line_2` |
-| `city` | `City` |
-| `state` | `'State/Region'` (quoted — special character) |
-| `postalCode` | `Postal_Code` |
-
-### Participant & Leader Management
-
-#### getParticipantByContactId(contactId: number)
-
-Returns `{ Participant_ID: number } | null`.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Participants` |
-| Select | `Participant_ID` |
-| Filter | `Contact_ID = ${contactId}` |
-| Top | `1` |
-
-#### createParticipant(contactId: number)
-
-Returns `number` (Participant_ID). Creates a participant record.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Participants` |
-| $select | `Participant_ID` |
-| Hardcoded | `Participant_Type_ID: 4` (Member), `Participant_Start_Date: new Date().toISOString()` |
-
-#### getGroupLeader(groupId: number)
-
-Returns `GroupParticipants & { Contact_ID: number } | null`. Finds the active leader.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Group_Participants` |
-| Select | `Group_Participant_ID, Participant_ID_TABLE.Contact_ID, Group_Role_ID, Start_Date, End_Date` |
-| Filter | `Group_ID = ${groupId} AND Group_Role_ID = ${GROUP_ROLE_LEADER} AND End_Date IS NULL` |
-| Top | `1` |
-
-- `GROUP_ROLE_LEADER = 7` (imported from `@/components/group-wizard/schemas`)
-- **FK traversal:** `Participant_ID_TABLE.Contact_ID` gets the Contact_ID from the Participants table
-
-#### addGroupLeader(groupId: number, participantId: number)
-
-Returns `void`. Creates a Group_Participants record for the leader.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Group_Participants` |
-| Hardcoded | `Group_Role_ID: GROUP_ROLE_LEADER (7)`, `Start_Date: new Date().toISOString()` |
-
-#### endGroupLeader(groupParticipantId: number)
-
-Returns `void`. Soft-ends a leader assignment by setting End_Date.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Group_Participants` |
-| Update | `End_Date: new Date().toISOString()` |
-
-**Pattern:** Soft delete — sets `End_Date` instead of deleting the record.
-
-### Tag Management
-
-#### getGroupTagRecords(groupId: number)
-
-Returns `GroupTags[]`.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Group_Tags` |
-| Select | `Group_Tag_ID, Tag_ID, Group_ID` |
-| Filter | `Group_ID = ${groupId}` |
-
-#### addGroupTags(groupId: number, tagIds: number[])
-
-Returns `void`. Batch-creates Group_Tags records.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Group_Tags` |
-| Records | Maps `tagIds` → `[{ Group_ID, Tag_ID }]` |
-| Guard | No-op if `tagIds.length === 0` |
-
-#### removeGroupTags(groupTagIds: number[])
-
-Returns `void`. Batch-deletes Group_Tags by primary key.
-
-| Parameter | Value |
-|-----------|-------|
-| Table | `Group_Tags` |
-| IDs | `groupTagIds` array |
-| Guard | No-op if `groupTagIds.length === 0` |
+**Return type — `ContactAddressRow`:**
+```typescript
+{
+  Contact_ID: number;
+  Display_Name: string;
+  First_Name: string;
+  Last_Name: string;
+  Household_ID: number | null;
+  Household_Name: string | null;
+  Bulk_Mail_Opt_Out: boolean;
+  Address_Line_1: string | null;
+  Address_Line_2: string | null;
+  City: string | null;
+  'State/Region': string | null;
+  Postal_Code: string | null;
+  Bar_Code: string | null;
+  Delivery_Point_Code: string | null;
+}
+```
 
 ---
 
@@ -480,7 +290,7 @@ Server actions validate the session, call service singletons, and return data to
 
 #### getCurrentUserProfile(id: string)
 
-- Calls `UserService.getInstance()` → `getUserProfile(id)`
+- Calls `UserService.getInstance()` -> `getUserProfile(id)`
 - Returns `MPUserProfile | undefined`
 - No session check (caller is responsible)
 
@@ -502,7 +312,7 @@ Server actions validate the session, call service singletons, and return data to
 
 - Validates session and extracts `userGuid`
 - Queries `dp_Users` (filter: `User_GUID`, select: `User_ID`, top: 1) to get numeric User_ID
-- Calls `ToolService.getInstance()` → `getUserTools(1, userId)`
+- Calls `ToolService.getInstance()` -> `getUserTools(1, userId)`
 - Returns `string[]` of authorized tool paths
 - Throws on: missing session, missing userGuid, user not found
 
@@ -514,59 +324,17 @@ Server actions validate the session, call service singletons, and return data to
 
 Hand-written application-level data transfer objects. Separate from auto-generated MP models.
 
-### Lookup DTOs
+### Address Label DTOs (`address-label.dto.ts`)
 
 | Type | Fields | Used By |
 |------|--------|---------|
-| `MinistryOption` | `Ministry_ID: number`, `Ministry_Name: string` | `GroupService.getMinistries()` |
-| `GroupFocusOption` | `Group_Focus_ID: number`, `Group_Focus: string` | `GroupService.getGroupFocuses()` |
-| `TagOption` | `Tag_ID: number`, `Tag: string` | `GroupService.getGroupTags()` |
-| `ContactSearchResult` | `Contact_ID: number`, `Display_Name: string`, `Participant_ID: number \| null` | `GroupService.searchApprovedVolunteers()` |
-
-### Wizard DTOs
-
-| Type | Purpose |
-|------|---------|
-| `GroupWizardLookupData` | Aggregates `ministries`, `groupFocuses`, `tags`, meeting options for form initialization |
-| `GroupWizardFormData` | Complete form submission (group info, campus, ministry, leader, tags, registration, address) |
-| `GroupWizardGroupData` | Enriched group record for edit mode (includes `Primary_Contact_Display_Name`, `offsiteAddress`, `tagIds`) |
-| `GroupWizardSaveResult` | Operation result: `{ success: boolean, groupId?: number, error?: string }` |
-| `OffsiteAddressData` | Address fields: `addressLine1`, `addressLine2?`, `city?`, `state?`, `postalCode?` |
-
----
-
-## Constants
-
-**File:** `src/components/group-wizard/schemas.ts`
-
-### Group Types
-
-| Constant | Value | Label |
-|----------|-------|-------|
-| `GROUP_TYPE_SMALL_GROUP` | `1` | Small Group |
-
-### Group Roles
-
-| Constant | Value |
-|----------|-------|
-| `GROUP_ROLE_LEADER` | `7` |
-
-### Group Focuses
-
-| Constant | Value | Label |
-|----------|-------|-------|
-| `GROUP_FOCUS_MEN` | `6` | Men |
-| `GROUP_FOCUS_WOMEN` | `7` | Women |
-| `GROUP_FOCUS_MEN_AND_WOMEN` | `24` | Men and Women |
-
-### Congregations
-
-| ID | Name |
-|----|------|
-| `5` | Melbourne |
-| `6` | Viera |
-| `7` | Sebastian |
-| `15` | Espanol |
+| `LabelData` | Contact info, address fields, barcode data | Label rendering components |
+| `SkipRecord` | `Contact_ID`, `Display_Name`, `reason` | Skip reporting in summary |
+| `SkipReason` | Union type: `'no-address'`, `'bulk-mail-opt-out'`, `'no-postal-code'` | Skip classification |
+| `AddressMode` | `'selection'` or `'saved-selection'` | Address source selection |
+| `BarcodeFormat` | `'imb'`, `'postnet'`, or `'none'` | Barcode rendering choice |
+| `LabelConfig` | Label stock, barcode format, mailer ID, service type | Configuration for label generation |
+| `FetchAddressLabelsResult` | `labels`, `skipped`, `totalFetched` | Result of address fetch operation |
 
 ---
 
@@ -638,19 +406,9 @@ select: '*, Primary_Contact_TABLE.Display_Name AS Primary_Contact_Display_Name'
 
 // Disambiguate when joining creates ambiguity
 select: 'Contacts.Contact_ID, Display_Name, Participant_Record_TABLE.Participant_ID'
-```
 
-### Soft Delete Pattern
-
-```typescript
-// End-date a record instead of deleting
-await mp.updateTableRecords('Group_Participants', [{
-  Group_Participant_ID: id,
-  End_Date: new Date().toISOString()
-}]);
-
-// Filter for active records
-filter: 'End_Date IS NULL'
+// Multi-level traversal (Contacts -> Households -> Addresses)
+select: 'Household_ID_TABLE_Address_ID_TABLE.City, Household_ID_TABLE_Address_ID_TABLE.[State/Region]'
 ```
 
 ### Batch Operations with Guards
@@ -659,4 +417,10 @@ filter: 'End_Date IS NULL'
 // Skip API call if nothing to do
 if (tagIds.length === 0) return;
 await mp.createTableRecords('Group_Tags', tagIds.map(id => ({ Group_ID: groupId, Tag_ID: id })));
+
+// Batch large arrays to avoid oversized filters
+for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+  const batch = ids.slice(i, i + BATCH_SIZE);
+  const rows = await mp.getTableRecords({ filter: `Contact_ID IN (${batch.join(', ')})` });
+}
 ```

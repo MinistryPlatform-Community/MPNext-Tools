@@ -1,10 +1,10 @@
 # Testing Reference Guide
 
-This document provides detailed context about the testing setup, patterns, and conventions for LLM assistants working on the MPNext project.
+This document provides detailed context about the testing setup, patterns, and conventions for LLM assistants working on the MPNext Tools project.
 
 ## Overview
 
-MPNext uses **Vitest** with **jsdom** environment, **@testing-library/react** for component/hook tests, and **v8** for coverage reporting.
+MPNext Tools uses **Vitest** with **jsdom** environment, **@testing-library/react** for component/hook tests, and **v8** for coverage reporting.
 
 ### Configuration
 
@@ -23,7 +23,7 @@ npm run test:coverage # Single run + v8 coverage report
 
 ## Test File Conventions
 
-- Co-locate test files next to their source: `foo.ts` → `foo.test.ts`
+- Co-locate test files next to their source: `foo.ts` -> `foo.test.ts`
 - Service tests: `src/services/userService.test.ts`
 - Action tests: `src/components/user-menu/actions.test.ts`
 - Context tests: `src/contexts/user-context.test.tsx` (`.tsx` for JSX)
@@ -34,7 +34,7 @@ npm run test:coverage # Single run + v8 coverage report
 **Critical**: `vi.mock()` factories are hoisted to the top of the file. Any mock variables referenced inside a factory **must** be declared with `vi.hoisted()`, not plain `const`.
 
 ```typescript
-// ✅ Correct — vi.hoisted() ensures variables exist when vi.mock() runs
+// Correct — vi.hoisted() ensures variables exist when vi.mock() runs
 const { mockGetSession, mockGetTableRecords } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetTableRecords: vi.fn(),
@@ -44,7 +44,7 @@ vi.mock('@/lib/auth', () => ({
   auth: { api: { getSession: mockGetSession } },
 }));
 
-// ❌ Wrong — ReferenceError: Cannot access 'mockGetSession' before initialization
+// Wrong — ReferenceError: Cannot access 'mockGetSession' before initialization
 const mockGetSession = vi.fn();
 vi.mock('@/lib/auth', () => ({
   auth: { api: { getSession: mockGetSession } },
@@ -200,35 +200,31 @@ Coverage uses the **v8** provider. Auto-generated model files are excluded.
 npx vitest run --coverage --coverage.reportOnFailure
 ```
 
-### Current Coverage (228 tests, 19 files)
-
-| Layer | Stmts | Branch | Lines |
-|-------|-------|--------|-------|
-| Services | 97.29% | 86.48% | 97.27% |
-| Server Actions | ~99% | ~90% | ~99% |
-| Proxy | 100% | 100% | 100% |
-| Contexts | 91.42% | 85.71% | 91.42% |
-| MP Provider | 87.37% | 86.66% | 88.23% |
-| **All files** | **95.39%** | **88.02%** | **95.74%** |
-
-## Test File Inventory
+## Test File Inventory (241 tests, 21 files)
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
-| `services/userService.test.ts` | 4 | User profile lookup |
-| `services/toolService.test.ts` | 7 | Page data + user tools via stored procedures |
-| `components/user-menu/actions.test.ts` | 3 | Sign-out + OAuth end session redirect |
-| `components/user-tools-debug/actions.test.ts` | 4 | User tools with auth + MP lookup |
-| `components/shared-actions/user.test.ts` | 2 | getCurrentUserProfile delegation |
-| `proxy.test.ts` | 8 | Route protection (public paths, session, errors) |
-| `lib/providers/ministry-platform/provider.test.ts` | 9 | Provider delegation to services |
-| `contexts/user-context.test.tsx` | 6 | UserProvider + useUser hook lifecycle |
-| `contexts/session-context.test.tsx` | 2 | useAppSession wrapper |
-| `auth.test.ts` | 11 | Name splitting, session structure |
-| `lib/providers/ministry-platform/helper.test.ts` | 54 | MPHelper CRUD, validation, procedures, files |
-| `lib/providers/ministry-platform/client.test.ts` | 12 | OAuth token management |
-| `lib/providers/ministry-platform/services/table.service.test.ts` | 20 | TableService CRUD |
+| `lib/providers/ministry-platform/helper.test.ts` | 54 | MPHelper CRUD, Zod validation, procedures, files |
 | `lib/providers/ministry-platform/utils/http-client.test.ts` | 26 | HTTP methods, URL building, error handling |
+| `lib/providers/ministry-platform/services/table.service.test.ts` | 21 | TableService CRUD with query params, error codes |
+| `components/address-labels/actions.test.ts` | 14 | Address label server actions, fetch, skip logic |
+| `lib/providers/ministry-platform/client.test.ts` | 12 | OAuth token lifecycle, refresh, concurrent calls |
+| `services/toolService.test.ts` | 11 | Page data, user tools, stored procedure calls |
+| `proxy.test.ts` | 11 | Route protection, public paths, session, errors |
+| `lib/barcode-helpers.test.ts` | 11 | Barcode generation utilities |
+| `auth.test.ts` | 11 | Name splitting, session structure, OAuth config |
+| `lib/imb-encoder.test.ts` | 10 | USPS Intelligent Mail barcode encoding |
+| `lib/providers/ministry-platform/provider.test.ts` | 9 | Singleton pattern, service delegation |
+| `lib/postnet-encoder.test.ts` | 9 | POSTNET barcode encoding |
+| `lib/label-stock.test.ts` | 9 | Label stock definitions and calculations |
+| `services/addressLabelService.test.ts` | 6 | Address fetching, batching, single contact |
+| `contexts/user-context.test.tsx` | 6 | UserProvider lifecycle, profile loading, errors |
+| `services/userService.test.ts` | 5 | Profile with roles/groups, parallel queries |
+| `components/tool/selection-debug-actions.test.ts` | 5 | Selection resolution server actions |
+| `components/user-tools-debug/actions.test.ts` | 4 | Authorization checks, session validation |
+| `components/user-menu/actions.test.ts` | 3 | Sign-out action, OIDC logout redirect |
+| `contexts/session-context.test.tsx` | 2 | useAppSession hook wrapper |
+| `components/shared-actions/user.test.ts` | 2 | getCurrentUserProfile delegation |
 
 ## Known Issues
 
