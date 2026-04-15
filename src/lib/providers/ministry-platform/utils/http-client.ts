@@ -1,4 +1,5 @@
 import { QueryParams, RequestBody } from "../types/provider.types";
+import { logger } from "./logger";
 
 export class HttpClient {
     private baseUrl: string;
@@ -22,7 +23,7 @@ export class HttpClient {
 
         if (!response.ok) {
             const responseText = await response.text().catch(() => '');
-            console.error("GET Request failed:", {
+            logger.error("GET Request failed:", {
                 status: response.status,
                 statusText: response.statusText,
                 url,
@@ -77,7 +78,7 @@ export class HttpClient {
     async put<T = unknown>(endpoint: string, body: RequestBody, queryParams?: QueryParams): Promise<T> {
         const url = this.buildUrl(endpoint, queryParams);
         
-        console.log("HTTP PUT Request:", {
+        logger.debug("HTTP PUT Request:", {
             url,
             endpoint,
             body: JSON.stringify(body, null, 2),
@@ -96,7 +97,7 @@ export class HttpClient {
 
         if (!response.ok) {
             const responseText = await response.text();
-            console.error("PUT Request failed:", {
+            logger.error("PUT Request failed:", {
                 status: response.status,
                 statusText: response.statusText,
                 responseBody: responseText
