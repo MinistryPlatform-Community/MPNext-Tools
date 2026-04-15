@@ -1,5 +1,6 @@
 import { MinistryPlatformClient } from "../client";
 import { ProcedureInfo, QueryParams } from "../types";
+import { logger } from "../utils/logger";
 
 export class ProcedureService {
     private client: MinistryPlatformClient;
@@ -18,7 +19,7 @@ export class ProcedureService {
             const params: QueryParams | undefined = search ? { $search: search } : undefined;
             return await this.client.getHttpClient().get<ProcedureInfo[]>('/procs', params);
         } catch (error) {
-            console.error('Error getting procedures:', error);
+            logger.error('Error getting procedures:', error);
             throw error;
         }
     }
@@ -33,16 +34,16 @@ export class ProcedureService {
         try {
             await this.client.ensureValidToken();
 
-            console.log('Executing procedure:', procedure);
-            console.log('Query Params:', params);
+            logger.debug('Executing procedure:', procedure);
+            logger.debug('Query Params:', params);
 
             const endpoint = `/procs/${encodeURIComponent(procedure)}`;
             const data = await this.client.getHttpClient().get<unknown[][]>(endpoint, params);
-            
-            console.log('Procedure results:', data);
+
+            logger.debug('Procedure results:', data);
             return data;
         } catch (error) {
-            console.error(`Error executing procedure ${procedure}:`, error);
+            logger.error(`Error executing procedure ${procedure}:`, error);
             throw error;
         }
     }
@@ -57,16 +58,16 @@ export class ProcedureService {
         try {
             await this.client.ensureValidToken();
 
-            console.log('Executing procedure with body:', procedure);
-            console.log('Parameters:', parameters);
+            logger.debug('Executing procedure with body:', procedure);
+            logger.debug('Parameters:', parameters);
 
             const endpoint = `/procs/${encodeURIComponent(procedure)}`;
             const data = await this.client.getHttpClient().post<unknown[][]>(endpoint, parameters);
-            
-            console.log('Procedure results:', data);
+
+            logger.debug('Procedure results:', data);
             return data;
         } catch (error) {
-            console.error(`Error executing procedure ${procedure}:`, error);
+            logger.error(`Error executing procedure ${procedure}:`, error);
             throw error;
         }
     }
