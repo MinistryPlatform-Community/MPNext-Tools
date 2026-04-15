@@ -1,5 +1,6 @@
 import { MinistryPlatformClient } from "../client";
 import { CommunicationInfo, Communication, MessageInfo } from "../types";
+import { logger } from "../utils/logger";
 
 export class CommunicationService {
     private client: MinistryPlatformClient;
@@ -24,7 +25,7 @@ export class CommunicationService {
                 return await this.client.getHttpClient().post<Communication>('/communications', { ...communication });
             }
         } catch (error) {
-            console.error('Error creating communication:', error);
+            logger.error('Error creating communication:', error);
             throw error;
         }
     }
@@ -44,7 +45,7 @@ export class CommunicationService {
                 return await this.client.getHttpClient().post<Communication>('/messages', { ...message });
             }
         } catch (error) {
-            console.error('Error sending message:', error);
+            logger.error('Error sending message:', error);
             throw error;
         }
     }

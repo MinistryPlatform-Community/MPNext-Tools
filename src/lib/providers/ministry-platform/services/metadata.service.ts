@@ -1,5 +1,6 @@
 import { MinistryPlatformClient } from "../client";
 import { TableMetadata } from "../types";
+import { logger } from "../utils/logger";
 
 export class MetadataService {
     private client: MinistryPlatformClient;
@@ -16,7 +17,7 @@ export class MetadataService {
             await this.client.ensureValidToken();
             await this.client.getHttpClient().get<void>('/refreshMetadata');
         } catch (error) {
-            console.error('Error refreshing metadata:', error);
+            logger.error('Error refreshing metadata:', error);
             throw error;
         }
     }
@@ -31,7 +32,7 @@ export class MetadataService {
             const params = search ? { $search: search } : undefined;
             return await this.client.getHttpClient().get<TableMetadata[]>('/tables', params);
         } catch (error) {
-            console.error('Error getting tables:', error);
+            logger.error('Error getting tables:', error);
             throw error;
         }
     }

@@ -1,5 +1,6 @@
 import { MinistryPlatformClient } from "../client";
 import { DomainInfo, GlobalFilterItem, GlobalFilterParams, QueryParams } from "../types";
+import { logger } from "../utils/logger";
 
 export class DomainService {
     private client: MinistryPlatformClient;
@@ -17,7 +18,7 @@ export class DomainService {
             await this.client.ensureValidToken();
             return await this.client.getHttpClient().get('/domain');
         } catch (error) {
-            console.error('Error getting domain info:', error);
+            logger.error('Error getting domain info:', error);
             throw error;
         }
     }
@@ -34,7 +35,7 @@ export class DomainService {
             await this.client.ensureValidToken();
             return await this.client.getHttpClient().get('/domain/filters', params as QueryParams);
         } catch (error) {
-            console.error('Error getting global filters:', error);
+            logger.error('Error getting global filters:', error);
             throw error;
         }
     }

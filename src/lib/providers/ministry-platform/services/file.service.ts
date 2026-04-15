@@ -1,5 +1,6 @@
 import { MinistryPlatformClient } from "../client";
 import { FileDescription, FileUpdateParams, FileUploadParams } from "../types";
+import { logger } from "../utils/logger";
 
 export class FileService {
     private client: MinistryPlatformClient;
@@ -29,7 +30,7 @@ export class FileService {
                 queryParams
             );
         } catch (error) {
-            console.error('Error getting files by record:', error);
+            logger.error('Error getting files by record:', error);
             throw error;
         }
     }
@@ -75,7 +76,7 @@ export class FileService {
                 queryParams
             );
         } catch (error) {
-            console.error('Error uploading files:', error);
+            logger.error('Error uploading files:', error);
             throw error;
         }
     }
@@ -124,7 +125,7 @@ export class FileService {
                 queryParams
             );
         } catch (error) {
-            console.error('Error updating file:', error);
+            logger.error('Error updating file:', error);
             throw error;
         }
     }
@@ -146,7 +147,7 @@ export class FileService {
 
             await this.client.getHttpClient().delete<void>(`/files/${fileId}`, queryParams);
         } catch (error) {
-            console.error('Error deleting file:', error);
+            logger.error('Error deleting file:', error);
             throw error;
         }
     }
@@ -178,7 +179,7 @@ export class FileService {
 
             return await response.blob();
         } catch (error) {
-            console.error('Error getting file content by unique ID:', error);
+            logger.error('Error getting file content by unique ID:', error);
             throw error;
         }
     }
@@ -192,7 +193,7 @@ export class FileService {
 
             return await this.client.getHttpClient().get<FileDescription>(`/files/${fileId}/metadata`);
         } catch (error) {
-            console.error('Error getting file metadata:', error);
+            logger.error('Error getting file metadata:', error);
             throw error;
         }
     }
@@ -206,7 +207,7 @@ export class FileService {
 
             return await this.client.getHttpClient().get<FileDescription>(`/files/${uniqueFileId}/metadata`);
         } catch (error) {
-            console.error('Error getting file metadata by unique ID:', error);
+            logger.error('Error getting file metadata by unique ID:', error);
             throw error;
         }
     }
