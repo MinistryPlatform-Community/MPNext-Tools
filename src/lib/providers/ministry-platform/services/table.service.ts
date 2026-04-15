@@ -1,5 +1,6 @@
 import { MinistryPlatformClient } from "../client";
 import { TableQueryParams, TableRecord, QueryParams } from "../types";
+import { logger } from "../utils/logger";
 
 export class TableService {
     private client: MinistryPlatformClient;
@@ -15,16 +16,16 @@ export class TableService {
             try {
                 await this.client.ensureValidToken();
 
-                console.log('Fetching records from table:', table);
-                console.log('Query Params:', params);
+                logger.debug('Fetching records from table:', table);
+                logger.debug('Query Params:', params);
 
                 const endpoint = `/tables/${encodeURIComponent(table)}`;
                 const data = await this.client.getHttpClient().get<T[]>(endpoint, params as QueryParams);
         
-                console.log('Fetched records:', data);
+                logger.debug('Fetched records:', data);
                 return data;
             } catch (error) {
-                console.error(`Error fetching records from table ${table}:`, error);
+                logger.error(`Error fetching records from table ${table}:`, error);
                 throw error;
             }
         }
@@ -44,7 +45,7 @@ export class TableService {
             const result = await this.client.getHttpClient().post<T[]>(endpoint, records as unknown as Record<string, unknown>, params);
             return result;
         } catch (error) {
-            console.error(`Error creating records in table ${table}:`, error);
+            logger.error(`Error creating records in table ${table}:`, error);
             throw error;
         }
     }
@@ -63,7 +64,7 @@ export class TableService {
             const result = await this.client.getHttpClient().put<T[]>(endpoint, records as unknown as Record<string, unknown>, params);
             return result;
         } catch (error) {
-            console.error(`Error updating records in table ${table}:`, error);
+            logger.error(`Error updating records in table ${table}:`, error);
             throw error;
         }
     }
@@ -85,7 +86,7 @@ export class TableService {
             const result = await this.client.getHttpClient().delete<T[]>(endpoint, queryParams);
             return result;
         } catch (error) {
-            console.error(`Error deleting records from table ${table}:`, error);
+            logger.error(`Error deleting records from table ${table}:`, error);
             throw error;
         }
     }
