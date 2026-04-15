@@ -1,7 +1,9 @@
 # MPNext-Tools
 
+[![Release](https://img.shields.io/github/v/release/MinistryPlatform-Community/MPNext-Tools?logo=github)](https://github.com/MinistryPlatform-Community/MPNext-Tools/releases/latest)
 [![Tests](https://github.com/MinistryPlatform-Community/MPNext-Tools/actions/workflows/test.yml/badge.svg)](https://github.com/MinistryPlatform-Community/MPNext-Tools/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/MinistryPlatform-Community/MPNext-Tools/graph/badge.svg)](https://codecov.io/gh/MinistryPlatform-Community/MPNext-Tools)
+
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
