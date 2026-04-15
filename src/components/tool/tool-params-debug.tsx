@@ -97,6 +97,29 @@ export function ToolParamsDebug({ params }: ToolParamsDebugProps) {
             </div>
           );
         })}
+
+        {/* Contact_ID_Field from pageData */}
+        <div
+          className={`bg-white rounded border px-3 py-2 ${
+            params.pageData?.Contact_ID_Field ? "border-purple-200" : "border-gray-200"
+          }`}
+        >
+          <div className="text-xs font-mono text-gray-500 mb-1">Contact_ID_Field</div>
+          <div
+            className={`text-sm font-medium mb-1 ${
+              params.pageData?.Contact_ID_Field ? "text-purple-900" : "text-gray-400"
+            }`}
+          >
+            {params.pageData?.Contact_ID_Field ? (
+              <span className="break-all">{params.pageData.Contact_ID_Field}</span>
+            ) : (
+              <span className="italic">undefined</span>
+            )}
+          </div>
+          <div className="text-xs text-gray-500 italic">
+            Contact FK column for this page
+          </div>
+        </div>
       </div>
 
       <div className="mt-3 pt-3 border-t border-purple-200">
