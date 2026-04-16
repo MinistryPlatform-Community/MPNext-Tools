@@ -41,8 +41,18 @@ IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[
 ALTER TABLE [dbo].[Contact_Private_Notes] CHECK CONSTRAINT [FK_Contact_Private_Notes_dp_Users]
 GO
 
-
-
+-- ========================================================================================
+--      Add Indexes on Foreign Key Columns
+-- ========================================================================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Contact_Private_Notes_User_ID' AND object_id = OBJECT_ID(N'[dbo].[Contact_Private_Notes]'))
+CREATE NONCLUSTERED INDEX [IX_Contact_Private_Notes_User_ID] ON [dbo].[Contact_Private_Notes]([User_ID] ASC)
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Contact_Private_Notes_Contact_ID' AND object_id = OBJECT_ID(N'[dbo].[Contact_Private_Notes]'))
+CREATE NONCLUSTERED INDEX [IX_Contact_Private_Notes_Contact_ID] ON [dbo].[Contact_Private_Notes]([Contact_ID] ASC)
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Contact_Private_Notes_Domain_ID' AND object_id = OBJECT_ID(N'[dbo].[Contact_Private_Notes]'))
+CREATE NONCLUSTERED INDEX [IX_Contact_Private_Notes_Domain_ID] ON [dbo].[Contact_Private_Notes]([Domain_ID] ASC)
+GO
 
 -- ========================================================================================
 --      Add the Page / Page Section Page / Admin Security Role
