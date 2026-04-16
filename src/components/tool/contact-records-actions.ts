@@ -5,8 +5,6 @@ import { headers } from 'next/headers';
 import { ToolService } from '@/services/toolService';
 import type { ContactRecordResult } from '@/services/toolService';
 
-export type { ContactRecordResult };
-
 export async function resolveContactRecords(
   tableName: string,
   primaryKey: string,
