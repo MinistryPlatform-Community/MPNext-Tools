@@ -180,6 +180,80 @@ export interface FileUpdateParams {
   userId?: number;
 }
 
+// Copy / Recurrence Types (used by /tables/{table}/{recordId}/copy and /tasks/generate-sequence)
+
+export type RecurrenceType = 'None' | 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
+
+export type Weekday =
+  | 'None'
+  | 'Sunday'
+  | 'Monday'
+  | 'Tuesday'
+  | 'Wednesday'
+  | 'Thursday'
+  | 'Friday'
+  | 'Saturday'
+  | 'Day'
+  | 'Weekday'
+  | 'WeekendDay';
+
+export type DayPosition = 'Unspecified' | 'First' | 'Second' | 'Third' | 'Fourth' | 'Last';
+
+export type Month =
+  | 'Unspecified'
+  | 'January'
+  | 'February'
+  | 'March'
+  | 'April'
+  | 'May'
+  | 'June'
+  | 'July'
+  | 'August'
+  | 'September'
+  | 'October'
+  | 'November'
+  | 'December';
+
+/**
+ * Represents a set of rules defining a date sequence for recurrence.
+ * Used by the Copy API and generate-sequence endpoints.
+ */
+export interface RecurrencePattern {
+  /** Recurrence interval type: daily, weekly, monthly, yearly. */
+  Type: RecurrenceType;
+  /** Frequency between subsequent events. The measure is specific to each recurrence type (day, week, or month). */
+  Interval: number;
+  /** Day(s) of week on which an occurrence may happen. */
+  Weekdays?: Weekday;
+  /** Day of week position in a month (e.g., First Monday). */
+  DayPosition?: DayPosition;
+  /** Specific day of the month (1-31). */
+  Day?: number;
+  /** Specific month for yearly patterns. */
+  Month?: Month;
+  /** Start date/time of the sequence. */
+  StartDate: string;
+  /** End date/time of the sequence (optional — use either EndDate or TotalOccurrences). */
+  EndDate?: string;
+  /** Maximum number of occurrences to generate (optional — use either EndDate or TotalOccurrences). */
+  TotalOccurrences?: number;
+}
+
+/**
+ * Parameters for the copy-record endpoint which supports sub-page copying and file attachment copying.
+ * Used by POST /tables/{table}/{recordId}/copy-record.
+ */
+export interface CopyParameters {
+  /** Rules for generating the date sequence. */
+  Pattern: RecurrencePattern;
+  /** Sub-page IDs whose records should be copied. If empty, sub-page records are not copied. */
+  SubpageIds?: number[];
+  /** If true, the original record is included in the sequence and updated to match the first calculated date. */
+  UpdateOriginalRecord?: boolean;
+  /** If true, files attached to the source record are copied to each new record. */
+  CopyFiles?: boolean;
+}
+
 export interface QueryParams {
   [key: string]: string | number | boolean | string[] | number[] | boolean[] | undefined | null;
 }
