@@ -117,9 +117,9 @@ export class ToolService {
   }
 
   /**
-   * Retrieves the tool paths for a user based on their roles
-   * 
-   * @param domainId - The Ministry Platform Domain ID
+   * Retrieves the tool paths for a user based on their roles.
+   * Domain ID is automatically injected by the MP API.
+   *
    * @param userId - The Ministry Platform User ID
    * @returns Promise<string[]> - Array of tool paths
    */
