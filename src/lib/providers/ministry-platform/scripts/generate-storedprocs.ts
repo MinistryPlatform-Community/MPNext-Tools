@@ -139,19 +139,13 @@ function formatParamSignature(params: ParameterInfo[]): string {
   const inputParams = params.filter(p => p.Direction !== "ReturnValue");
   if (inputParams.length === 0) return "(no parameters)";
 
-  return "(" + inputParams.map(p => `${p.Name}: ${p.DataType}`).join(", ") + ")";
-}
-
-function formatParamTable(params: ParameterInfo[]): string {
-  if (params.length === 0) return "No parameters.\n";
-
-  let table = "| Parameter | Direction | Data Type | Size |\n";
-  table += "|-----------|-----------|-----------|------|\n";
-  for (const p of params) {
-    const size = p.Size === -1 ? "-1" : String(p.Size);
-    table += `| ${p.Name} | ${p.Direction} | ${p.DataType} | ${size} |\n`;
-  }
-  return table;
+  return "(" + inputParams.map(p => {
+    // Include size for string types where it's meaningful (not -1/max)
+    if (p.DataType === "String" && p.Size > 0) {
+      return `${p.Name}: ${p.DataType}(${p.Size})`;
+    }
+    return `${p.Name}: ${p.DataType}`;
+  }).join(", ") + ")";
 }
 
 function generateDocument(procedures: ProcedureInfo[], search?: string): string {
@@ -166,34 +160,16 @@ function generateDocument(procedures: ProcedureInfo[], search?: string): string 
   }
   md += "\n---\n\n";
 
-  // Quick Reference
-  md += "## Quick Reference\n\n";
-  md += "Compact listing of all procedures grouped by prefix. Input parameters shown in parentheses.\n\n";
+  md += "All procedures listed with input parameters. String sizes shown where bounded, e.g. `String(50)`.\n\n";
 
   for (const [prefix, procs] of groups) {
     const label = prefix === "Other" ? "Other" : `${prefix}_*`;
-    md += `### ${label} (${procs.length} procedures)\n\n`;
+    md += `### ${label} (${procs.length})\n\n`;
     for (const proc of procs) {
       const sig = formatParamSignature(proc.Parameters);
       md += `- \`${proc.Name}${sig}\`\n`;
     }
     md += "\n";
-  }
-
-  md += "---\n\n";
-
-  // Detailed Reference
-  md += "## Detailed Reference\n\n";
-  md += "Full parameter details for each stored procedure.\n\n";
-
-  for (const [prefix, procs] of groups) {
-    const label = prefix === "Other" ? "Other" : `${prefix}_*`;
-    md += `### ${label}\n\n`;
-    for (const proc of procs) {
-      md += `#### ${proc.Name}\n\n`;
-      md += formatParamTable(proc.Parameters);
-      md += "\n";
-    }
   }
 
   return md;
