@@ -14,6 +14,8 @@ import {
   FileUpdateParams,
   TableMetadata,
   QueryParams,
+  RecurrencePattern,
+  CopyParameters,
 } from "./types";
 import type { ZodObject, ZodRawShape } from "zod";
 
@@ -419,6 +421,95 @@ export class MPHelper {
   public async getTables(search?: string): Promise<TableMetadata[]> {
     // Delegate to provider for table metadata retrieval
     return await this.provider.getTables(search);
+  }
+
+  // Copy / Recurrence Methods
+
+  /**
+   * Creates copies of a record using a recurrence pattern.
+   * Does NOT copy related sub-pages or attached files.
+   * Creates dp_Sequences entries for native MP series linkage.
+   *
+   * @param table - Table name (e.g., "Events")
+   * @param recordId - Source record ID to copy
+   * @param pattern - Recurrence pattern defining the date sequence
+   * @param params - Optional query parameters ($select, $userId)
+   * @returns Promise with an array of created records
+   *
+   * @example
+   * // Create a bi-weekly series of 6 events
+   * const copies = await mp.copyRecord('Events', 190793, {
+   *   Type: 'Weekly',
+   *   Interval: 2,
+   *   Weekdays: 'Thursday',
+   *   StartDate: '2026-04-09T18:30:00',
+   *   TotalOccurrences: 6,
+   * });
+   */
+  public async copyRecord<T extends TableRecord = TableRecord>(
+    table: string,
+    recordId: number,
+    pattern: RecurrencePattern,
+    params?: Pick<TableQueryParams, '$select' | '$userId'>
+  ): Promise<T[]> {
+    return await this.provider.copyRecord<T>(table, recordId, pattern, params);
+  }
+
+  /**
+   * Creates copies of a record using a recurrence pattern.
+   * Allows copying related sub-pages and attached files.
+   * Creates dp_Sequences entries for native MP series linkage.
+   *
+   * @param table - Table name (e.g., "Events")
+   * @param recordId - Source record ID to copy
+   * @param copyParams - Copy parameters including recurrence pattern, sub-page IDs, and options
+   * @param params - Optional query parameters ($select, $userId)
+   * @returns Promise with an array of created records
+   *
+   * @example
+   * // Create a weekly series copying Rooms & Groups sub-page data
+   * const copies = await mp.copyRecordWithSubpages('Events', 190793, {
+   *   Pattern: {
+   *     Type: 'Weekly',
+   *     Interval: 1,
+   *     Weekdays: 'Sunday',
+   *     StartDate: '2026-09-06T09:00:00',
+   *     TotalOccurrences: 12,
+   *   },
+   *   SubpageIds: [298],  // Rooms & Groups sub-page ID
+   *   UpdateOriginalRecord: true,
+   *   CopyFiles: false,
+   * });
+   */
+  public async copyRecordWithSubpages<T extends TableRecord = TableRecord>(
+    table: string,
+    recordId: number,
+    copyParams: CopyParameters,
+    params?: Pick<TableQueryParams, '$select' | '$userId'>
+  ): Promise<T[]> {
+    return await this.provider.copyRecordWithSubpages<T>(table, recordId, copyParams, params);
+  }
+
+  /**
+   * Generates a sequence of dates according to the specified recurrence pattern.
+   * Useful for previewing dates before creating a series.
+   *
+   * @param pattern - Recurrence pattern defining the date sequence
+   * @returns Promise with an array of ISO datetime strings
+   *
+   * @example
+   * // Preview bi-weekly Thursday dates
+   * const dates = await mp.generateSequence({
+   *   Type: 'Weekly',
+   *   Interval: 2,
+   *   Weekdays: 'Thursday',
+   *   StartDate: '2026-04-09T18:30:00',
+   *   TotalOccurrences: 6,
+   * });
+   * // Returns: ["2026-04-09T18:30:00", "2026-04-23T18:30:00", ...]
+   */
+  public async generateSequence(pattern: RecurrencePattern): Promise<string[]> {
+    return await this.provider.generateSequence(pattern);
   }
 
   // Procedure Service Methods

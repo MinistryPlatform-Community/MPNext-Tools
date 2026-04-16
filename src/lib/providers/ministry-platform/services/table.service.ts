@@ -1,5 +1,5 @@
 import { MinistryPlatformClient } from "../client";
-import { TableQueryParams, TableRecord, QueryParams } from "../types";
+import { TableQueryParams, TableRecord, QueryParams, RecurrencePattern, CopyParameters } from "../types";
 import { logger } from "../utils/logger";
 
 export class TableService {
@@ -68,6 +68,64 @@ export class TableService {
             throw error;
         }
     }
+    /**
+     * Creates copies of a record using a recurrence pattern.
+     * Does NOT copy related sub-pages or attached files.
+     * Creates dp_Sequences entries for native MP series linkage.
+     *
+     * @see POST /tables/{table}/{recordId}/copy
+     */
+    public async copyRecord<T extends TableRecord = TableRecord>(
+        table: string,
+        recordId: number,
+        pattern: RecurrencePattern,
+        params?: Pick<TableQueryParams, '$select' | '$userId'>
+    ): Promise<T[]> {
+        try {
+            await this.client.ensureValidToken();
+
+            const endpoint = `/tables/${encodeURIComponent(table)}/${recordId}/copy`;
+            const result = await this.client.getHttpClient().post<T[]>(
+                endpoint,
+                pattern as unknown as Record<string, unknown>,
+                params as QueryParams
+            );
+            return result;
+        } catch (error) {
+            logger.error(`Error copying record ${recordId} in table ${table}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Creates copies of a record using a recurrence pattern.
+     * Allows copying related sub-pages and attached files.
+     * Creates dp_Sequences entries for native MP series linkage.
+     *
+     * @see POST /tables/{table}/{recordId}/copy-record
+     */
+    public async copyRecordWithSubpages<T extends TableRecord = TableRecord>(
+        table: string,
+        recordId: number,
+        copyParams: CopyParameters,
+        params?: Pick<TableQueryParams, '$select' | '$userId'>
+    ): Promise<T[]> {
+        try {
+            await this.client.ensureValidToken();
+
+            const endpoint = `/tables/${encodeURIComponent(table)}/${recordId}/copy-record`;
+            const result = await this.client.getHttpClient().post<T[]>(
+                endpoint,
+                copyParams as unknown as Record<string, unknown>,
+                params as QueryParams
+            );
+            return result;
+        } catch (error) {
+            logger.error(`Error copying record ${recordId} with subpages in table ${table}:`, error);
+            throw error;
+        }
+    }
+
     /**
      * Deletes multiple records from the specified table.
      */

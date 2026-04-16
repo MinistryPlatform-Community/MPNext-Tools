@@ -7,11 +7,11 @@ import {
     DomainService,
     FileService
 } from "./services";
-import { 
-    TableQueryParams, 
-    ProcedureInfo, 
-    CommunicationInfo, 
-    Communication, 
+import {
+    TableQueryParams,
+    ProcedureInfo,
+    CommunicationInfo,
+    Communication,
     MessageInfo,
     DomainInfo,
     GlobalFilterItem,
@@ -21,7 +21,9 @@ import {
     FileUploadParams,
     FileUpdateParams,
     TableMetadata,
-    QueryParams
+    QueryParams,
+    RecurrencePattern,
+    CopyParameters
 } from "./types";
 
 /**
@@ -175,6 +177,70 @@ export class MinistryPlatformProvider {
         params?: Pick<TableQueryParams, '$select' | '$userId'>
     ): Promise<T[]> {
         return this.tableService.deleteTableRecords<T>(table, ids, params);
+    }
+
+    // Copy / Recurrence Methods
+    /**
+     * Creates copies of a record using a recurrence pattern.
+     * Does NOT copy related sub-pages or attached files.
+     * Creates dp_Sequences entries for native MP series linkage.
+     * @param table Table name (e.g., "Events")
+     * @param recordId Source record ID to copy
+     * @param pattern Recurrence pattern defining the date sequence
+     * @param params Optional query parameters ($select, $userId)
+     * @returns Promise with an array of created records
+     */
+    public async copyRecord<T extends TableRecord = TableRecord>(
+        table: string,
+        recordId: number,
+        pattern: RecurrencePattern,
+        params?: Pick<TableQueryParams, '$select' | '$userId'>
+    ): Promise<T[]> {
+        return this.tableService.copyRecord<T>(table, recordId, pattern, params);
+    }
+
+    /**
+     * Creates copies of a record using a recurrence pattern.
+     * Allows copying related sub-pages and attached files.
+     * Creates dp_Sequences entries for native MP series linkage.
+     * @param table Table name (e.g., "Events")
+     * @param recordId Source record ID to copy
+     * @param copyParams Copy parameters including recurrence pattern, sub-page IDs, and options
+     * @param params Optional query parameters ($select, $userId)
+     * @returns Promise with an array of created records
+     */
+    public async copyRecordWithSubpages<T extends TableRecord = TableRecord>(
+        table: string,
+        recordId: number,
+        copyParams: CopyParameters,
+        params?: Pick<TableQueryParams, '$select' | '$userId'>
+    ): Promise<T[]> {
+        return this.tableService.copyRecordWithSubpages<T>(table, recordId, copyParams, params);
+    }
+
+    /**
+     * Generates a sequence of dates according to the specified recurrence pattern.
+     * Useful for previewing dates before creating a series.
+     * @param pattern Recurrence pattern defining the date sequence
+     * @returns Promise with an array of ISO datetime strings
+     * @see GET /tasks/generate-sequence
+     */
+    public async generateSequence(pattern: RecurrencePattern): Promise<string[]> {
+        await this.client.ensureValidToken();
+
+        const queryParams: QueryParams = {
+            $type: pattern.Type,
+            $interval: pattern.Interval,
+            $startDate: pattern.StartDate,
+        };
+        if (pattern.EndDate) queryParams.$endDate = pattern.EndDate;
+        if (pattern.TotalOccurrences) queryParams.$totalOccurrences = pattern.TotalOccurrences;
+        if (pattern.Weekdays) queryParams.$weekdays = pattern.Weekdays;
+        if (pattern.DayPosition) queryParams.$dayPosition = pattern.DayPosition;
+        if (pattern.Day) queryParams.$day = pattern.Day;
+        if (pattern.Month) queryParams.$month = pattern.Month;
+
+        return this.client.getHttpClient().get<string[]>('/tasks/generate-sequence', queryParams);
     }
 
     // Procedure Service Methods
