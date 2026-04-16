@@ -263,7 +263,7 @@ function mapDataTypeToZod(col: ColumnMetadata): string {
       zodType = "z.boolean()";
       break;
     case "Date":
-      zodType = "z.string().datetime()"; // or z.date() for Date objects
+      zodType = "z.string().date()";
       break;
     case "Time":
       zodType = "z.string()"; // Could add time format validation
