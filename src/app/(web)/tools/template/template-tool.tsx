@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ToolContainer, ToolParamsDebug, SelectionDebug } from "@/components/tool";
+import { ToolContainer, ToolParamsDebug, SelectionDebug, ContactRecordsDebug } from "@/components/tool";
 import { UserToolsDebug } from "@/components/user-tools-debug";
 import { Users } from "lucide-react";
 import { ToolParams, isNewRecord } from "@/lib/tool-params";
@@ -12,9 +12,10 @@ interface TemplateToolProps {
 }
 
 export function TemplateTool({ params }: TemplateToolProps) {
-  const router = useRouter();  
+  const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const isNew = isNewRecord(params);
+  const [selectionRecordIds, setSelectionRecordIds] = useState<number[]>();
 
   useEffect(() => {
     console.log("Tool launched with params:", params);
@@ -66,7 +67,10 @@ export function TemplateTool({ params }: TemplateToolProps) {
         <ToolParamsDebug params={params} />
 
         {/* Selection Debug - Remove before production */}
-        <SelectionDebug params={params} />
+        <SelectionDebug params={params} onRecordIdsResolved={setSelectionRecordIds} />
+
+        {/* Contact Records Debug - Remove before production */}
+        <ContactRecordsDebug params={params} selectionRecordIds={selectionRecordIds} />
 
         {/* User Tools Debug - Remove before production */}
         <UserToolsDebug />
