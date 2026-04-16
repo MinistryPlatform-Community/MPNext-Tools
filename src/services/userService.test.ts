@@ -31,7 +31,7 @@ describe('UserService', () => {
     it('should fetch user profile with roles and groups', async () => {
       const mockProfile = {
         User_ID: 1,
-        User_GUID: 'test-guid-123',
+        User_GUID: '550e8400-e29b-41d4-a716-446655440000',
         Contact_ID: 100,
         First_Name: 'John',
         Nickname: 'Johnny',
@@ -46,12 +46,12 @@ describe('UserService', () => {
         .mockResolvedValueOnce([{ User_Group_Name: 'Staff' }]);
 
       const service = await UserService.getInstance();
-      const result = await service.getUserProfile('test-guid-123');
+      const result = await service.getUserProfile('550e8400-e29b-41d4-a716-446655440000');
 
       expect(mockGetTableRecords).toHaveBeenCalledTimes(3);
       expect(mockGetTableRecords).toHaveBeenCalledWith({
         table: 'dp_Users',
-        filter: "User_GUID = 'test-guid-123'",
+        filter: "User_GUID = '550e8400-e29b-41d4-a716-446655440000'",
         select: expect.stringContaining('User_ID'),
         top: 1,
       });
@@ -76,7 +76,7 @@ describe('UserService', () => {
       mockGetTableRecords.mockResolvedValueOnce([]);
 
       const service = await UserService.getInstance();
-      const result = await service.getUserProfile('nonexistent-guid');
+      const result = await service.getUserProfile('a0000000-0000-0000-0000-000000000000');
 
       expect(result).toBeUndefined();
       expect(mockGetTableRecords).toHaveBeenCalledTimes(1);
@@ -85,7 +85,7 @@ describe('UserService', () => {
     it('should return empty arrays when user has no roles or groups', async () => {
       const mockProfile = {
         User_ID: 2,
-        User_GUID: 'test-guid-456',
+        User_GUID: '660e8400-e29b-41d4-a716-446655440001',
         Contact_ID: 200,
         First_Name: 'Jane',
         Nickname: 'Jane',
@@ -100,7 +100,7 @@ describe('UserService', () => {
         .mockResolvedValueOnce([]);
 
       const service = await UserService.getInstance();
-      const result = await service.getUserProfile('test-guid-456');
+      const result = await service.getUserProfile('660e8400-e29b-41d4-a716-446655440001');
 
       expect(result).toEqual({
         ...mockProfile,
@@ -113,7 +113,7 @@ describe('UserService', () => {
       mockGetTableRecords.mockRejectedValueOnce(new Error('API error'));
 
       const service = await UserService.getInstance();
-      await expect(service.getUserProfile('test-guid')).rejects.toThrow('API error');
+      await expect(service.getUserProfile('b0000000-0000-0000-0000-000000000000')).rejects.toThrow('API error');
     });
   });
 });

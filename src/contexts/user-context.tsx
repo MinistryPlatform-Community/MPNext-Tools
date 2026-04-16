@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
 import { MPUserProfile } from "@/lib/providers/ministry-platform/types";
 import { getCurrentUserProfile } from "@/components/shared-actions/user";
@@ -57,12 +57,17 @@ export function UserProvider({ children }: UserProviderProps) {
     }
   }, [userGuid, isPending, loadUserProfile, session]);
 
-  const refreshUserProfile = async () => {
+  const refreshUserProfile = useCallback(async () => {
     await loadUserProfile();
-  };
+  }, [loadUserProfile]);
+
+  const value = useMemo(
+    () => ({ userProfile, isLoading, error, refreshUserProfile }),
+    [userProfile, isLoading, error, refreshUserProfile]
+  );
 
   return (
-    <UserContext.Provider value={{ userProfile, isLoading, error, refreshUserProfile }}>
+    <UserContext.Provider value={value}>
       {children}
     </UserContext.Provider>
   );

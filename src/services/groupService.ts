@@ -1,4 +1,5 @@
 import { MPHelper } from '@/lib/providers/ministry-platform';
+import { escapeFilterString, validatePositiveInt } from '@/lib/validation';
 import type {
   GroupWizardLookups,
   ContactSearchResult,
@@ -28,7 +29,7 @@ export class GroupService {
   private mp: MPHelper | null = null;
 
   private constructor() {
-    this.initialize();
+    // Initialization is handled by getInstance()
   }
 
   public static async getInstance(): Promise<GroupService> {
@@ -148,7 +149,7 @@ export class GroupService {
   }
 
   async searchContacts(term: string): Promise<ContactSearchResult[]> {
-    const escaped = term.replace(/'/g, "''");
+    const escaped = escapeFilterString(term);
     return this.mp!.getTableRecords<ContactSearchResult>({
       table: 'Contacts',
       select: 'Contact_ID, Display_Name, Email_Address',
@@ -159,7 +160,7 @@ export class GroupService {
   }
 
   async searchGroups(term: string): Promise<GroupSearchResult[]> {
-    const escaped = term.replace(/'/g, "''");
+    const escaped = escapeFilterString(term);
     return this.mp!.getTableRecords<GroupSearchResult>({
       table: 'Groups',
       select: 'Group_ID, Group_Name, Group_Type_ID_TABLE.Group_Type',
@@ -172,7 +173,7 @@ export class GroupService {
   async getGroup(groupId: number): Promise<GroupWizardFormData | null> {
     const records = await this.mp!.getTableRecords<Record<string, unknown>>({
       table: 'Groups',
-      filter: `Group_ID = ${groupId}`,
+      filter: `Group_ID = ${validatePositiveInt(groupId)}`,
       top: 1,
     });
 

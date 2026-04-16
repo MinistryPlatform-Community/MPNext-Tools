@@ -5,7 +5,7 @@ const mockGetSelectionRecordIds = vi.hoisted(() => vi.fn());
 const mockGetAddressesForContacts = vi.hoisted(() => vi.fn());
 const mockGetAddressForContact = vi.hoisted(() => vi.fn());
 const mockToBlob = vi.hoisted(() => vi.fn());
-const mockMPGetTableRecords = vi.hoisted(() => vi.fn());
+const mockGetUserIdByGuid = vi.hoisted(() => vi.fn());
 const mockDocxtemplaterRender = vi.hoisted(() => vi.fn());
 const mockDocxtemplaterGetZip = vi.hoisted(() => vi.fn());
 
@@ -29,9 +29,11 @@ vi.mock('@/services/toolService', () => ({
   },
 }));
 
-vi.mock('@/lib/providers/ministry-platform', () => ({
-  MPHelper: class {
-    getTableRecords = mockMPGetTableRecords;
+vi.mock('@/services/userService', () => ({
+  UserService: {
+    getInstance: vi.fn().mockResolvedValue({
+      getUserIdByGuid: mockGetUserIdByGuid,
+    }),
   },
 }));
 
@@ -101,9 +103,9 @@ describe('fetchAddressLabels', () => {
   };
 
   beforeEach(() => {
-    mockGetSession.mockResolvedValue({ user: { id: 'user-1', userGuid: 'test-guid' } });
+    mockGetSession.mockResolvedValue({ user: { id: 'user-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' } });
     // getMPUserId lookup — return a User_ID for the test guid
-    mockMPGetTableRecords.mockResolvedValue([{ User_ID: 42 }]);
+    mockGetUserIdByGuid.mockResolvedValue(42);
     mockGetSelectionRecordIds.mockReset();
     mockGetAddressesForContacts.mockReset();
     mockGetAddressForContact.mockReset();

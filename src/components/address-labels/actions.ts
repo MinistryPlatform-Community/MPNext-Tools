@@ -7,7 +7,7 @@ import { pdf } from '@react-pdf/renderer';
 import { Packer } from 'docx';
 import { ToolService } from '@/services/toolService';
 import { AddressLabelService } from '@/services/addressLabelService';
-import { MPHelper } from '@/lib/providers/ministry-platform';
+import { UserService } from '@/services/userService';
 import type { ContactAddressRow } from '@/services/addressLabelService';
 import type { ToolParams } from '@/lib/tool-params';
 import type {
@@ -35,16 +35,8 @@ async function getMPUserId(session: Awaited<ReturnType<typeof getSession>>): Pro
   const userGuid = (session.user as Record<string, unknown>).userGuid as string | undefined;
   if (!userGuid) throw new Error('User GUID not found in session');
 
-  const mp = new MPHelper();
-  const records = await mp.getTableRecords<{ User_ID: number }>({
-    table: 'dp_Users',
-    filter: `User_GUID = '${userGuid}'`,
-    select: 'User_ID',
-    top: 1,
-  });
-
-  if (!records || records.length === 0) throw new Error('MP user not found');
-  return records[0].User_ID;
+  const userService = await UserService.getInstance();
+  return userService.getUserIdByGuid(userGuid);
 }
 
 function filterAndTransform(

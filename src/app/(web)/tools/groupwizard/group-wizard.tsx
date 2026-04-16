@@ -76,6 +76,10 @@ export function GroupWizard({ params }: GroupWizardProps) {
         setLoadError(result.error);
       }
       setIsLoadingRecord(false);
+    }).catch((err) => {
+      console.error("Failed to fetch group record:", err);
+      setLoadError(err instanceof Error ? err.message : "Failed to load group record");
+      setIsLoadingRecord(false);
     });
   }, [isEditMode, params.recordID, form]);
 

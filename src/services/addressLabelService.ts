@@ -1,4 +1,5 @@
 import { MPHelper } from '@/lib/providers/ministry-platform';
+import { validatePositiveInt } from '@/lib/validation';
 
 export interface ContactAddressRow {
   Contact_ID: number;
@@ -46,7 +47,7 @@ export class AddressLabelService {
   private mp: MPHelper | null = null;
 
   private constructor() {
-    this.initialize();
+    // Initialization is handled by getInstance()
   }
 
   public static async getInstance(): Promise<AddressLabelService> {
@@ -72,6 +73,7 @@ export class AddressLabelService {
 
     for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
       const batch = contactIds.slice(i, i + BATCH_SIZE);
+      batch.forEach(validatePositiveInt);
       const idList = batch.join(', ');
 
       const rows = await this.mp!.getTableRecords<ContactAddressRow>({

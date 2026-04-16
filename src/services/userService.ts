@@ -1,5 +1,6 @@
 import { MPUserProfile } from "@/lib/providers/ministry-platform/types";
 import { MPHelper } from "@/lib/providers/ministry-platform";
+import { validateGuid } from "@/lib/validation";
 
 /**
  * UserService - Singleton service for managing user-related operations
@@ -16,7 +17,7 @@ export class UserService {
    * Initializes the service when instantiated
    */
   private constructor() {
-    this.initialize();
+    // Initialization is handled by getInstance()
   }
 
   /**
@@ -57,10 +58,30 @@ export class UserService {
    * @returns Promise<MPUserProfile> - The user profile data from Ministry Platform
    * @throws Will throw an error if the Ministry Platform query fails
    */
+  /**
+   * Looks up the Ministry Platform User_ID for a given User GUID
+   *
+   * @param guid - The User GUID to resolve
+   * @returns Promise<number> - The numeric User_ID
+   * @throws Will throw an error if the user is not found
+   */
+  public async getUserIdByGuid(guid: string): Promise<number> {
+    const records = await this.mp!.getTableRecords<{ User_ID: number }>({
+      table: 'dp_Users',
+      select: 'User_ID',
+      filter: `User_GUID = '${validateGuid(guid)}'`,
+      top: 1,
+    });
+    if (!records || records.length === 0) {
+      throw new Error('User not found');
+    }
+    return records[0].User_ID;
+  }
+
   public async getUserProfile(id: string): Promise<MPUserProfile | undefined> {
     const records = await this.mp!.getTableRecords<MPUserProfile>({
       table: "dp_Users",
-      filter: `User_GUID = '${id}'`,
+      filter: `User_GUID = '${validateGuid(id)}'`,
       select: "User_ID, User_GUID, Contact_ID_TABLE.First_Name,Contact_ID_TABLE.Nickname,Contact_ID_TABLE.Last_Name,Contact_ID_TABLE.Email_Address,Contact_ID_TABLE.Mobile_Phone,Contact_ID_TABLE.dp_fileUniqueId AS Image_GUID",
       top: 1
     });

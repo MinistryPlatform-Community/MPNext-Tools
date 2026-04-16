@@ -263,7 +263,7 @@ function mapDataTypeToZod(col: ColumnMetadata): string {
       zodType = "z.boolean()";
       break;
     case "Date":
-      zodType = "z.string().datetime()"; // or z.date() for Date objects
+      zodType = "z.string().date()";
       break;
     case "Time":
       zodType = "z.string()"; // Could add time format validation
@@ -430,32 +430,31 @@ function generateTypeDefinition(table: TableMetadata, tableName?: string): strin
   return generateDetailedTypeDefinition(table, undefined, tableName);
 }
 
-function generateTableDocumentation(table: TableMetadata, tableName: string, outputDir: string): string {
+function generateTableDocumentation(table: TableMetadata, tableName: string): string {
   const primaryKey = table.Columns?.find(col => col.IsPrimaryKey);
   const primaryKeyName = primaryKey?.Name || `${tableName}_ID`;
 
   const foreignKeys = table.Columns?.filter(col => col.IsForeignKey && col.ReferencedTable) || [];
 
-  const accessInfo = table.AccessLevel ? `Access: ${table.AccessLevel}` : '';
-  const permissionsInfo = table.SpecialPermissions ? ` | Permissions: ${table.SpecialPermissions}` : '';
-  const description = `${accessInfo}${permissionsInfo}` || 'Standard table';
+  // Compact access abbreviation: R=Read, W=Write, A=Assign, D=Delete
+  const accessLevel = table.AccessLevel as string | undefined;
+  const specialPerms = table.SpecialPermissions as string | undefined;
+  const accessAbbrev = accessLevel
+    ? `[${accessLevel.replace('ReadWriteAssignDelete', 'RWAD').replace('ReadWrite', 'RW').replace('Read', 'R')}]`
+    : '';
+  const permsAbbrev = specialPerms
+    ? ` [${specialPerms}]`
+    : '';
 
-  const typeName = sanitizeTypeName(tableName);
-
-  let md = `### ${tableName}\n\n`;
-  md += `${description}\n\n`;
-  md += `- **Primary Key:** \`${primaryKeyName}\`\n`;
-  md += `- **Type:** \`${outputDir}/${typeName}.ts\`\n`;
-  md += `- **Schema:** \`${outputDir}/${typeName}Schema.ts\`\n`;
+  let md = `### ${tableName} ${accessAbbrev}${permsAbbrev}\n`;
+  md += `PK: \`${primaryKeyName}\``;
 
   if (foreignKeys.length > 0) {
-    md += `- **Foreign Keys:**\n`;
-    foreignKeys.forEach(fk => {
-      md += `  - \`${fk.Name}\` -> \`${fk.ReferencedTable}.${fk.ReferencedColumn}\`\n`;
-    });
+    const fkList = foreignKeys.map(fk => `${fk.Name}→${fk.ReferencedTable}`).join(', ');
+    md += ` | FK: ${fkList}`;
   }
 
-  md += '\n';
+  md += '\n\n';
   return md;
 }
 
@@ -472,14 +471,14 @@ function generateSchemaDocument(tables: TableMetadata[], outputDir: string): str
     });
 
   let md = `# Ministry Platform Schema Reference\n\n`;
-  md += `This document provides a summary of Ministry Platform database tables for LLM assistants working on the MPNext project.\n\n`;
-  md += `**Generated:** ${new Date().toISOString()}\n`;
-  md += `**Tables:** ${validTables.length}\n\n`;
+  md += `**Generated:** ${new Date().toISOString()} | **Tables:** ${validTables.length}\n\n`;
+  md += `**Type files:** \`${outputDir}/{PascalCaseTableName}.ts\` and \`{PascalCaseTableName}Schema.ts\`\n`;
+  md += `**Access:** R=Read, RW=ReadWrite, RWAD=ReadWriteAssignDelete\n\n`;
   md += `---\n\n`;
 
   validTables.forEach(table => {
     const tableName = getTableName(table)!;
-    md += generateTableDocumentation(table, tableName, outputDir);
+    md += generateTableDocumentation(table, tableName);
   });
 
   return md;

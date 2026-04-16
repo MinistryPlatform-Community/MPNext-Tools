@@ -27,6 +27,16 @@ function SignInContent() {
           callbackURL: callbackUrl,
         });
       }
+    }).catch((err) => {
+      console.error("Failed to check session:", err);
+      // Proceed with sign-in redirect since the user needs to authenticate anyway
+      if (!isRedirecting) {
+        setIsRedirecting(true);
+        authClient.signIn.oauth2({
+          providerId: "ministry-platform",
+          callbackURL: callbackUrl,
+        });
+      }
     });
   }, [callbackUrl, isRedirecting]);
 

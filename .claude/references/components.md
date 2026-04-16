@@ -36,7 +36,22 @@ src/components/
 │   ├── template-editor-form.tsx # Main editor orchestrator
 │   ├── types.ts                # Type definitions
 │   └── index.ts               # Barrel exports
-├── tool/                       # Tool layout components (ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug)
+├── group-wizard/               # Multi-step group creation/edit wizard
+│   ├── actions.ts              # Server actions for lookups, search, CRUD
+│   ├── contact-search.tsx      # Debounced contact search popover
+│   ├── group-search.tsx        # Debounced group search popover
+│   ├── schema.ts               # Zod validation schema with per-step fields
+│   ├── step-identity.tsx       # Step 0: Name, type, dates, description
+│   ├── step-organization.tsx   # Step 1: Congregation, ministry, contact
+│   ├── step-meeting.tsx        # Step 2: Meeting schedule, room, online
+│   ├── step-attributes.tsx     # Step 3: Size, life stage, focus, book
+│   ├── step-settings.tsx       # Step 4: Visibility, check-in, promotion
+│   ├── step-review.tsx         # Step 5: Review and submit
+│   ├── types.ts                # Interfaces, wizard steps, lookup types
+│   ├── wizard-navigation.tsx   # Bottom nav (Back/Next/Cancel/Submit)
+│   ├── wizard-stepper.tsx      # Desktop step indicators + mobile progress
+│   └── index.ts               # Barrel exports
+├── tool/                       # Tool layout components (ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug, ContactRecordsDebug)
 ├── ui/                         # shadcn/ui components (22 components)
 ├── user-menu/                  # User dropdown menu
 └── user-tools-debug/           # Debug: User permissions display (dev only)
@@ -56,9 +71,10 @@ src/components/
 | Folder | Purpose | Has Actions |
 |--------|---------|-------------|
 | `address-labels/` | Address label printing with IMb/POSTNET barcodes and mail merge | Yes |
+| `group-wizard/` | Multi-step group creation/edit wizard with 6 steps | Yes |
 | `template-editor/` | Visual email/document template editor with GrapesJS | Yes |
 | `user-menu/` | User dropdown with sign-out | Yes |
-| `tool/` | Tool layout components (ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug) | Yes |
+| `tool/` | Tool layout components (ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug, ContactRecordsDebug) | Yes |
 
 ### Debug Components (Development Only)
 
@@ -66,6 +82,7 @@ src/components/
 |--------|---------|-------------------------|
 | `tool/` (ToolParamsDebug) | Displays parsed URL tool parameters | Yes |
 | `tool/` (SelectionDebug) | Displays MP selection data for debugging | Yes |
+| `tool/` (ContactRecordsDebug) | Displays resolved contact record mappings | Yes |
 | `user-tools-debug/` | Shows user's authorized tool paths | Yes |
 
 ### UI Components (shadcn/ui)
@@ -84,11 +101,13 @@ Actions are co-located with their feature components:
 
 | Feature | Actions File | Functions |
 |---------|--------------|-----------|
-| address-labels | `address-labels/actions.ts` | `fetchAddressLabels` |
-| template-editor | `template-editor/actions.ts` | Template CRUD operations |
+| address-labels | `address-labels/actions.ts` | `fetchAddressLabels`, `generateLabelPdf`, `generateLabelDocx`, `mergeTemplate` |
+| group-wizard | `group-wizard/actions.ts` | `fetchGroupWizardLookups`, `searchContacts`, `searchGroups`, `fetchGroupRecord`, `createGroup`, `updateGroup` |
+| template-editor | `template-editor/actions.ts` | `compileMjml` |
 | user-menu | `user-menu/actions.ts` | `handleSignOut` |
 | user-tools-debug | `user-tools-debug/actions.ts` | `getUserTools` |
 | tool (selection) | `tool/selection-debug-actions.ts` | `resolveSelection` |
+| tool (contacts) | `tool/contact-records-actions.ts` | `resolveContactRecords` |
 | **shared** | `shared-actions/user.ts` | `getCurrentUserProfile` |
 
 **Shared Actions Folder**: `src/components/shared-actions/` contains actions used across multiple features. See the README in that folder for guidelines on when to use shared vs co-located actions.
@@ -97,7 +116,7 @@ Actions are co-located with their feature components:
 
 ```typescript
 // Tool components (use barrel export)
-import { ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug } from '@/components/tool';
+import { ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug, ContactRecordsDebug } from '@/components/tool';
 
 // UI components (individual imports)
 import { Button } from '@/components/ui/button';
@@ -111,6 +130,9 @@ import { AddressLabelsForm, LabelDocument, ImbBarcode } from '@/components/addre
 
 // Template editor components (barrel export)
 import { TemplateEditorForm } from '@/components/template-editor';
+
+// Group wizard components (barrel export)
+import { StepIdentity, StepOrganization, StepMeeting, WizardStepper } from '@/components/group-wizard';
 
 // Shared actions
 import { getCurrentUserProfile } from '@/components/shared-actions/user';
@@ -165,11 +187,17 @@ import { ToolParamsDebug } from '@/components/tool';
 
 ### tool
 - **Purpose**: Consolidated folder containing reusable layout components for tool interfaces
-- **Components**: `ToolContainer`, `ToolHeader`, `ToolFooter`, `ToolParamsDebug`, `SelectionDebug`
+- **Components**: `ToolContainer`, `ToolHeader`, `ToolFooter`, `ToolParamsDebug`, `SelectionDebug`, `ContactRecordsDebug`
 - **Usage**: Wrap tool content with consistent header/footer styling
 - **Pattern**: Composition via children prop
-- **Import**: `import { ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug } from '@/components/tool';`
-- **Note**: `ToolParamsDebug` and `SelectionDebug` are debug components for development only
+- **Import**: `import { ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug, ContactRecordsDebug } from '@/components/tool';`
+- **Note**: `ToolParamsDebug`, `SelectionDebug`, and `ContactRecordsDebug` are debug components for development only
+
+### group-wizard
+- **Purpose**: Multi-step wizard for creating and editing Ministry Platform groups
+- **Features**: 6-step form (Identity, Organization, Meeting, Attributes, Settings, Review), contact/group search, Zod validation per step, edit mode support
+- **Service**: Uses `GroupService` for MP group queries and CRUD operations
+- **Schema**: Uses react-hook-form with Zod resolver; per-step validation via `STEP_FIELDS` mapping
 
 ### address-labels
 - **Purpose**: Address label printing with USPS barcode support
@@ -191,8 +219,9 @@ Components interact with these service classes:
 
 | Service | Location | Used By |
 |---------|----------|---------|
-| ToolService | `@/services/toolService` | user-tools-debug |
+| ToolService | `@/services/toolService` | user-tools-debug, address-labels, tool (selection/contact debug) |
 | UserService | `@/services/userService` | user-menu, shared-actions |
 | AddressLabelService | `@/services/addressLabelService` | address-labels |
+| GroupService | `@/services/groupService` | group-wizard |
 
 All services ultimately use `MPHelper` from `@/lib/providers/ministry-platform` for API calls.

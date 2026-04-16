@@ -1,5 +1,6 @@
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { PageData } from "@/lib/tool-params";
+import { validatePositiveInt, validateColumnName } from "@/lib/validation";
 
 export interface ContactRecord {
   recordId: number;
@@ -29,7 +30,7 @@ export class ToolService {
    * Initializes the service when instantiated
    */
   private constructor() {
-    this.initialize();
+    // Initialization is handled by getInstance()
   }
 
   /**
@@ -63,29 +64,21 @@ export class ToolService {
    * @returns Promise<PageData | null> - The page data or null if not found
    */
   public async getPageData(pageID: number): Promise<PageData | null> {
-    console.log('ToolService.getPageData - Called with pageID:', pageID);
-    
     try {
       // Execute stored procedure to get page data
       // DomainID is automatically injected by MP API
       const result = await this.mp!.executeProcedureWithBody('api_Tools_GetPageData', {
         "@PageID": pageID
       });
-      
-      console.log('ToolService.getPageData - Procedure result:', result);
-      
+
       // The result is an array of result sets, we want the first result set
       if (result && result.length > 0 && result[0].length > 0) {
         const pageData = result[0][0] as PageData;
-        
-        console.log('ToolService.getPageData - Found page data:', pageData);
         return pageData;
       }
-      
-      console.log('ToolService.getPageData - No page data found for pageID:', pageID);
+
       return null;
     } catch (error) {
-      console.error('ToolService.getPageData - Error:', error);
       throw error;
     }
   }
@@ -100,8 +93,6 @@ export class ToolService {
    * @returns Promise<number[]> - Array of Record_IDs from the selection
    */
   public async getSelectionRecordIds(selectionId: number, userId: number, pageId: number): Promise<number[]> {
-    console.log('ToolService.getSelectionRecordIds - Called with selectionId:', selectionId, 'userId:', userId, 'pageId:', pageId);
-
     try {
       const result = await this.mp!.executeProcedureWithBody('api_Common_GetSelection', {
         '@SelectionID': selectionId,
@@ -114,47 +105,37 @@ export class ToolService {
         for (const resultSet of result) {
           if (Array.isArray(resultSet) && resultSet.length > 0 && typeof resultSet[0] === 'object' && resultSet[0] !== null && 'Record_ID' in resultSet[0]) {
             const recordIds = (resultSet as Array<{ Record_ID: number }>).map((r) => r.Record_ID);
-            console.log('ToolService.getSelectionRecordIds - Found record IDs:', recordIds);
             return recordIds;
           }
         }
       }
 
-      console.log('ToolService.getSelectionRecordIds - No records found for selection:', selectionId);
       return [];
     } catch (error) {
-      console.error('ToolService.getSelectionRecordIds - Error:', error);
       throw error;
     }
   }
 
   /**
-   * Retrieves the tool paths for a user based on their roles
-   * 
-   * @param domainId - The Ministry Platform Domain ID
+   * Retrieves the tool paths for a user based on their roles.
+   * Domain ID is automatically injected by the MP API.
+   *
    * @param userId - The Ministry Platform User ID
    * @returns Promise<string[]> - Array of tool paths
    */
   public async getUserTools(userId: number): Promise<string[]> {
-    console.log('ToolService.getUserTools - Called with userId:', userId);
-
     try {
       const result = await this.mp!.executeProcedureWithBody('api_Tools_GetUserTools', {
         "@UserId": userId
       });
-      
-      console.log('ToolService.getUserTools - Procedure result:', result);
-      
+
       if (result && result.length > 0 && result[0].length > 0) {
         const toolPaths = (result[0] as Array<{ Tool_Path: string }>).map((row) => row.Tool_Path);
-        console.log('ToolService.getUserTools - Found tool paths:', toolPaths);
         return toolPaths;
       }
-      
-      console.log('ToolService.getUserTools - No tools found for userId:', userId);
+
       return [];
     } catch (error) {
-      console.error('ToolService.getUserTools - Error:', error);
       throw error;
     }
   }
@@ -183,6 +164,14 @@ export class ToolService {
   ): Promise<ContactRecordResult> {
     const envelope = { tableName, primaryKey, contactIdField };
 
+    validateColumnName(primaryKey);
+    validateColumnName(tableName);
+    if (contactIdField.includes('.')) {
+      contactIdField.split('.').forEach(validateColumnName);
+    } else {
+      validateColumnName(contactIdField);
+    }
+
     if (recordIds.length === 0) {
       return { ...envelope, records: [] };
     }
@@ -202,6 +191,7 @@ export class ToolService {
 
     for (let i = 0; i < recordIds.length; i += ToolService.BATCH_SIZE) {
       const batch = recordIds.slice(i, i + ToolService.BATCH_SIZE);
+      batch.forEach(validatePositiveInt);
       const rows = await this.mp!.getTableRecords<Record<string, number>>({
         table: tableName,
         select: `${primaryKey}, ${contactIdField}`,

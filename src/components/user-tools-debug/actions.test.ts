@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockGetSession, mockGetTableRecords, mockGetUserTools } = vi.hoisted(() => ({
+const { mockGetSession, mockGetUserIdByGuid, mockGetUserTools } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
-  mockGetTableRecords: vi.fn(),
+  mockGetUserIdByGuid: vi.fn(),
   mockGetUserTools: vi.fn(),
 }));
 
@@ -18,13 +18,13 @@ vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }));
 
-vi.mock('@/lib/providers/ministry-platform', () => {
-  return {
-    MPHelper: class {
-      getTableRecords = mockGetTableRecords;
-    },
-  };
-});
+vi.mock('@/services/userService', () => ({
+  UserService: {
+    getInstance: vi.fn().mockResolvedValue({
+      getUserIdByGuid: mockGetUserIdByGuid,
+    }),
+  },
+}));
 
 vi.mock('@/services/toolService', () => ({
   ToolService: {
@@ -57,28 +57,23 @@ describe('getUserTools', () => {
 
   it('should throw when user not found in MP', async () => {
     mockGetSession.mockResolvedValueOnce({
-      user: { id: 'internal-id', userGuid: 'user-guid-123' },
+      user: { id: 'internal-id', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
     });
-    mockGetTableRecords.mockResolvedValueOnce([]);
+    mockGetUserIdByGuid.mockRejectedValueOnce(new Error('User not found'));
 
     await expect(getUserTools()).rejects.toThrow('User not found');
   });
 
   it('should return tool paths when authenticated', async () => {
     mockGetSession.mockResolvedValueOnce({
-      user: { id: 'internal-id', userGuid: 'user-guid-123' },
+      user: { id: 'internal-id', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
     });
-    mockGetTableRecords.mockResolvedValueOnce([{ User_ID: 42 }]);
+    mockGetUserIdByGuid.mockResolvedValueOnce(42);
     mockGetUserTools.mockResolvedValueOnce(['/contacts', '/events']);
 
     const result = await getUserTools();
 
-    expect(mockGetTableRecords).toHaveBeenCalledWith(
-      expect.objectContaining({
-        table: 'dp_Users',
-        filter: "User_GUID = 'user-guid-123'",
-      })
-    );
+    expect(mockGetUserIdByGuid).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440000');
     expect(mockGetUserTools).toHaveBeenCalledWith(42);
     expect(result).toEqual(['/contacts', '/events']);
   });

@@ -1,0 +1,30 @@
+const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COLUMN_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+export function validateGuid(value: string): string {
+  if (!GUID_REGEX.test(value)) {
+    throw new Error(`Invalid GUID format: ${value}`);
+  }
+  return value;
+}
+
+export function validatePositiveInt(value: number): number {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Expected positive integer, got: ${value}`);
+  }
+  return value;
+}
+
+export function validateColumnName(value: string): string {
+  if (!COLUMN_NAME_REGEX.test(value)) {
+    throw new Error(`Invalid column name: ${value}`);
+  }
+  return value;
+}
+
+export function escapeFilterString(value: string): string {
+  return value
+    .replace(/'/g, "''")
+    .replace(/%/g, '[%]')
+    .replace(/_/g, '[_]');
+}

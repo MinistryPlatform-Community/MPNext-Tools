@@ -28,7 +28,7 @@ This guide provides essential information for AI assistants (like Claude) workin
   - **Critical**: `session.user.id` is Better Auth's internal ID, NOT the MP User_GUID. Use `session.user.userGuid` for all MP API lookups.
   - **Stateless Sessions**: JWT cookie cache, no database; `customSession` does name splitting only (no API calls)
   - **Required Environment Variables**: `MINISTRY_PLATFORM_BASE_URL`, `BETTER_AUTH_URL` (or `NEXTAUTH_URL` fallback), `BETTER_AUTH_SECRET` (or `NEXTAUTH_SECRET` fallback)
-- **Services Layer**: Singleton service classes in `src/services/` wrap MPHelper for domain logic (ToolService, UserService, AddressLabelService)
+- **Services Layer**: Singleton service classes in `src/services/` wrap MPHelper for domain logic (ToolService, UserService, AddressLabelService, GroupService)
 - **Contexts**: React context providers in `src/contexts/` (UserProvider) composed in `src/app/providers.tsx`; `useAppSession()` wraps Better Auth's `authClient.useSession()`
 - **UI**: Radix UI primitives + shadcn/ui components in `src/components/ui/`, Tailwind CSS v4
 - **Validation**: Zod v4 (`zod@^4.3`) — note: different API from Zod v3 (e.g., `z.object()` vs `z.interface()`)
@@ -74,10 +74,11 @@ This guide provides essential information for AI assistants (like Claude) workin
 ```
 src/components/
 ├── address-labels/       # Address label printing & mail merge
+├── group-wizard/         # Multi-step group creation/edit wizard (6 steps)
 ├── layout/               # Layout components (AuthWrapper)
 ├── shared-actions/       # Shared actions used across features
 ├── template-editor/      # Email/document template editor (GrapesJS)
-├── tool/                 # Tool framework (Container, Header, Footer, ParamsDebug, SelectionDebug)
+├── tool/                 # Tool framework (Container, Header, Footer, ParamsDebug, SelectionDebug, ContactRecordsDebug)
 ├── ui/                   # shadcn/ui components (22)
 ├── user-menu/            # User dropdown with OIDC sign-out
 ├── user-tools-debug/     # Dev helper: authorized tool paths
@@ -108,6 +109,7 @@ import { ToolContainer, ToolHeader, ToolFooter } from '@/components/tool';
 import { ToolService } from '@/services/toolService';
 import { UserService } from '@/services/userService';
 import { AddressLabelService } from '@/services/addressLabelService';
+import { GroupService } from '@/services/groupService';
 
 // React contexts
 import { UserProvider, useUser, useAppSession } from '@/contexts';
@@ -213,3 +215,4 @@ For detailed context on specific areas, see:
 - **[Ministry Platform Stored Procedures](.claude/references/ministryplatform.storedprocs.md)** - Auto-generated reference of stored procedures, parameters, data types, and directions
 - **[Required Stored Procedures](.claude/references/required-stored-procs.md)** - Stored procedures called by the app (`api_Tools_GetPageData`, `api_Common_GetSelection`, `api_Tools_GetUserTools`), parameters, return shapes, and call chain
 - **[Testing Reference](.claude/references/testing.md)** - Vitest setup, mock patterns (`vi.hoisted`, MPHelper, auth), coverage data, and test file inventory
+- **[TODO Items](.claude/TODO/)** - Known issues and improvements identified during code review

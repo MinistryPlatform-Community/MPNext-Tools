@@ -50,11 +50,11 @@ All procedures return `unknown[][]` (array of result sets, each an array of row 
 
 **Return:** Searches all result sets for one containing `Record_ID` column → extracts `number[]`.
 
-**Called by:** `ToolService.getSelectionRecordIds(selectionId, userId, pageId)` at `src/services/toolService.ts:94`
+**Called by:** `ToolService.getSelectionRecordIds(selectionId, userId, pageId)` at `src/services/toolService.ts:102`
 
 **Consumer(s):**
 - `fetchAddressLabels()` in `src/components/address-labels/actions.ts`
-- `getUserTools()` in `src/components/user-tools-debug/actions.ts`
+- `resolveSelection()` in `src/components/tool/selection-debug-actions.ts`
 
 ---
 
@@ -70,7 +70,7 @@ Domain ID is injected automatically by the MP API — do not pass it.
 
 **Return:** First result set → array of `{ Tool_Path: string }`.
 
-**Called by:** `ToolService.getUserTools(userId)` at `src/services/toolService.ts:126`
+**Called by:** `ToolService.getUserTools(userId)` at `src/services/toolService.ts:138`
 
 **Consumer(s):**
 - `getUserTools()` in `src/components/user-tools-debug/actions.ts`

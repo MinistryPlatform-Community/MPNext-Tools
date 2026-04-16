@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockGetSession = vi.hoisted(() => vi.fn());
 const mockGetSelectionRecordIds = vi.hoisted(() => vi.fn());
-const mockMPGetTableRecords = vi.hoisted(() => vi.fn());
+const mockGetUserIdByGuid = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth', () => ({
   auth: {
@@ -24,16 +24,18 @@ vi.mock('@/services/toolService', () => ({
   },
 }));
 
-vi.mock('@/lib/providers/ministry-platform', () => ({
-  MPHelper: class {
-    getTableRecords = mockMPGetTableRecords;
+vi.mock('@/services/userService', () => ({
+  UserService: {
+    getInstance: vi.fn().mockResolvedValue({
+      getUserIdByGuid: mockGetUserIdByGuid,
+    }),
   },
 }));
 
 import { resolveSelection } from './selection-debug-actions';
 
 const validSession = {
-  user: { id: 'ba-1', userGuid: 'guid-abc' },
+  user: { id: 'ba-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
   session: { id: 'sess-1' },
 };
 
@@ -41,7 +43,7 @@ describe('resolveSelection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetSession.mockResolvedValue(validSession);
-    mockMPGetTableRecords.mockResolvedValue([{ User_ID: 42 }]);
+    mockGetUserIdByGuid.mockResolvedValue(42);
   });
 
   it('should resolve selection record IDs', async () => {
@@ -74,8 +76,8 @@ describe('resolveSelection', () => {
   });
 
   it('should throw when MP user not found', async () => {
-    mockMPGetTableRecords.mockResolvedValue([]);
+    mockGetUserIdByGuid.mockRejectedValue(new Error('User not found'));
 
-    await expect(resolveSelection(5, 292)).rejects.toThrow('MP user not found');
+    await expect(resolveSelection(5, 292)).rejects.toThrow('User not found');
   });
 });
