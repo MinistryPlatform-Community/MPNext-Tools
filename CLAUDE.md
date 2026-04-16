@@ -5,10 +5,11 @@ This guide provides essential information for AI assistants (like Claude) workin
 ## Commands
 
 - **Dev**: `npm run dev` (Next.js dev server)
-- **Build**: `npm run build` (production build with Turbopack, runs type checking)
+- **Build**: `npm run build` (builds SQL install script, then production build with Turbopack + type checking)
 - **Lint**: `npm run lint` (ESLint CLI — `next lint` was removed in Next.js 16)
 - **Generate MP Types**: `npm run mp:generate:models` (generates TypeScript types + Zod schemas from Ministry Platform API, cleans output directory first)
 - **Generate MP Stored Procs**: `npm run mp:generate:storedprocs` (generates stored procedure reference from Ministry Platform API)
+- **Build MP SQL Install**: `npm run mp:build:install` (combines SQL files from `db/` into unified `_INSTALL/ministryplatform-install.sql`, skips if unchanged)
 - **Tests**: `npm test` (Vitest in watch mode), `npm run test:run` (single run), `npm run test:coverage` (with coverage)
 - **Setup**: `npm run setup` (interactive project setup wizard), `npm run setup:check` (validate setup without changes)
 
@@ -60,6 +61,7 @@ This guide provides essential information for AI assistants (like Claude) workin
 - **Ministry Platform Structure**:
   - Database models (generated): `src/lib/providers/ministry-platform/models/` - auto-generated from DBMS
   - Zod schemas (generated): `src/lib/providers/ministry-platform/models/*Schema.ts` - for optional runtime validation
+  - SQL install scripts: `src/lib/providers/ministry-platform/db/` - stored procedures and DDL for MP database deployment
   - DTOs/ViewModels (hand-written): `src/lib/dto/` - application-level data transfer objects
   - Services (hand-written): `src/services/` - singleton classes wrapping MPHelper for domain operations
 - **Validation**: 

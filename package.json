@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "tsx src/lib/providers/ministry-platform/scripts/build-sql-install.ts && next build",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest",
@@ -13,6 +13,7 @@
     "mp:generate": "tsx src/lib/providers/ministry-platform/scripts/generate-types.ts",
     "mp:generate:models": "tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models --zod --clean",
     "mp:generate:storedprocs": "tsx src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts",
+    "mp:build:install": "tsx src/lib/providers/ministry-platform/scripts/build-sql-install.ts",
     "setup": "tsx scripts/setup.ts",
     "setup:check": "tsx scripts/setup.ts --check"
   },
