@@ -34,7 +34,7 @@ export function SelectionDebug({ params, onRecordIdsResolved }: SelectionDebugPr
     }
 
     fetchSelection();
-  }, [hasSelection, params.s, params.pageID]);
+  }, [hasSelection, params.s, params.pageID, onRecordIdsResolved]);
 
   if (!hasSelection) return null;
 
