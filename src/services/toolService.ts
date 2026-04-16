@@ -1,6 +1,18 @@
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { PageData } from "@/lib/tool-params";
 
+export interface ContactRecord {
+  recordId: number;
+  contactId: number;
+}
+
+export interface ContactRecordResult {
+  tableName: string;
+  primaryKey: string;
+  contactIdField: string;
+  records: ContactRecord[];
+}
+
 /**
  * ToolService - Singleton service for managing tool-related operations
  * 
@@ -145,5 +157,65 @@ export class ToolService {
       console.error('ToolService.getUserTools - Error:', error);
       throw error;
     }
+  }
+
+  private static readonly BATCH_SIZE = 100;
+
+  /**
+   * Resolves record IDs to their associated Contact IDs by querying the
+   * specified table. Supports direct columns and FK traversal paths
+   * (e.g. `Participant_ID_Table.Contact_ID`).
+   *
+   * Short-circuits when the contact ID field IS the primary key (e.g. Contacts table).
+   * Batches queries in groups of 100 to avoid oversized IN clauses.
+   *
+   * @param tableName - The Ministry Platform table to query
+   * @param primaryKey - The primary key column of the table
+   * @param contactIdField - Column or FK path that resolves to a Contact_ID
+   * @param recordIds - Array of primary key values to look up
+   * @returns Promise<ContactRecordResult> - Mapped record/contact ID pairs
+   */
+  public async resolveContactIds(
+    tableName: string,
+    primaryKey: string,
+    contactIdField: string,
+    recordIds: number[]
+  ): Promise<ContactRecordResult> {
+    const envelope = { tableName, primaryKey, contactIdField };
+
+    if (recordIds.length === 0) {
+      return { ...envelope, records: [] };
+    }
+
+    if (contactIdField === primaryKey) {
+      return {
+        ...envelope,
+        records: recordIds.map(id => ({ recordId: id, contactId: id })),
+      };
+    }
+
+    const contactIdResponseKey = contactIdField.includes('.')
+      ? contactIdField.split('.').pop()!
+      : contactIdField;
+
+    const allRecords: ContactRecord[] = [];
+
+    for (let i = 0; i < recordIds.length; i += ToolService.BATCH_SIZE) {
+      const batch = recordIds.slice(i, i + ToolService.BATCH_SIZE);
+      const rows = await this.mp!.getTableRecords<Record<string, number>>({
+        table: tableName,
+        select: `${primaryKey}, ${contactIdField}`,
+        filter: `${primaryKey} IN (${batch.join(',')})`,
+      });
+
+      for (const row of rows) {
+        allRecords.push({
+          recordId: row[primaryKey],
+          contactId: row[contactIdResponseKey],
+        });
+      }
+    }
+
+    return { ...envelope, records: allRecords };
   }
 }

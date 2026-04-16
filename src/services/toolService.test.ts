@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ToolService } from '@/services/toolService';
 
-const mockExecuteProcedureWithBody = vi.fn();
+const { mockExecuteProcedureWithBody, mockGetTableRecords } = vi.hoisted(() => ({
+  mockExecuteProcedureWithBody: vi.fn(),
+  mockGetTableRecords: vi.fn(),
+}));
 
 vi.mock('@/lib/providers/ministry-platform', () => {
   return {
     MPHelper: class {
       executeProcedureWithBody = mockExecuteProcedureWithBody;
+      getTableRecords = mockGetTableRecords;
     },
   };
 });
@@ -144,6 +148,117 @@ describe('ToolService', () => {
 
       const service = await ToolService.getInstance();
       await expect(service.getUserTools(42)).rejects.toThrow('Access denied');
+    });
+  });
+
+  describe('resolveContactIds', () => {
+    it('should return empty records when recordIds is empty', async () => {
+      const service = await ToolService.getInstance();
+      const result = await service.resolveContactIds(
+        'Group_Participants', 'Group_Participant_ID',
+        'Participant_ID_Table.Contact_ID', []
+      );
+
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        tableName: 'Group_Participants',
+        primaryKey: 'Group_Participant_ID',
+        contactIdField: 'Participant_ID_Table.Contact_ID',
+        records: [],
+      });
+    });
+
+    it('should short-circuit when contactIdField equals primaryKey', async () => {
+      const service = await ToolService.getInstance();
+      const result = await service.resolveContactIds(
+        'Contacts', 'Contact_ID', 'Contact_ID', [10, 20, 30]
+      );
+
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        tableName: 'Contacts',
+        primaryKey: 'Contact_ID',
+        contactIdField: 'Contact_ID',
+        records: [
+          { recordId: 10, contactId: 10 },
+          { recordId: 20, contactId: 20 },
+          { recordId: 30, contactId: 30 },
+        ],
+      });
+    });
+
+    it('should resolve contact IDs with a direct column', async () => {
+      mockGetTableRecords.mockResolvedValueOnce([
+        { Donation_ID: 1, Contact_ID: 100 },
+        { Donation_ID: 2, Contact_ID: 200 },
+      ]);
+
+      const service = await ToolService.getInstance();
+      const result = await service.resolveContactIds(
+        'Donations', 'Donation_ID', 'Contact_ID', [1, 2]
+      );
+
+      expect(mockGetTableRecords).toHaveBeenCalledWith({
+        table: 'Donations',
+        select: 'Donation_ID, Contact_ID',
+        filter: 'Donation_ID IN (1,2)',
+      });
+      expect(result.records).toEqual([
+        { recordId: 1, contactId: 100 },
+        { recordId: 2, contactId: 200 },
+      ]);
+    });
+
+    it('should resolve contact IDs with FK traversal path', async () => {
+      mockGetTableRecords.mockResolvedValueOnce([
+        { Group_Participant_ID: 10, Contact_ID: 500 },
+        { Group_Participant_ID: 11, Contact_ID: 501 },
+      ]);
+
+      const service = await ToolService.getInstance();
+      const result = await service.resolveContactIds(
+        'Group_Participants', 'Group_Participant_ID',
+        'Participant_ID_Table.Contact_ID', [10, 11]
+      );
+
+      expect(mockGetTableRecords).toHaveBeenCalledWith({
+        table: 'Group_Participants',
+        select: 'Group_Participant_ID, Participant_ID_Table.Contact_ID',
+        filter: 'Group_Participant_ID IN (10,11)',
+      });
+      expect(result.records).toEqual([
+        { recordId: 10, contactId: 500 },
+        { recordId: 11, contactId: 501 },
+      ]);
+    });
+
+    it('should batch record IDs in groups of 100', async () => {
+      const ids = Array.from({ length: 150 }, (_, i) => i + 1);
+      mockGetTableRecords.mockResolvedValueOnce(
+        ids.slice(0, 100).map(id => ({ Event_ID: id, Contact_ID: id + 1000 }))
+      );
+      mockGetTableRecords.mockResolvedValueOnce(
+        ids.slice(100).map(id => ({ Event_ID: id, Contact_ID: id + 1000 }))
+      );
+
+      const service = await ToolService.getInstance();
+      const result = await service.resolveContactIds(
+        'Events', 'Event_ID', 'Contact_ID', ids
+      );
+
+      expect(mockGetTableRecords).toHaveBeenCalledTimes(2);
+      expect(result.records).toHaveLength(150);
+      expect(result.records[0]).toEqual({ recordId: 1, contactId: 1001 });
+      expect(result.records[149]).toEqual({ recordId: 150, contactId: 1150 });
+    });
+
+    it('should propagate errors', async () => {
+      mockGetTableRecords.mockRejectedValueOnce(new Error('Table not found'));
+
+      const service = await ToolService.getInstance();
+      await expect(
+        service.resolveContactIds('Bad_Table', 'ID', 'Contact_ID', [1])
+      ).rejects.toThrow('Table not found');
     });
   });
 });
