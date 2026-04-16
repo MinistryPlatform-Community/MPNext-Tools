@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useState, useMemo, useEffect, useImperativeHandle, forwardRef } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,19 +9,31 @@ import { SortableFieldItem } from "./sortable-field-item";
 import { SortableGroup } from "./sortable-group";
 import { NewGroupDialog } from "./new-group-dialog";
 import type { PageField, FieldOrderEditorHandle } from "./types";
+import type { TableMetadata } from "@/lib/providers/ministry-platform/types/provider.types";
 
 const OTHER_FIELDS_GROUP = "99 - Other Fields";
 
 interface FieldOrderEditorProps {
   fields: PageField[];
+  tableMetadata: TableMetadata | null;
   onDirtyChange: (dirty: boolean) => void;
 }
 
 export const FieldOrderEditor = forwardRef<FieldOrderEditorHandle, FieldOrderEditorProps>(
-  function FieldOrderEditor({ fields, onDirtyChange }, ref) {
+  function FieldOrderEditor({ fields, tableMetadata, onDirtyChange }, ref) {
     const [newGroupOpen, setNewGroupOpen] = useState(false);
 
     const state = useFieldOrderState(fields);
+
+    const schemaRequiredFields = useMemo(() => {
+      const set = new Set<string>();
+      if (tableMetadata?.Columns) {
+        for (const col of tableMetadata.Columns) {
+          if (col.IsRequired) set.add(col.Name);
+        }
+      }
+      return set;
+    }, [tableMetadata]);
 
     useEffect(() => {
       onDirtyChange(state.isDirty);
@@ -83,6 +95,8 @@ export const FieldOrderEditor = forwardRef<FieldOrderEditorHandle, FieldOrderEdi
                         field={field}
                         index={index}
                         groupName="__flat__"
+                        onUpdateField={state.updateField}
+                        schemaRequired={schemaRequiredFields.has(field.Field_Name)}
                       />
                     );
                   })}
@@ -99,6 +113,8 @@ export const FieldOrderEditor = forwardRef<FieldOrderEditorHandle, FieldOrderEdi
                   fieldLookup={state.fieldLookup}
                   isPinned={groupName === OTHER_FIELDS_GROUP}
                   onRemove={state.removeGroup}
+                  onUpdateField={state.updateField}
+                  schemaRequiredFields={schemaRequiredFields}
                 />
               ))
             )}

@@ -174,6 +174,7 @@ export function FieldManagement({ params }: FieldManagementProps) {
               <FieldOrderEditor
                 ref={editorRef}
                 fields={fieldData.fields}
+                tableMetadata={fieldData.tableMetadata}
                 onDirtyChange={setIsDirty}
               />
             ) : fieldData ? (

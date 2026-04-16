@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback } from "react";
 import { move } from "@dnd-kit/helpers";
 import { isSortable } from "@dnd-kit/react/sortable";
 import type { PageField, FieldOrderPayload } from "./types";
@@ -23,6 +23,7 @@ interface FieldOrderState {
   addGroup: (name: string) => void;
   removeGroup: (name: string) => void;
   moveHiddenToOther: () => void;
+  updateField: (id: number, updates: Partial<PageField>) => void;
   buildSavePayload: () => FieldOrderPayload[];
 }
 
@@ -35,13 +36,13 @@ export function useFieldOrderState(fields: PageField[]): FieldOrderState {
   );
   const [isDirty, setIsDirty] = useState(false);
 
-  const fieldLookup = useMemo(() => {
+  const [fieldLookup, setFieldLookup] = useState<Map<number, PageField>>(() => {
     const map = new Map<number, PageField>();
     for (const field of fields) {
       map.set(field.Page_Field_ID, field);
     }
     return map;
-  }, [fields]);
+  });
 
   const snapshot = useRef<{ groups: GroupedFieldsMap; order: string[] }>({
     groups: {},
@@ -161,6 +162,17 @@ export function useFieldOrderState(fields: PageField[]): FieldOrderState {
     setIsDirty(true);
   }, [fieldLookup]);
 
+  const updateField = useCallback((id: number, updates: Partial<PageField>) => {
+    setFieldLookup((prev) => {
+      const existing = prev.get(id);
+      if (!existing) return prev;
+      const next = new Map(prev);
+      next.set(id, { ...existing, ...updates });
+      return next;
+    });
+    setIsDirty(true);
+  }, []);
+
   const buildSavePayload = useCallback((): FieldOrderPayload[] => {
     const payload: FieldOrderPayload[] = [];
     let viewOrder = 1;
@@ -214,6 +226,7 @@ export function useFieldOrderState(fields: PageField[]): FieldOrderState {
     addGroup,
     removeGroup,
     moveHiddenToOther,
+    updateField,
     buildSavePayload,
   };
 }

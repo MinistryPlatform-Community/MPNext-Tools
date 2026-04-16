@@ -15,6 +15,8 @@ interface SortableGroupProps {
   fieldLookup: Map<number, PageField>;
   isPinned: boolean;
   onRemove: (name: string) => void;
+  onUpdateField: (id: number, updates: Partial<PageField>) => void;
+  schemaRequiredFields: Set<string>;
 }
 
 export function SortableGroup({
@@ -24,6 +26,8 @@ export function SortableGroup({
   fieldLookup,
   isPinned,
   onRemove,
+  onUpdateField,
+  schemaRequiredFields,
 }: SortableGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -99,6 +103,8 @@ export function SortableGroup({
                   field={field}
                   index={fieldIndex}
                   groupName={groupName}
+                  onUpdateField={onUpdateField}
+                  schemaRequired={schemaRequiredFields.has(field.Field_Name)}
                 />
               );
             })
