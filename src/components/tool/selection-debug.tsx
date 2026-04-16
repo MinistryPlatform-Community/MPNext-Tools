@@ -8,9 +8,10 @@ import type { SelectionResult } from "./selection-debug-actions";
 
 interface SelectionDebugProps {
   params: ToolParams;
+  onRecordIdsResolved?: (recordIds: number[]) => void;
 }
 
-export function SelectionDebug({ params }: SelectionDebugProps) {
+export function SelectionDebug({ params, onRecordIdsResolved }: SelectionDebugProps) {
   const [result, setResult] = useState<SelectionResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function SelectionDebug({ params }: SelectionDebugProps) {
       try {
         const data = await resolveSelection(params.s!, params.pageID!);
         setResult(data);
+        onRecordIdsResolved?.(data.recordIds);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to resolve selection");
       } finally {
