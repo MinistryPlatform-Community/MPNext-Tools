@@ -200,7 +200,7 @@ Coverage uses the **v8** provider. Auto-generated model files are excluded.
 npx vitest run --coverage --coverage.reportOnFailure
 ```
 
-## Test File Inventory (241 tests, 21 files)
+## Test File Inventory (247 tests, 21 files)
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
@@ -209,7 +209,7 @@ npx vitest run --coverage --coverage.reportOnFailure
 | `lib/providers/ministry-platform/services/table.service.test.ts` | 21 | TableService CRUD with query params, error codes |
 | `components/address-labels/actions.test.ts` | 14 | Address label server actions, fetch, skip logic |
 | `lib/providers/ministry-platform/client.test.ts` | 12 | OAuth token lifecycle, refresh, concurrent calls |
-| `services/toolService.test.ts` | 11 | Page data, user tools, stored procedure calls |
+| `services/toolService.test.ts` | 17 | Page data, user tools, selection records, contact resolution |
 | `proxy.test.ts` | 11 | Route protection, public paths, session, errors |
 | `lib/barcode-helpers.test.ts` | 11 | Barcode generation utilities |
 | `auth.test.ts` | 11 | Name splitting, session structure, OAuth config |
@@ -226,6 +226,16 @@ npx vitest run --coverage --coverage.reportOnFailure
 | `contexts/session-context.test.tsx` | 2 | useAppSession hook wrapper |
 | `components/shared-actions/user.test.ts` | 2 | getCurrentUserProfile delegation |
 
+## Coverage (as of last run)
+
+| Metric | Value |
+|--------|-------|
+| Statements | 87.2% (634/727) |
+| Branches | 77.96% (230/295) |
+| Functions | 83.45% (111/133) |
+| Lines | 88.08% (606/688) |
+
 ## Known Issues
 
-None at this time.
+1. **GroupService has no tests** — `src/services/groupService.ts` (252 lines, 6 methods) is the only service without test coverage. See `.claude/TODO/008-code-groupservice-no-tests.md`.
+2. **Lifecycle hooks not documented** — `afterEach()` is used in 5 test files and `afterAll()` in 1 file (user-menu/actions.test.ts) but not mentioned in the mock patterns section above. These are standard Vitest hooks for cleanup.

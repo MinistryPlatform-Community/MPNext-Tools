@@ -219,17 +219,86 @@ Returns `PageData | null`. Executes a stored procedure to get MP page metadata.
 }
 ```
 
-### getUserTools(domainId: number, userId: number)
+### getUserTools(userId: number)
 
 Returns `string[]` of tool paths the user is authorized to access.
 
 | Parameter | Value |
 |-----------|-------|
 | Procedure | `api_Tools_GetUserTools` |
-| Body | `{ "@DomainId": domainId, "@UserId": userId }` |
+| Body | `{ "@UserId": userId }` |
 
+- DomainID is automatically injected by the MP API
 - Maps `result[0]` -> extracts `Tool_Path` from each row
 - Returns empty array if no tools found
+
+### getSelectionRecordIds(selectionId: number, userId: number, pageId: number)
+
+Returns `number[]` of record IDs from a Ministry Platform selection.
+
+| Parameter | Value |
+|-----------|-------|
+| Procedure | `api_Common_GetSelection` |
+| Body | `{ "@SelectionID": selectionId, "@UserID": userId, "@PageID": pageId }` |
+
+- Searches all result sets for one containing `Record_ID` column
+- Extracts `Record_ID` from each row
+- Returns empty array if no records found
+
+### resolveContactIds(tableName, primaryKey, contactIdField, recordIds)
+
+Returns `ContactRecordResult` mapping record IDs to their associated Contact IDs.
+
+| Parameter | Value |
+|-----------|-------|
+| Table | `{tableName}` (from PageData) |
+| Select | `{primaryKey}, {contactIdField}` |
+| Filter | `{primaryKey} IN ({batch})` |
+
+- Supports FK traversal paths (e.g., `Participant_ID_Table.Contact_ID`)
+- Short-circuits when `contactIdField === primaryKey` (e.g., Contacts table)
+- Batches queries in groups of 100
+
+**Return type — `ContactRecordResult`:**
+```typescript
+{
+  tableName: string;
+  primaryKey: string;
+  contactIdField: string;
+  records: { recordId: number; contactId: number; }[];
+}
+```
+
+---
+
+## GroupService
+
+**File:** `src/services/groupService.ts`
+**Purpose:** Manages group-related operations including lookup data, searching, and CRUD.
+
+### fetchAllLookups()
+
+Returns `GroupWizardLookups` with 13 lookup tables fetched in parallel via `Promise.all()`. Queries: Group_Types, Ministries, Congregations, Meeting_Days, Meeting_Frequencies, Meeting_Durations, Life_Stages, Group_Focuses, Priorities, Rooms, Books, dp_SMS_Numbers, Group_Ended_Reasons. Each normalized to `{ id: number, name: string }[]`.
+
+### searchContacts(term: string)
+
+Returns `ContactSearchResult[]` (max 20). Searches `Contacts` table with `Display_Name LIKE '{escaped}%'`. Escapes single quotes.
+
+### searchGroups(term: string)
+
+Returns `GroupSearchResult[]` (max 20). Searches `Groups` table with `Group_Name LIKE '{escaped}%' AND End_Date IS NULL`. Includes `Group_Type_ID_TABLE.Group_Type` via FK traversal.
+
+### getGroup(groupId: number)
+
+Returns `GroupWizardFormData | null`. Fetches a single group by `Group_ID` and maps 48+ fields from the raw DB record to typed form data. Converts ISO datetime dates to `YYYY-MM-DD` format.
+
+### createGroup(data: GroupWizardFormData, userId: number)
+
+Returns `{ Group_ID: number; Group_Name: string }`. Converts date fields to datetime format via `prepareForApi()`, then calls `mp.createTableRecords('Groups', ...)` with `$userId` for audit trail.
+
+### updateGroup(groupId: number, data: Partial\<GroupWizardFormData\>, userId: number)
+
+Returns `{ Group_ID: number; Group_Name: string }`. Same date conversion as createGroup. Uses `partial: true` for updates.
 
 ---
 
@@ -312,9 +381,69 @@ Server actions validate the session, call service singletons, and return data to
 
 - Validates session and extracts `userGuid`
 - Queries `dp_Users` (filter: `User_GUID`, select: `User_ID`, top: 1) to get numeric User_ID
-- Calls `ToolService.getInstance()` -> `getUserTools(1, userId)`
+- Calls `ToolService.getInstance()` -> `getUserTools(userId)`
 - Returns `string[]` of authorized tool paths
 - Throws on: missing session, missing userGuid, user not found
+
+### Group Wizard Actions
+
+**File:** `src/components/group-wizard/actions.ts`
+
+#### fetchGroupWizardLookups()
+
+- Validates session, calls `GroupService.getInstance()` -> `fetchAllLookups()`
+- Returns `GroupWizardLookups` with 13 lookup tables
+
+#### searchContacts(term: string) / searchGroups(term: string)
+
+- Validates session, minimum 2 characters
+- Calls `GroupService.searchContacts()` / `searchGroups()`
+- Returns `ContactSearchResult[]` / `GroupSearchResult[]`
+
+#### fetchGroupRecord(groupId: number)
+
+- Validates session, calls `GroupService.getGroup(groupId)`
+- Returns `{ success: true; data: GroupWizardFormData } | ActionError`
+
+#### createGroup(data) / updateGroup(groupId, data)
+
+- Validates session, resolves MP User_ID from userGuid
+- Calls `GroupService.createGroup()` / `updateGroup()` with userId for audit
+- Returns `CreateGroupResult | ActionError`
+
+### Address Label Actions
+
+**File:** `src/components/address-labels/actions.ts`
+
+#### fetchAddressLabels(params, config)
+
+- Validates session, resolves MP User_ID
+- Selection mode: calls `ToolService.getSelectionRecordIds()` then `AddressLabelService.getAddressesForContacts()`
+- Single record mode: calls `AddressLabelService.getAddressForContact()`
+- Filters and transforms results (household dedup, opt-out, missing data)
+- Returns `FetchAddressLabelsResult`
+
+#### generateLabelPdf(labels, config) / generateLabelDocx(labels, config)
+
+- Pre-encodes barcodes, validates label stock
+- PDF: Uses `@react-pdf/renderer`, returns base64
+- DOCX: Uses `docx` library, returns base64
+
+#### mergeTemplate(templateBase64, labels, config)
+
+- Uses `docxtemplater` + image module for barcode embedding
+- Max template size: 5MB
+- Returns merged DOCX as base64
+
+### Template Editor Actions
+
+**File:** `src/components/template-editor/actions.ts`
+
+#### compileMjml(mjmlSource: string)
+
+- Validates session, enforces 512KB max size
+- Compiles MJML to HTML via `mjml` library
+- Returns `MjmlCompileResult` with HTML + errors
 
 ---
 
@@ -330,8 +459,8 @@ Hand-written application-level data transfer objects. Separate from auto-generat
 |------|--------|---------|
 | `LabelData` | Contact info, address fields, barcode data | Label rendering components |
 | `SkipRecord` | `Contact_ID`, `Display_Name`, `reason` | Skip reporting in summary |
-| `SkipReason` | Union type: `'no-address'`, `'bulk-mail-opt-out'`, `'no-postal-code'` | Skip classification |
-| `AddressMode` | `'selection'` or `'saved-selection'` | Address source selection |
+| `SkipReason` | Union type: `'no_address'`, `'opted_out'`, `'no_postal_code'`, `'no_barcode'` | Skip classification |
+| `AddressMode` | `'household'` or `'individual'` | Address grouping mode |
 | `BarcodeFormat` | `'imb'`, `'postnet'`, or `'none'` | Barcode rendering choice |
 | `LabelConfig` | Label stock, barcode format, mailer ID, service type | Configuration for label generation |
 | `FetchAddressLabelsResult` | `labels`, `skipped`, `totalFetched` | Result of address fetch operation |

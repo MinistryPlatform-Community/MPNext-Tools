@@ -2,7 +2,7 @@
 
 This document provides a summary of stored procedures available via the Ministry Platform API for LLM assistants working on the MPNext project.
 
-**Generated:** 2026-04-16T02:07:25.470Z
+**Generated:** 2026-04-16T02:10:03.119Z
 **Procedures:** 532
 
 ---

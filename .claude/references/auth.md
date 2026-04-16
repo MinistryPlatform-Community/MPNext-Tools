@@ -70,8 +70,9 @@ The cast is needed because `customSessionClient` type inference doesn't include 
 |---------|-------|-------|
 | `providerId` | `"ministry-platform"` | Used in OAuth URLs and `signIn.oauth2()` |
 | `discoveryUrl` | `${MP_BASE_URL}/oauth/.well-known/openid-configuration` | OIDC auto-discovery |
-| `scopes` | `openid`, `offline_access`, `dataplatform/scopes/all` | Full MP API access |
-| `pkce` | `false` | MP doesn't support PKCE |
+| `scopes` | `openid`, `offline_access`, `http://www.thinkministry.com/dataplatform/scopes/all` | Full MP API access |
+| `pkce` | `false` | MP may not support PKCE (see TODO) |
+| `authorizationUrlParams` | `{ realm: "realm" }` | Realm parameter for MP OIDC |
 | `getUserInfo` | Custom callback | Fetches OIDC userinfo, returns `id: profile.sub` |
 | `mapProfileToUser` | Custom callback | Stores `profile.id` (sub) as `userGuid` |
 
@@ -261,3 +262,5 @@ The following URLs must be configured in the Ministry Platform OAuth client:
 3. **userGuid type cast**: `session.user.userGuid` requires a type cast because `customSessionClient` doesn't infer `additionalFields` from `genericOAuth`. This is a Better Auth type limitation.
 4. **Token refresh**: Not explicitly implemented. The `storeAccountCookie` stores refresh tokens, but automatic refresh behavior in stateless mode is unverified.
 5. **Cookie cache staleness**: The 1-hour JWT cookie cache means `customSession` changes won't take effect until the cache expires or the user re-authenticates.
+6. **emailVerified hardcoded**: `getUserInfo` always sets `emailVerified: true` — assumes MP validates email. No client-side verification.
+7. **PKCE disabled**: See `.claude/TODO/002-security-pkce-disabled.md` — verify if MP OAuth now supports PKCE.
