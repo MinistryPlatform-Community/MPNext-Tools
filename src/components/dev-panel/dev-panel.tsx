@@ -55,9 +55,11 @@ export function DevPanel({ params }: DevPanelProps) {
   if (!isLocalhost()) return null;
 
   const toggle = () => {
-    const next = !isOpen;
-    setIsOpen(next);
-    writeOpenState(next);
+    setIsOpen((prev) => {
+      const next = !prev;
+      writeOpenState(next);
+      return next;
+    });
   };
 
   const summaryBits: string[] = [];
