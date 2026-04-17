@@ -2,9 +2,12 @@
 
 import { ToolHeader } from "./tool-header";
 import { ToolFooter } from "./tool-footer";
+import { DevPanel } from "@/components/dev-panel";
+import type { ToolParams } from "@/lib/tool-params";
 
 interface ToolContainerProps {
   title: string;
+  params?: ToolParams;
   infoContent?: React.ReactNode;
   onClose?: () => void;
   onSave?: () => void;
@@ -18,6 +21,7 @@ interface ToolContainerProps {
 
 export function ToolContainer({
   title,
+  params,
   infoContent,
   onClose,
   onSave,
@@ -30,6 +34,7 @@ export function ToolContainer({
 }: ToolContainerProps) {
   return (
     <div className="flex flex-col h-screen">
+      {params && <DevPanel params={params} />}
       <ToolHeader title={title} infoContent={infoContent} />
 
       <div className="flex-1 overflow-auto bg-gray-50">

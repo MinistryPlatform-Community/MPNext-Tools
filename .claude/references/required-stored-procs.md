@@ -54,7 +54,7 @@ All procedures return `unknown[][]` (array of result sets, each an array of row 
 
 **Consumer(s):**
 - `fetchAddressLabels()` in `src/components/address-labels/actions.ts`
-- `resolveSelection()` in `src/components/tool/selection-debug-actions.ts`
+- `resolveSelection()` in `src/components/dev-panel/panels/selection-actions.ts`
 
 ---
 
@@ -73,7 +73,7 @@ Domain ID is injected automatically by the MP API — do not pass it.
 **Called by:** `ToolService.getUserTools(userId)` at `src/services/toolService.ts:138`
 
 **Consumer(s):**
-- `getUserTools()` in `src/components/user-tools-debug/actions.ts`
+- `getUserTools()` in `src/components/dev-panel/panels/user-tools-actions.ts`
 
 ---
 

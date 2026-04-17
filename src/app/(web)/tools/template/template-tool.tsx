@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ToolContainer, ToolParamsDebug, SelectionDebug, ContactRecordsDebug } from "@/components/tool";
-import { UserToolsDebug } from "@/components/user-tools-debug";
+import { ToolContainer } from "@/components/tool";
 import { Users } from "lucide-react";
 import { ToolParams, isNewRecord } from "@/lib/tool-params";
 
@@ -15,7 +14,6 @@ export function TemplateTool({ params }: TemplateToolProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const isNew = isNewRecord(params);
-  const [selectionRecordIds, setSelectionRecordIds] = useState<number[]>();
 
   useEffect(() => {
     console.log("Tool launched with params:", params);
@@ -41,6 +39,7 @@ export function TemplateTool({ params }: TemplateToolProps) {
   return (
     <ToolContainer
       title={toolTitle}
+      params={params}
       infoContent={
         <div className="space-y-2">
           <p className="font-semibold">Template Tool</p>
@@ -59,22 +58,8 @@ export function TemplateTool({ params }: TemplateToolProps) {
       onClose={handleClose}
       isSaving={isSaving}
     >
-
       {/* Main Tool Window */}
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
-
-        {/* Development Helper - Remove before production */}
-        <ToolParamsDebug params={params} />
-
-        {/* Selection Debug - Remove before production */}
-        <SelectionDebug params={params} onRecordIdsResolved={setSelectionRecordIds} />
-
-        {/* Contact Records Debug - Remove before production */}
-        <ContactRecordsDebug params={params} selectionRecordIds={selectionRecordIds} />
-
-        {/* User Tools Debug - Remove before production */}
-        <UserToolsDebug />
-
         {/* Tool Section */}
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <div className="flex items-center justify-between mb-4">
@@ -82,7 +67,6 @@ export function TemplateTool({ params }: TemplateToolProps) {
               <Users className="w-4 h-4" />
               Tool Section
             </h2>
-
           </div>
         </div>
       </div>

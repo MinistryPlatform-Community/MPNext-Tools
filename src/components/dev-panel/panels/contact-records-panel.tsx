@@ -6,12 +6,12 @@ import { resolveContactRecords } from "./contact-records-actions";
 import type { ToolParams } from "@/lib/tool-params";
 import type { ContactRecordResult } from "@/services/toolService";
 
-interface ContactRecordsDebugProps {
+interface ContactRecordsPanelProps {
   params: ToolParams;
   selectionRecordIds?: number[];
 }
 
-export function ContactRecordsDebug({ params, selectionRecordIds }: ContactRecordsDebugProps) {
+export function ContactRecordsPanel({ params, selectionRecordIds }: ContactRecordsPanelProps) {
   const [result, setResult] = useState<ContactRecordResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,10 +155,6 @@ export function ContactRecordsDebug({ params, selectionRecordIds }: ContactRecor
               </pre>
             </details>
           </div>
-
-          <p className="text-xs text-green-600 mt-3 italic">
-            💡 Remove this component before deploying to production
-          </p>
         </div>
       </details>
     </div>

@@ -1,7 +1,7 @@
 import { ToolParams, isNewRecord, isEditMode } from "@/lib/tool-params";
 import { Code2, Info } from "lucide-react";
 
-interface ToolParamsDebugProps {
+interface ParamsPanelProps {
   params: ToolParams;
 }
 
@@ -16,7 +16,7 @@ const PARAM_DESCRIPTIONS: Record<string, string> = {
   addl: "Additional Data",
 };
 
-export function ToolParamsDebug({ params }: ToolParamsDebugProps) {
+export function ParamsPanel({ params }: ParamsPanelProps) {
   const hasAnyParams = Object.values(params).some((value) => value !== undefined);
 
   if (!hasAnyParams) {
@@ -137,10 +137,6 @@ export function ToolParamsDebug({ params }: ToolParamsDebugProps) {
               </pre>
             </details>
           </div>
-
-          <p className="text-xs text-purple-600 mt-3 italic">
-            💡 Remove this component before deploying to production
-          </p>
         </div>
       </details>
     </div>

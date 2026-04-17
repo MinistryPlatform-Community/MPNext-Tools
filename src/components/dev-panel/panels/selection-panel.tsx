@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { ListChecks, Loader2, Info } from "lucide-react";
-import { resolveSelection } from "./selection-debug-actions";
+import { resolveSelection } from "./selection-actions";
 import type { ToolParams } from "@/lib/tool-params";
-import type { SelectionResult } from "./selection-debug-actions";
+import type { SelectionResult } from "./selection-actions";
 
-interface SelectionDebugProps {
+interface SelectionPanelProps {
   params: ToolParams;
   onRecordIdsResolved?: (recordIds: number[]) => void;
 }
 
-export function SelectionDebug({ params, onRecordIdsResolved }: SelectionDebugProps) {
+export function SelectionPanel({ params, onRecordIdsResolved }: SelectionPanelProps) {
   const [result, setResult] = useState<SelectionResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -147,10 +147,6 @@ export function SelectionDebug({ params, onRecordIdsResolved }: SelectionDebugPr
               </pre>
             </details>
           </div>
-
-          <p className="text-xs text-blue-600 mt-3 italic">
-            💡 Remove this component before deploying to production
-          </p>
         </div>
       </details>
     </div>

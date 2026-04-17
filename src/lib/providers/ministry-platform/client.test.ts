@@ -212,6 +212,116 @@ describe('MinistryPlatformClient', () => {
     });
   });
 
+  describe('Dev Token Pipeline - ensureValidDevToken / getDevHttpClient', () => {
+    it('should fetch dev token using the "dev" profile', async () => {
+      mockGetClientCredentialsToken.mockResolvedValueOnce({
+        access_token: 'dev-access-token',
+        expires_in: 3600,
+        token_type: 'Bearer',
+      });
+
+      const client = new MinistryPlatformClient();
+      await client.ensureValidDevToken();
+
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(1);
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledWith('dev');
+    });
+
+    it('should return a dev HttpClient distinct from the default HttpClient', () => {
+      const client = new MinistryPlatformClient();
+
+      const defaultHttp = client.getHttpClient();
+      const devHttp = client.getDevHttpClient();
+
+      expect(devHttp).toBeDefined();
+      expect(devHttp).not.toBe(defaultHttp);
+    });
+
+    it('should cache the dev token independently from the default token', async () => {
+      mockGetClientCredentialsToken
+        .mockResolvedValueOnce({ access_token: 'default-token', expires_in: 3600 })
+        .mockResolvedValueOnce({ access_token: 'dev-token', expires_in: 3600 });
+
+      const client = new MinistryPlatformClient();
+
+      await client.ensureValidToken();
+      await client.ensureValidDevToken();
+
+      // Each pipeline fetched its own token — one default call, one dev call
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(2);
+      expect(mockGetClientCredentialsToken).toHaveBeenNthCalledWith(1);
+      expect(mockGetClientCredentialsToken).toHaveBeenNthCalledWith(2, 'dev');
+
+      // Calling ensureValidToken again should NOT trigger a dev fetch
+      await client.ensureValidToken();
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not refresh the dev token while still valid', async () => {
+      mockGetClientCredentialsToken.mockResolvedValueOnce({
+        access_token: 'dev-token-1',
+        expires_in: 3600,
+      });
+
+      const client = new MinistryPlatformClient();
+      await client.ensureValidDevToken();
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(60 * 1000);
+
+      await client.ensureValidDevToken();
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should refresh the dev token after expiration', async () => {
+      mockGetClientCredentialsToken
+        .mockResolvedValueOnce({ access_token: 'dev-token-1', expires_in: 3600 })
+        .mockResolvedValueOnce({ access_token: 'dev-token-2', expires_in: 3600 });
+
+      const client = new MinistryPlatformClient();
+      await client.ensureValidDevToken();
+      vi.advanceTimersByTime(6 * 60 * 1000);
+
+      await client.ensureValidDevToken();
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(2);
+      expect(mockGetClientCredentialsToken).toHaveBeenNthCalledWith(1, 'dev');
+      expect(mockGetClientCredentialsToken).toHaveBeenNthCalledWith(2, 'dev');
+    });
+
+    it('should propagate errors from dev token refresh', async () => {
+      mockGetClientCredentialsToken.mockRejectedValueOnce(
+        new Error('Dev client credentials are not configured')
+      );
+
+      const client = new MinistryPlatformClient();
+
+      await expect(client.ensureValidDevToken()).rejects.toThrow(
+        'Dev client credentials are not configured'
+      );
+    });
+
+    it('should not populate the default token when refreshing the dev token', async () => {
+      mockGetClientCredentialsToken.mockResolvedValueOnce({
+        access_token: 'dev-only',
+        expires_in: 3600,
+      });
+
+      const client = new MinistryPlatformClient();
+      await client.ensureValidDevToken();
+
+      // Default pipeline must still consider itself expired
+      mockGetClientCredentialsToken.mockResolvedValueOnce({
+        access_token: 'default-fetched-after',
+        expires_in: 3600,
+      });
+      await client.ensureValidToken();
+
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(2);
+      expect(mockGetClientCredentialsToken).toHaveBeenNthCalledWith(1, 'dev');
+      expect(mockGetClientCredentialsToken).toHaveBeenNthCalledWith(2);
+    });
+  });
+
   describe('Error Handling', () => {
     it('should propagate network errors from token refresh', async () => {
       mockGetClientCredentialsToken.mockRejectedValueOnce(

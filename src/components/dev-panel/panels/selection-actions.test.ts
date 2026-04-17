@@ -32,7 +32,7 @@ vi.mock('@/services/userService', () => ({
   },
 }));
 
-import { resolveSelection } from './selection-debug-actions';
+import { resolveSelection } from './selection-actions';
 
 const validSession = {
   user: { id: 'ba-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },

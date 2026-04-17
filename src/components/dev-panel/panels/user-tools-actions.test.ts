@@ -34,7 +34,7 @@ vi.mock('@/services/toolService', () => ({
   },
 }));
 
-import { getUserTools } from './actions';
+import { getUserTools } from './user-tools-actions';
 
 describe('getUserTools', () => {
   beforeEach(() => {

@@ -30,6 +30,7 @@ export function PageSearch({ value, onSelect }: PageSearchProps) {
   const [pages, setPages] = useState<PageListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const fetchedRef = useRef(false);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -39,6 +40,15 @@ export function PageSearch({ value, onSelect }: PageSearchProps) {
       .catch(() => setPages([]))
       .finally(() => setIsLoading(false));
   }, []);
+
+  // Reset scroll to top whenever the search term changes. cmdk runs its own
+  // scrollIntoView({block: "nearest"}) in a useLayoutEffect after React commits,
+  // so we must defer our reset past that commit to win the race.
+  const handleSearchChange = () => {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollTo({ top: 0 });
+    });
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -65,8 +75,8 @@ export function PageSearch({ value, onSelect }: PageSearchProps) {
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search pages..." />
-          <CommandList>
+          <CommandInput placeholder="Search pages..." onValueChange={handleSearchChange} />
+          <CommandList ref={listRef}>
             <CommandEmpty>No pages found.</CommandEmpty>
             <CommandGroup>
               {pages.map((page) => (

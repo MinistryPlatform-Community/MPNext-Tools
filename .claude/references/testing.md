@@ -236,8 +236,8 @@ npx vitest run --coverage --coverage.reportOnFailure
 | `components/address-labels/actions.test.ts` | 21 | PDF, DOCX, and template merge actions + error branches |
 | `components/field-management/actions.test.ts` | 15 | fetchPages / fetchPageFieldData column merge / savePageFieldOrder |
 | `components/address-labels/word-document.test.ts` | 8 | buildWordDocument page layout and barcode branches |
-| `components/tool/selection-debug-actions.test.ts` | 5 | Selection resolution server actions |
-| `components/user-tools-debug/actions.test.ts` | 4 | Authorization checks, session validation |
+| `components/dev-panel/panels/selection-actions.test.ts` | 5 | Selection resolution server actions |
+| `components/dev-panel/panels/user-tools-actions.test.ts` | 4 | Authorization checks, session validation |
 | `components/user-menu/actions.test.ts` | 3 | Sign-out action, OIDC logout redirect |
 | `components/shared-actions/user.test.ts` | 2 | getCurrentUserProfile delegation |
 

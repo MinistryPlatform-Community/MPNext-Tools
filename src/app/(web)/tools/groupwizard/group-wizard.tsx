@@ -151,6 +151,7 @@ export function GroupWizard({ params }: GroupWizardProps) {
 
   return (
     <ToolContainer
+      params={params}
       title={isEditMode ? "Edit Group" : "Group Wizard"}
       infoContent={
         <div className="space-y-2">

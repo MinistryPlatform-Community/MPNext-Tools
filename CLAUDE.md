@@ -74,14 +74,14 @@ This guide provides essential information for AI assistants (like Claude) workin
 ```
 src/components/
 ├── address-labels/       # Address label printing & mail merge
+├── dev-panel/            # Unified dev panel (localhost-only) - params, selection, contact records, user tools
 ├── group-wizard/         # Multi-step group creation/edit wizard (6 steps)
 ├── layout/               # Layout components (AuthWrapper)
 ├── shared-actions/       # Shared actions used across features
 ├── template-editor/      # Email/document template editor (GrapesJS)
-├── tool/                 # Tool framework (Container, Header, Footer, ParamsDebug, SelectionDebug, ContactRecordsDebug)
+├── tool/                 # Tool framework (Container, Header, Footer)
 ├── ui/                   # shadcn/ui components (22)
 ├── user-menu/            # User dropdown with OIDC sign-out
-├── user-tools-debug/     # Dev helper: authorized tool paths
 └── feature-name/         # Feature components (kebab-case)
     ├── feature-name.tsx
     ├── actions.ts        # Feature-specific server actions
