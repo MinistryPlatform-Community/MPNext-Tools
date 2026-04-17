@@ -62,10 +62,10 @@ src/components/
 │   ├── wizard-navigation.tsx   # Bottom nav (Back/Next/Cancel/Submit)
 │   ├── wizard-stepper.tsx      # Desktop step indicators + mobile progress
 │   └── index.ts               # Barrel exports
-├── tool/                       # Tool layout components (ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug, ContactRecordsDebug)
+├── tool/                       # Tool layout components (ToolContainer, ToolHeader, ToolFooter)
+├── dev-panel/                  # Unified developer panel (localhost-only)
 ├── ui/                         # shadcn/ui components (22 components)
-├── user-menu/                  # User dropdown menu
-└── user-tools-debug/           # Debug: User permissions display (dev only)
+└── user-menu/                  # User dropdown menu
 ```
 
 ## Component Categories
@@ -82,20 +82,18 @@ src/components/
 | Folder | Purpose | Has Actions |
 |--------|---------|-------------|
 | `address-labels/` | Address label printing with IMb/POSTNET barcodes and mail merge | Yes |
+| `dev-panel/` | Unified developer panel showing params, selection, contacts, user tools (localhost-only) | Yes |
 | `field-management/` | Drag-and-drop field ordering / inline config editing for MP pages | Yes |
 | `group-wizard/` | Multi-step group creation/edit wizard with 6 steps | Yes |
 | `template-editor/` | Visual email/document template editor with GrapesJS | Yes |
 | `user-menu/` | User dropdown with sign-out | Yes |
-| `tool/` | Tool layout components (ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug, ContactRecordsDebug) | Yes |
+| `tool/` | Tool layout components (ToolContainer, ToolHeader, ToolFooter) | Yes |
 
-### Debug Components (Development Only)
+### Developer Components (Localhost Development Only)
 
-| Folder | Purpose | Remove Before Production |
-|--------|---------|-------------------------|
-| `tool/` (ToolParamsDebug) | Displays parsed URL tool parameters | Yes |
-| `tool/` (SelectionDebug) | Displays MP selection data for debugging | Yes |
-| `tool/` (ContactRecordsDebug) | Displays resolved contact record mappings | Yes |
-| `user-tools-debug/` | Shows user's authorized tool paths | Yes |
+| Folder | Purpose |
+|--------|---------|
+| `dev-panel/` | Unified overlay showing tool params, selection data, contact records, and authorized tool paths. Auto-rendered by `ToolContainer` when a `params` prop is passed. Gated to localhost and `NODE_ENV === 'development'`. |
 
 ### UI Components (shadcn/ui)
 
@@ -114,12 +112,10 @@ Actions are co-located with their feature components:
 | Feature | Actions File | Functions |
 |---------|--------------|-----------|
 | address-labels | `address-labels/actions.ts` | `fetchAddressLabels`, `generateLabelPdf`, `generateLabelDocx`, `mergeTemplate` |
+| dev-panel | `dev-panel/actions.ts` | `resolveSelection`, `resolveContactRecords`, `getUserTools` |
 | group-wizard | `group-wizard/actions.ts` | `fetchGroupWizardLookups`, `searchContacts`, `searchGroups`, `fetchGroupRecord`, `createGroup`, `updateGroup` |
 | template-editor | `template-editor/actions.ts` | `compileMjml` |
 | user-menu | `user-menu/actions.ts` | `handleSignOut` |
-| user-tools-debug | `user-tools-debug/actions.ts` | `getUserTools` |
-| tool (selection) | `tool/selection-debug-actions.ts` | `resolveSelection` |
-| tool (contacts) | `tool/contact-records-actions.ts` | `resolveContactRecords` |
 | **shared** | `shared-actions/user.ts` | `getCurrentUserProfile` |
 
 **Shared Actions Folder**: `src/components/shared-actions/` contains actions used across multiple features. See the README in that folder for guidelines on when to use shared vs co-located actions.
@@ -128,7 +124,7 @@ Actions are co-located with their feature components:
 
 ```typescript
 // Tool components (use barrel export)
-import { ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug, ContactRecordsDebug } from '@/components/tool';
+import { ToolContainer, ToolHeader, ToolFooter } from '@/components/tool';
 
 // UI components (individual imports)
 import { Button } from '@/components/ui/button';
@@ -184,26 +180,23 @@ All components pass the following checks:
 - **dialog.tsx**: Uses mixed patterns (direct assignment vs forwardRef) - works but inconsistent.
 - **tooltip.tsx**: Auto-wraps with `TooltipProvider` internally - no need to wrap manually.
 
-### Debug Components
-
-The `ToolParamsDebug` and `SelectionDebug` (inside `tool/`) and `user-tools-debug` components are marked for removal before production. They are currently used in `src/app/(web)/tools/template/template-tool.tsx`.
-
-Consider conditional rendering:
-```typescript
-import { ToolParamsDebug } from '@/components/tool';
-
-{process.env.NODE_ENV === 'development' && <ToolParamsDebug params={params} />}
-```
-
 ## Quick Reference: Component Responsibilities
 
 ### tool
 - **Purpose**: Consolidated folder containing reusable layout components for tool interfaces
-- **Components**: `ToolContainer`, `ToolHeader`, `ToolFooter`, `ToolParamsDebug`, `SelectionDebug`, `ContactRecordsDebug`
-- **Usage**: Wrap tool content with consistent header/footer styling
+- **Components**: `ToolContainer`, `ToolHeader`, `ToolFooter`
+- **Usage**: Wrap tool content with consistent header/footer styling; `ToolContainer` auto-renders `DevPanel` when `params` prop is passed
 - **Pattern**: Composition via children prop
-- **Import**: `import { ToolContainer, ToolHeader, ToolFooter, ToolParamsDebug, SelectionDebug, ContactRecordsDebug } from '@/components/tool';`
-- **Note**: `ToolParamsDebug`, `SelectionDebug`, and `ContactRecordsDebug` are debug components for development only
+- **Import**: `import { ToolContainer, ToolHeader, ToolFooter } from '@/components/tool';`
+- **Note**: Developer panel is auto-rendered and gated to localhost in development builds only
+
+### dev-panel
+- **Purpose**: Unified developer overlay for local debugging
+- **Features**: Shows parsed URL params, MP selection data, contact record mappings, and authorized tool paths in a collapsible accordion
+- **Usage**: Auto-rendered by `ToolContainer` when a `params` prop is passed (no manual scaffolding needed)
+- **Gating**: Visible only on localhost (`localhost` / `127.0.0.1`) AND `NODE_ENV === 'development'` — completely invisible in production
+- **Persistence**: Open/closed state persists in `localStorage` under `mp-dev-panel:open`
+- **Note**: Remove `params={params}` prop from `ToolContainer` to hide the dev panel
 
 ### group-wizard
 - **Purpose**: Multi-step wizard for creating and editing Ministry Platform groups
@@ -231,7 +224,7 @@ Components interact with these service classes:
 
 | Service | Location | Used By |
 |---------|----------|---------|
-| ToolService | `@/services/toolService` | user-tools-debug, address-labels, tool (selection/contact debug) |
+| ToolService | `@/services/toolService` | dev-panel, address-labels |
 | UserService | `@/services/userService` | user-menu, shared-actions |
 | AddressLabelService | `@/services/addressLabelService` | address-labels |
 | GroupService | `@/services/groupService` | group-wizard |

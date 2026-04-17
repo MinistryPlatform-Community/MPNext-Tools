@@ -39,6 +39,12 @@ export default async function {componentName}Page({ searchParams }: {componentNa
 
   return <{componentName} params={params} />;
 }
+
+export async function generateMetadata() {
+  return {
+    title: "{displayName}",
+  };
+}
 ```
 
 ### 3. Create the tool component
@@ -50,8 +56,7 @@ Create `src/app/(web)/tools/{routeName}/{fileName}.tsx`:
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ToolContainer, ToolParamsDebug } from "@/components/tool";
-import { UserToolsDebug } from "@/components/user-tools-debug";
+import { ToolContainer } from "@/components/tool";
 import { Users } from "lucide-react";
 import { ToolParams, isNewRecord } from "@/lib/tool-params";
 
@@ -87,6 +92,7 @@ export function {componentName}({ params }: {componentName}Props) {
 
   return (
     <ToolContainer
+      params={params}
       title={toolTitle}
       infoContent={
         <div className="space-y-2">
@@ -109,12 +115,6 @@ export function {componentName}({ params }: {componentName}Props) {
 
       {/* Main Tool Window */}
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
-
-        {/* Development Helper - Remove before production */}
-        <ToolParamsDebug params={params} />
-
-        {/* User Tools Debug - Remove before production */}
-        <UserToolsDebug />
 
         {/* Tool Section */}
         <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -177,6 +177,6 @@ Creates both tools and adds both cards to the homepage.
 
 ## Notes
 
-- The template includes dev-only debug components (`ToolParamsDebug`, `UserToolsDebug`) — these should be removed before production
+- The `ToolContainer` renders a `DevPanel` above the title bar automatically on localhost in development builds — no manual scaffolding needed.
 - The `page.tsx` uses a default export (Next.js requirement), but the tool component uses a named export per project convention
 - Route names should be lowercase with no separators (matching existing pattern: `template`, `groupwizard`, `templateeditor`)
