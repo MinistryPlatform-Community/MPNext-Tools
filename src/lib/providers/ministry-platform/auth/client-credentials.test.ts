@@ -13,6 +13,8 @@ describe('getClientCredentialsToken', () => {
     process.env.MINISTRY_PLATFORM_BASE_URL = 'https://api.example.com';
     process.env.MINISTRY_PLATFORM_CLIENT_ID = 'test-client-id';
     process.env.MINISTRY_PLATFORM_CLIENT_SECRET = 'test-secret';
+    process.env.MINISTRY_PLATFORM_DEV_CLIENT_ID = 'test-dev-client-id';
+    process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET = 'test-dev-secret';
   });
 
   afterEach(() => {
@@ -97,5 +99,59 @@ describe('getClientCredentialsToken', () => {
 
     const [url] = mockFetch.mock.calls[0];
     expect(url).toBe('https://custom-domain.org/oauth/connect/token');
+  });
+
+  // Dev profile uses dev env vars
+  it('should use dev client id/secret when profile is "dev"', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: 'dev-token' }),
+    });
+
+    await getClientCredentialsToken('dev');
+
+    const [, init] = mockFetch.mock.calls[0];
+    const parsed = new URLSearchParams(init.body as string);
+    expect(parsed.get('client_id')).toBe('test-dev-client-id');
+    expect(parsed.get('client_secret')).toBe('test-dev-secret');
+    expect(parsed.get('grant_type')).toBe('client_credentials');
+    expect(parsed.get('scope')).toBe(
+      'http://www.thinkministry.com/dataplatform/scopes/all'
+    );
+  });
+
+  // Default profile keeps using prod env vars
+  it('should use default (prod) client id/secret when profile is omitted', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: 'prod-token' }),
+    });
+
+    await getClientCredentialsToken();
+
+    const [, init] = mockFetch.mock.calls[0];
+    const parsed = new URLSearchParams(init.body as string);
+    expect(parsed.get('client_id')).toBe('test-client-id');
+    expect(parsed.get('client_secret')).toBe('test-secret');
+  });
+
+  // Dev profile throws when dev vars missing
+  it('should throw when dev profile is used without dev env vars', async () => {
+    delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_ID;
+    delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET;
+
+    await expect(getClientCredentialsToken('dev')).rejects.toThrow(
+      /Dev client credentials are not configured/
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('should throw when dev profile is used with only one of the two dev env vars', async () => {
+    delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET;
+
+    await expect(getClientCredentialsToken('dev')).rejects.toThrow(
+      /Dev client credentials are not configured/
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

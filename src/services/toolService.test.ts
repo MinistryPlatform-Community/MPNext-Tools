@@ -261,4 +261,249 @@ describe('ToolService', () => {
       ).rejects.toThrow('Table not found');
     });
   });
+
+  describe('listPages', () => {
+    it('calls api_dev_ListPages with @Search=null when omitted', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[{ Page_ID: 1, Display_Name: 'Contacts' }]]);
+
+      const service = await ToolService.getInstance();
+      const result = await service.listPages();
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_dev_ListPages', {
+        '@Search': null,
+      });
+      expect(result).toEqual([{ Page_ID: 1, Display_Name: 'Contacts' }]);
+    });
+
+    it('passes trimmed search term to the SP', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[]]);
+      const service = await ToolService.getInstance();
+
+      await service.listPages('  Contact  ');
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_dev_ListPages', {
+        '@Search': 'Contact',
+      });
+    });
+
+    it('returns an empty array when the SP returns no rows', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[]]);
+      const service = await ToolService.getInstance();
+
+      const result = await service.listPages();
+
+      expect(result).toEqual([]);
+    });
+
+    it('returns an empty array when the SP returns no result sets', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([]);
+      const service = await ToolService.getInstance();
+
+      const result = await service.listPages();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('listRoles', () => {
+    it('queries dp_Roles with no filter when search omitted', async () => {
+      mockGetTableRecords.mockResolvedValueOnce([{ Role_ID: 1, Role_Name: 'Administrators' }]);
+
+      const service = await ToolService.getInstance();
+      const result = await service.listRoles();
+
+      expect(mockGetTableRecords).toHaveBeenCalledWith({
+        table: 'dp_Roles',
+        select: 'Role_ID, Role_Name',
+        filter: undefined,
+        orderBy: 'Role_Name',
+        top: 100,
+      });
+      expect(result).toEqual([{ Role_ID: 1, Role_Name: 'Administrators' }]);
+    });
+
+    it('builds a LIKE filter when search is provided', async () => {
+      mockGetTableRecords.mockResolvedValueOnce([]);
+      const service = await ToolService.getInstance();
+
+      await service.listRoles('Admin');
+
+      expect(mockGetTableRecords).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: "Role_Name LIKE '%Admin%'",
+        })
+      );
+    });
+
+    it('escapes single quotes in search term', async () => {
+      mockGetTableRecords.mockResolvedValueOnce([]);
+      const service = await ToolService.getInstance();
+
+      await service.listRoles("O'Brien");
+
+      expect(mockGetTableRecords).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: "Role_Name LIKE '%O''Brien%'",
+        })
+      );
+    });
+  });
+
+  describe('deployTool', () => {
+    const baseInput = {
+      toolName: 'FooTool',
+      launchPage: 'https://example.org/tools/foo',
+      description: 'A test tool',
+      launchWithCredentials: true,
+      launchWithParameters: true,
+      launchInNewTab: false,
+      showOnMobile: false,
+      pageIds: [292, 305],
+      additionalData: 'extra',
+      roleIds: [1, 5],
+    };
+
+    const toolRow = {
+      Tool_ID: 42,
+      Tool_Name: 'FooTool',
+      Description: 'A test tool',
+      Launch_Page: 'https://example.org/tools/foo',
+      Launch_with_Credentials: true,
+      Launch_with_Parameters: true,
+      Launch_in_New_Tab: false,
+      Show_On_Mobile: false,
+    };
+
+    it('calls api_dev_DeployTool with shaped payload', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[toolRow], [], []]);
+      const service = await ToolService.getInstance();
+
+      const result = await service.deployTool(baseInput);
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_dev_DeployTool', {
+        '@ToolName': 'FooTool',
+        '@LaunchPage': 'https://example.org/tools/foo',
+        '@Description': 'A test tool',
+        '@LaunchWithCredentials': 1,
+        '@LaunchWithParameters': 1,
+        '@LaunchInNewTab': 0,
+        '@ShowOnMobile': 0,
+        '@PageIDs': '292,305',
+        '@AdditionalData': 'extra',
+        '@RoleIDs': '1,5',
+      });
+      expect(result.tool).toEqual(toolRow);
+      expect(result.pages).toEqual([]);
+      expect(result.roles).toEqual([]);
+    });
+
+    it('sends null for empty @PageIDs, @RoleIDs, @Description, @AdditionalData', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[toolRow], [], []]);
+      const service = await ToolService.getInstance();
+
+      await service.deployTool({
+        ...baseInput,
+        description: undefined,
+        pageIds: [],
+        additionalData: undefined,
+        roleIds: [],
+      });
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'api_dev_DeployTool',
+        expect.objectContaining({
+          '@Description': null,
+          '@PageIDs': null,
+          '@AdditionalData': null,
+          '@RoleIDs': null,
+        })
+      );
+    });
+
+    it('maps booleans to 1/0 for BIT params', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[toolRow], [], []]);
+      const service = await ToolService.getInstance();
+
+      await service.deployTool({
+        ...baseInput,
+        launchWithCredentials: false,
+        launchWithParameters: false,
+        launchInNewTab: true,
+        showOnMobile: true,
+      });
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'api_dev_DeployTool',
+        expect.objectContaining({
+          '@LaunchWithCredentials': 0,
+          '@LaunchWithParameters': 0,
+          '@LaunchInNewTab': 1,
+          '@ShowOnMobile': 1,
+        })
+      );
+    });
+
+    it('returns the three SP result sets', async () => {
+      const pageRow = { Tool_Page_ID: 1, Tool_ID: 42, Page_ID: 292, Page_Name: 'Contacts', Additional_Data: 'extra' };
+      const roleRow = { Role_Tool_ID: 1, Tool_ID: 42, Role_ID: 1, Role_Name: 'Administrators', Domain_ID: 1 };
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[toolRow], [pageRow], [roleRow]]);
+
+      const service = await ToolService.getInstance();
+      const result = await service.deployTool(baseInput);
+
+      expect(result).toEqual({
+        tool: toolRow,
+        pages: [pageRow],
+        roles: [roleRow],
+      });
+    });
+
+    it('throws when the SP returns no tool row', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[], [], []]);
+      const service = await ToolService.getInstance();
+
+      await expect(service.deployTool(baseInput)).rejects.toThrow(
+        /Deploy did not return a tool row/
+      );
+    });
+
+    it('validates required fields before calling the SP', async () => {
+      const service = await ToolService.getInstance();
+
+      await expect(
+        service.deployTool({ ...baseInput, toolName: '   ' })
+      ).rejects.toThrow('Tool Name is required');
+
+      await expect(
+        service.deployTool({ ...baseInput, launchPage: '' })
+      ).rejects.toThrow('Launch Page is required');
+
+      expect(mockExecuteProcedureWithBody).not.toHaveBeenCalled();
+    });
+
+    it('validates length limits', async () => {
+      const service = await ToolService.getInstance();
+
+      await expect(
+        service.deployTool({ ...baseInput, toolName: 'x'.repeat(31) })
+      ).rejects.toThrow('Tool Name must be 30 characters or fewer');
+
+      await expect(
+        service.deployTool({ ...baseInput, description: 'x'.repeat(101) })
+      ).rejects.toThrow('Description must be 100 characters or fewer');
+
+      await expect(
+        service.deployTool({ ...baseInput, additionalData: 'x'.repeat(66) })
+      ).rejects.toThrow('Additional Data must be 65 characters or fewer');
+
+      expect(mockExecuteProcedureWithBody).not.toHaveBeenCalled();
+    });
+
+    it('propagates SP errors', async () => {
+      mockExecuteProcedureWithBody.mockRejectedValueOnce(new Error('403 Forbidden'));
+      const service = await ToolService.getInstance();
+
+      await expect(service.deployTool(baseInput)).rejects.toThrow('403 Forbidden');
+    });
+  });
 });

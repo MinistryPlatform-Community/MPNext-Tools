@@ -15,6 +15,9 @@ vi.mock("./panels/contact-records-panel", () => ({
 vi.mock("./panels/user-tools-panel", () => ({
   UserToolsPanel: () => <div data-testid="user-tools-panel" />,
 }));
+vi.mock("./panels/deploy-tool-panel", () => ({
+  DeployToolPanel: () => <div data-testid="deploy-tool-panel" />,
+}));
 
 import { DevPanel } from "./dev-panel";
 

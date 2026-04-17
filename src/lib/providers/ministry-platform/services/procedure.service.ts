@@ -1,6 +1,9 @@
 import { MinistryPlatformClient } from "../client";
 import { ProcedureInfo, QueryParams } from "../types";
+import { HttpClient } from "../utils/http-client";
 import { logger } from "../utils/logger";
+
+const DEV_PROC_PREFIX = 'api_dev_';
 
 export class ProcedureService {
     private client: MinistryPlatformClient;
@@ -26,19 +29,21 @@ export class ProcedureService {
 
     /**
      * Executes the requested stored procedure retrieving parameters from the query string.
+     * Procedures whose name begins with `api_dev_` are routed through the isolated dev
+     * credential pipeline — all other procedures use the default credentials.
      */
     public async executeProcedure(
-        procedure: string, 
+        procedure: string,
         params?: QueryParams
     ): Promise<unknown[][]> {
         try {
-            await this.client.ensureValidToken();
+            const http = await this.resolveHttpClient(procedure);
 
             logger.debug('Executing procedure:', procedure);
             logger.debug('Query Params:', params);
 
             const endpoint = `/procs/${encodeURIComponent(procedure)}`;
-            const data = await this.client.getHttpClient().get<unknown[][]>(endpoint, params);
+            const data = await http.get<unknown[][]>(endpoint, params);
 
             logger.debug('Procedure results:', data);
             return data;
@@ -50,19 +55,21 @@ export class ProcedureService {
 
     /**
      * Executes the requested stored procedure with provided parameters in the request body.
+     * Procedures whose name begins with `api_dev_` are routed through the isolated dev
+     * credential pipeline — all other procedures use the default credentials.
      */
     public async executeProcedureWithBody(
-        procedure: string, 
+        procedure: string,
         parameters: Record<string, unknown>
     ): Promise<unknown[][]> {
         try {
-            await this.client.ensureValidToken();
+            const http = await this.resolveHttpClient(procedure);
 
             logger.debug('Executing procedure with body:', procedure);
             logger.debug('Parameters:', parameters);
 
             const endpoint = `/procs/${encodeURIComponent(procedure)}`;
-            const data = await this.client.getHttpClient().post<unknown[][]>(endpoint, parameters);
+            const data = await http.post<unknown[][]>(endpoint, parameters);
 
             logger.debug('Procedure results:', data);
             return data;
@@ -71,4 +78,23 @@ export class ProcedureService {
             throw error;
         }
     }
+
+    /**
+     * Selects the credential pipeline for a procedure call:
+     *   - `api_dev_*` procedures → dev credentials (isolated token + HttpClient)
+     *   - everything else       → default credentials
+     */
+    private async resolveHttpClient(procedure: string): Promise<HttpClient> {
+        if (isDevProcedure(procedure)) {
+            await this.client.ensureValidDevToken();
+            return this.client.getDevHttpClient();
+        }
+
+        await this.client.ensureValidToken();
+        return this.client.getHttpClient();
+    }
+}
+
+function isDevProcedure(procedure: string): boolean {
+    return procedure.trim().toLowerCase().startsWith(DEV_PROC_PREFIX);
 }

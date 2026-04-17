@@ -14,6 +14,62 @@ export interface ContactRecordResult {
   records: ContactRecord[];
 }
 
+export interface PageLookup {
+  Page_ID: number;
+  Display_Name: string;
+}
+
+export interface RoleLookup {
+  Role_ID: number;
+  Role_Name: string;
+}
+
+export interface DeployToolInput {
+  toolName: string;
+  launchPage: string;
+  description?: string;
+  launchWithCredentials: boolean;
+  launchWithParameters: boolean;
+  launchInNewTab: boolean;
+  showOnMobile: boolean;
+  pageIds: number[];
+  additionalData?: string;
+  roleIds: number[];
+}
+
+export interface DeployedToolRow {
+  Tool_ID: number;
+  Tool_Name: string;
+  Description: string | null;
+  Launch_Page: string;
+  Launch_with_Credentials: boolean;
+  Launch_with_Parameters: boolean;
+  Launch_in_New_Tab: boolean;
+  Show_On_Mobile: boolean;
+}
+
+export interface DeployedToolPageRow {
+  Tool_Page_ID: number;
+  Tool_ID: number;
+  Page_ID: number;
+  Page_Name: string | null;
+  Additional_Data: string | null;
+}
+
+export interface DeployedToolRoleRow {
+  Role_Tool_ID: number;
+  Tool_ID: number;
+  Role_ID: number;
+  Role_Name: string | null;
+  Domain_ID: number;
+}
+
+export interface DeployToolResult {
+  tool: DeployedToolRow;
+  pages: DeployedToolPageRow[];
+  roles: DeployedToolRoleRow[];
+}
+
 /**
  * ToolService - Singleton service for managing tool-related operations
  * 
@@ -138,6 +194,81 @@ export class ToolService {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Lists MP pages (dp_Pages) for the deploy-tool picker via `api_dev_ListPages`.
+   * The `api_dev_` prefix routes this call through the dev credential pipeline
+   * (which has access to dp_Pages); the default apiuser does not.
+   */
+  public async listPages(search?: string): Promise<PageLookup[]> {
+    const payload: Record<string, unknown> = {
+      '@Search': search?.trim() || null,
+    };
+    const result = await this.mp!.executeProcedureWithBody('api_dev_ListPages', payload);
+    const rows = (result?.[0] as PageLookup[] | undefined) ?? [];
+    return rows;
+  }
+
+  /**
+   * Lists MP roles (dp_Roles) for the deploy-tool picker. Uses the default
+   * credential pipeline — the MP API exposes dp_Roles directly to apiuser.
+   */
+  public async listRoles(search?: string): Promise<RoleLookup[]> {
+    const term = search?.trim();
+    const filter = term
+      ? `Role_Name LIKE '%${term.replace(/'/g, "''")}%'`
+      : undefined;
+
+    return this.mp!.getTableRecords<RoleLookup>({
+      table: 'dp_Roles',
+      select: 'Role_ID, Role_Name',
+      filter,
+      orderBy: 'Role_Name',
+      top: 100,
+    });
+  }
+
+  /**
+   * Deploys a tool via `api_dev_DeployTool`. Because the procedure name starts with
+   * `api_dev_`, the MP provider automatically uses the MINISTRY_PLATFORM_DEV_* client
+   * credentials — this must not be reachable from production. DomainID is auto-injected
+   * by the MP API.
+   */
+  public async deployTool(input: DeployToolInput): Promise<DeployToolResult> {
+    if (!input.toolName.trim()) throw new Error('Tool Name is required');
+    if (!input.launchPage.trim()) throw new Error('Launch Page is required');
+    if (input.toolName.length > 30) throw new Error('Tool Name must be 30 characters or fewer');
+    if (input.description && input.description.length > 100) throw new Error('Description must be 100 characters or fewer');
+    if (input.launchPage.length > 1024) throw new Error('Launch Page must be 1024 characters or fewer');
+    if (input.additionalData && input.additionalData.length > 65) throw new Error('Additional Data must be 65 characters or fewer');
+
+    const payload: Record<string, unknown> = {
+      '@ToolName': input.toolName.trim(),
+      '@LaunchPage': input.launchPage.trim(),
+      '@Description': input.description?.trim() || null,
+      '@LaunchWithCredentials': input.launchWithCredentials ? 1 : 0,
+      '@LaunchWithParameters': input.launchWithParameters ? 1 : 0,
+      '@LaunchInNewTab': input.launchInNewTab ? 1 : 0,
+      '@ShowOnMobile': input.showOnMobile ? 1 : 0,
+      '@PageIDs': input.pageIds.length ? input.pageIds.join(',') : null,
+      '@AdditionalData': input.additionalData?.trim() || null,
+      '@RoleIDs': input.roleIds.length ? input.roleIds.join(',') : null,
+    };
+
+    const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool', payload);
+
+    const [toolRows, pageRows, roleRows] = resultSets ?? [];
+    const tool = (toolRows?.[0] as DeployedToolRow | undefined);
+    if (!tool) {
+      throw new Error('Deploy did not return a tool row — check stored procedure permissions and dev credentials.');
+    }
+
+    return {
+      tool,
+      pages: (pageRows as DeployedToolPageRow[] | undefined) ?? [],
+      roles: (roleRows as DeployedToolRoleRow[] | undefined) ?? [],
+    };
   }
 
   private static readonly BATCH_SIZE = 100;

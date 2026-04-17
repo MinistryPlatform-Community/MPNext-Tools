@@ -7,6 +7,7 @@ import { ParamsPanel } from "./panels/params-panel";
 import { SelectionPanel } from "./panels/selection-panel";
 import { ContactRecordsPanel } from "./panels/contact-records-panel";
 import { UserToolsPanel } from "./panels/user-tools-panel";
+import { DeployToolPanel } from "./panels/deploy-tool-panel";
 
 const STORAGE_KEY = "mp-dev-panel:open";
 
@@ -44,6 +45,8 @@ export function DevPanel({ params }: DevPanelProps) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectionRecordIds, setSelectionRecordIds] = useState<number[]>();
+  const [userToolsRefreshKey, setUserToolsRefreshKey] = useState(0);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -96,7 +99,13 @@ export function DevPanel({ params }: DevPanelProps) {
           <ParamsPanel params={params} />
           <SelectionPanel params={params} onRecordIdsResolved={setSelectionRecordIds} />
           <ContactRecordsPanel params={params} selectionRecordIds={selectionRecordIds} />
-          <UserToolsPanel />
+          <UserToolsPanel
+            refreshKey={userToolsRefreshKey}
+            onAuthorizationChange={setIsAuthorized}
+          />
+          {!isAuthorized && (
+            <DeployToolPanel onDeployed={() => setUserToolsRefreshKey((k) => k + 1)} />
+          )}
         </div>
       )}
     </div>

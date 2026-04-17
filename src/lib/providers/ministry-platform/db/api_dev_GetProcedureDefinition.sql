@@ -94,8 +94,8 @@ IF NOT EXISTS (
     SELECT Role_ID FROM dp_Roles WHERE Role_Name = 'DeveloperONLY'
 )
 BEGIN
-    INSERT INTO dp_Roles (Role_Name, Description)
-    VALUES ('DeveloperONLY', 'Developer-only role for tools and procedures not intended for general use');
+    INSERT INTO dp_Roles (Role_Name, Description, Domain_ID)
+    VALUES ('DeveloperONLY', 'Developer-only role for tools and procedures not intended for general use', 1);
 END
 
 -- Grant to DeveloperONLY Role
