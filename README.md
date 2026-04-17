@@ -601,10 +601,10 @@ npm run test:coverage # With coverage report
 | Provider | `provider.test.ts` | Singleton pattern, service delegation |
 | Proxy | `proxy.test.ts` | Route protection, public paths, session cookie checks |
 | Tool Service | `toolService.test.ts` | Page data, user tools, stored procedure calls |
-| Selection Debug | `selection-debug-actions.test.ts` | Selection resolution server actions |
+| Selection Panel | `selection-actions.test.ts` | Selection resolution server actions |
 | User Context | `user-context.test.tsx` | UserProvider lifecycle, profile loading, error handling |
 | User Service | `userService.test.ts` | Profile with roles/groups, parallel queries |
-| User Tools Debug | `actions.test.ts` | Authorization checks, session validation |
+| User Tools Panel | `user-tools-actions.test.ts` | Authorization checks, session validation |
 | User Menu | `actions.test.ts` | Sign-out action, OIDC logout redirect |
 | Shared Actions | `user.test.ts` | getCurrentUserProfile delegation |
 | Session Context | `session-context.test.tsx` | useAppSession hook wrapper |

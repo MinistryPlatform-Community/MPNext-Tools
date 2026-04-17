@@ -112,7 +112,7 @@ Actions are co-located with their feature components:
 | Feature | Actions File | Functions |
 |---------|--------------|-----------|
 | address-labels | `address-labels/actions.ts` | `fetchAddressLabels`, `generateLabelPdf`, `generateLabelDocx`, `mergeTemplate` |
-| dev-panel | `dev-panel/actions.ts` | `resolveSelection`, `resolveContactRecords`, `getUserTools` |
+| dev-panel | `dev-panel/panels/selection-actions.ts`, `dev-panel/panels/contact-records-actions.ts`, `dev-panel/panels/user-tools-actions.ts` | `resolveSelection`, `resolveContactRecords`, `getUserTools` |
 | group-wizard | `group-wizard/actions.ts` | `fetchGroupWizardLookups`, `searchContacts`, `searchGroups`, `fetchGroupRecord`, `createGroup`, `updateGroup` |
 | template-editor | `template-editor/actions.ts` | `compileMjml` |
 | user-menu | `user-menu/actions.ts` | `handleSignOut` |

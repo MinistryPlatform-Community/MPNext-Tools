@@ -403,9 +403,9 @@ Server actions validate the session, call service singletons, and return data to
 - Redirects to MP OIDC endsession endpoint: `${MINISTRY_PLATFORM_BASE_URL}/oauth/connect/endsession?post_logout_redirect_uri=${APP_URL}`
 - Throws if `MINISTRY_PLATFORM_BASE_URL` not configured
 
-### User Tools Debug Actions
+### User Tools Actions
 
-**File:** `src/components/user-tools-debug/actions.ts`
+**File:** `src/components/dev-panel/panels/user-tools-actions.ts`
 
 #### getUserTools()
 
