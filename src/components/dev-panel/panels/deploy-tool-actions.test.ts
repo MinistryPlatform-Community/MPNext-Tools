@@ -132,12 +132,12 @@ describe('deploy-tool-actions', () => {
   describe('Delegation', () => {
     it('listPagesAction passes search term to service', async () => {
       mockGetSession.mockResolvedValueOnce(validSession);
-      mockListPages.mockResolvedValueOnce([{ Page_ID: 1, Display_Name: 'Contacts' }]);
+      mockListPages.mockResolvedValueOnce([{ Page_ID: 1, Display_Name: 'Contacts', Table_Name: 'Contacts' }]);
 
       const result = await listPagesAction('Contact');
 
       expect(mockListPages).toHaveBeenCalledWith('Contact');
-      expect(result).toEqual([{ Page_ID: 1, Display_Name: 'Contacts' }]);
+      expect(result).toEqual([{ Page_ID: 1, Display_Name: 'Contacts', Table_Name: 'Contacts' }]);
     });
 
     it('listRolesAction passes search term to service', async () => {

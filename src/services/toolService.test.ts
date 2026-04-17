@@ -263,27 +263,66 @@ describe('ToolService', () => {
   });
 
   describe('listPages', () => {
-    it('calls api_dev_ListPages with @Search=null when omitted', async () => {
-      mockExecuteProcedureWithBody.mockResolvedValueOnce([[{ Page_ID: 1, Display_Name: 'Contacts' }]]);
+    const allPages = [
+      { Page_ID: 1, Display_Name: 'Contacts', Table_Name: 'Contacts' },
+      { Page_ID: 2, Display_Name: 'Events', Table_Name: 'Events' },
+      { Page_ID: 3, Display_Name: 'Groups', Table_Name: 'Groups' },
+    ];
+
+    it('calls api_MPNextTools_GetPages with empty params', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([allPages]);
 
       const service = await ToolService.getInstance();
       const result = await service.listPages();
 
-      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_dev_ListPages', {
-        '@Search': null,
-      });
-      expect(result).toEqual([{ Page_ID: 1, Display_Name: 'Contacts' }]);
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_MPNextTools_GetPages', {});
+      expect(result).toEqual(allPages);
     });
 
-    it('passes trimmed search term to the SP', async () => {
-      mockExecuteProcedureWithBody.mockResolvedValueOnce([[]]);
+    it('filters by Display_Name (case-insensitive) when search is provided', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([allPages]);
       const service = await ToolService.getInstance();
 
-      await service.listPages('  Contact  ');
+      const result = await service.listPages('contact');
 
-      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_dev_ListPages', {
-        '@Search': 'Contact',
-      });
+      expect(result).toEqual([{ Page_ID: 1, Display_Name: 'Contacts', Table_Name: 'Contacts' }]);
+    });
+
+    it('filters by Table_Name (case-insensitive) when Display_Name does not match', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[
+        { Page_ID: 5, Display_Name: 'Primary Contacts', Table_Name: 'Households' },
+        { Page_ID: 6, Display_Name: 'Something Else', Table_Name: 'Households' },
+      ]]);
+      const service = await ToolService.getInstance();
+
+      const result = await service.listPages('household');
+
+      expect(result.map((r) => r.Page_ID)).toEqual([5, 6]);
+    });
+
+    it('trims whitespace from the search term', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([allPages]);
+      const service = await ToolService.getInstance();
+
+      const result = await service.listPages('   events   ');
+
+      expect(result).toEqual([{ Page_ID: 2, Display_Name: 'Events', Table_Name: 'Events' }]);
+    });
+
+    it('caps results at 100 rows', async () => {
+      const many = Array.from({ length: 250 }, (_, i) => ({
+        Page_ID: i,
+        Display_Name: `Page_${i}`,
+        Table_Name: 'Table',
+      }));
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([many]);
+      const service = await ToolService.getInstance();
+
+      const result = await service.listPages();
+
+      expect(result).toHaveLength(100);
+      expect(result[0].Page_ID).toBe(0);
+      expect(result[99].Page_ID).toBe(99);
     });
 
     it('returns an empty array when the SP returns no rows', async () => {

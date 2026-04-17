@@ -17,6 +17,7 @@ export interface ContactRecordResult {
 export interface PageLookup {
   Page_ID: number;
   Display_Name: string;
+  Table_Name: string;
 }
 
 export interface RoleLookup {
@@ -197,17 +198,25 @@ export class ToolService {
   }
 
   /**
-   * Lists MP pages (dp_Pages) for the deploy-tool picker via `api_dev_ListPages`.
-   * The `api_dev_` prefix routes this call through the dev credential pipeline
-   * (which has access to dp_Pages); the default apiuser does not.
+   * Lists MP pages (dp_Pages) for the deploy-tool picker. Reuses
+   * `api_MPNextTools_GetPages` (the same SP the field-management feature
+   * uses) — the SP has no search parameter, so we filter in-memory on
+   * Display_Name / Table_Name and cap at 100 rows.
    */
   public async listPages(search?: string): Promise<PageLookup[]> {
-    const payload: Record<string, unknown> = {
-      '@Search': search?.trim() || null,
-    };
-    const result = await this.mp!.executeProcedureWithBody('api_dev_ListPages', payload);
+    const result = await this.mp!.executeProcedureWithBody('api_MPNextTools_GetPages', {});
     const rows = (result?.[0] as PageLookup[] | undefined) ?? [];
-    return rows;
+
+    const term = search?.trim().toLowerCase();
+    const filtered = term
+      ? rows.filter(
+          (r) =>
+            r.Display_Name?.toLowerCase().includes(term) ||
+            r.Table_Name?.toLowerCase().includes(term)
+        )
+      : rows;
+
+    return filtered.slice(0, 100);
   }
 
   /**
