@@ -18,6 +18,7 @@ export function TemplateEditor({ params }: TemplateEditorProps) {
 
   return (
     <ToolContainer
+      params={params}
       title="Template Editor"
       infoContent={
         <div className="space-y-2">

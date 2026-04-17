@@ -179,6 +179,7 @@ export function AddressLabels({ params }: AddressLabelsProps) {
 
   return (
     <ToolContainer
+      params={params}
       title="Address Labels"
       onClose={handleClose}
       hideFooter

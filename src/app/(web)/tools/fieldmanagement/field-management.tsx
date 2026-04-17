@@ -16,7 +16,6 @@ interface FieldManagementProps {
   params: ToolParams;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function FieldManagement({ params }: FieldManagementProps) {
   const router = useRouter();
   const [selectedPage, setSelectedPage] = useState<PageListItem | undefined>();
@@ -80,6 +79,7 @@ export function FieldManagement({ params }: FieldManagementProps) {
 
   return (
     <ToolContainer
+      params={params}
       title="Field Management"
       infoContent={
         <div className="space-y-2">
