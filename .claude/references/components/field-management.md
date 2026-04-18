@@ -58,7 +58,7 @@ Tool page consumer: `src/app/(web)/tools/fieldmanagement/field-management.tsx`.
 - **Page field**: a row in `dp_Page_Fields` describing how one column is presented on a given MP page (order, group, required, hidden, label, default, filter, depends-on, writing-assistant flag).
 - **Flat vs grouped mode**: if every incoming field has `Group_Name === null` the hook stores them under the sentinel key `"__flat__"` (constant `FLAT_GROUP`, `use-field-order-state.ts:8`) and renders a single list. Adding a group transitions to grouped mode — flat fields move into `"99 - Other Fields"`.
 - **`"99 - Other Fields"` pinned bucket**: constant `OTHER_FIELDS_GROUP` (`field-order-editor.tsx:14`, `use-field-order-state.ts:9`). Always rendered last, cannot be dragged (`isPinned` disables its sortable handle), cannot be removed, and catches fields the user marks Hidden when they click **Move Hidden to Other**.
-- **Negative `Page_Field_ID`**: `fetchPageFieldData` merges table columns that aren't in `dp_Page_Fields` yet and assigns them synthetic IDs starting at `-1` and decrementing (`actions.ts:35`). These IDs only exist client-side as React keys — the save payload is keyed by `Page_ID + Field_Name`, not ID.
+- **Negative `Page_Field_ID`**: `fetchPageFieldData` merges table columns that aren't in `dp_Page_Fields` yet and assigns them synthetic IDs starting at `-1` and decrementing (`actions.ts:34,42`). These IDs only exist client-side as React keys — the save payload is keyed by `Page_ID + Field_Name`, not ID.
 - **Group renumbering on save**: `buildSavePayload` strips any `^\d+\s*-\s*` prefix and re-emits groups as `"1 - …"`, `"2 - …"`, … in current display order; `"99 - Other Fields"` keeps its literal name and `"__flat__"` becomes `Group_Name: null` (`use-field-order-state.ts:176-215`).
 - **Schema-required lock**: when `tableMetadata.Columns[n].IsRequired` is true, the field's `Required` switch is forced on and disabled (`sortable-field-item.tsx:126-134`). The badge also shows "Required" based on `schemaRequired || field.Required`.
 - **Imperative handle**: parent tool page keeps an editor `ref` and calls `ref.current.getSavePayload()` before invoking `savePageFieldOrder`; `ref.current.moveHiddenToOther()` powers the footer button.
@@ -151,7 +151,7 @@ See [`../services/field-management-service.md`](../services/field-management-ser
 - **Save flow**: tool page calls `editorRef.current.getSavePayload()` → `savePageFieldOrder(payload)`. On success it toasts, re-fetches via `fetchPageFieldData` so synthetic negative IDs are replaced with real persisted IDs, and resets `isDirty`.
 
 ## Usage
-From the tool page (`src/app/(web)/tools/fieldmanagement/field-management.tsx:19-67`):
+From the tool page (`src/app/(web)/tools/fieldmanagement/field-management.tsx:27-64`):
 
 ```typescript
 const editorRef = useRef<FieldOrderEditorHandle>(null);
@@ -196,7 +196,7 @@ const handleSave = async () => {
 Mounting the editor:
 
 ```typescript
-// src/app/(web)/tools/fieldmanagement/field-management.tsx:173-179
+// src/app/(web)/tools/fieldmanagement/field-management.tsx:174-179
 <FieldOrderEditor
   ref={editorRef}
   fields={fieldData.fields}
@@ -211,7 +211,7 @@ Mounting the editor:
 - **`"99 - Other Fields"` is a string literal, not a number** — it's compared by exact string match. Do not change its casing or spacing anywhere (`field-order-editor.tsx:14`, `use-field-order-state.ts:9`).
 - **Deleting a group only works when empty** — `removeGroup` silently no-ops if the group still holds fields (`use-field-order-state.ts:123-124`); the UI enforces this by only rendering the trash icon when `fieldIds.length === 0`.
 - **Primary key columns are skipped during merge** — any `IsPrimaryKey` column from `tableMetadata` is excluded (`actions.ts:38`), so PK fields that already exist in `dp_Page_Fields` stay but new ones won't be synthesized.
-- **Schema-required overrides UI `Required`** — switch is disabled when `schemaRequired` is true (`sortable-field-item.tsx:128`). Flipping the underlying DB `Required` column for such a field is impossible from this UI; only `tableMetadata` can clear it.
+- **Schema-required overrides UI `Required`** — switch is disabled when `schemaRequired` is true (`sortable-field-item.tsx:127`). Flipping the underlying DB `Required` column for such a field is impossible from this UI; only `tableMetadata` can clear it.
 - **`fetchPages` is fired once per mount** — `PageSearch` uses `fetchedRef` to block re-fetches; remounting the component (e.g., after a tool refresh) is the only way to refresh the page list.
 - **`savePageFieldOrder` batches 5 procs at a time** — the service loops `fields` in chunks of `CONCURRENCY = 5` and awaits each batch (`src/services/fieldManagementService.ts:74,91-107`). A partial failure in batch N will short-circuit later batches, leaving `dp_Page_Fields` in a mixed state.
 - **`session.user.id` check, not `userGuid`** — `getSession()` rejects on missing `user.id`, which is Better Auth's internal ID. The stored procs don't actually need the MP User_GUID, so this is intentional, but stays inconsistent with the rule in `CLAUDE.md` about preferring `userGuid` for MP lookups.

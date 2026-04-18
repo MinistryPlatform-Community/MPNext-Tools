@@ -4,7 +4,7 @@ domain: services
 type: reference
 applies_to: [src/services/toolService.ts, src/services/userService.ts, src/services/addressLabelService.ts, src/services/groupService.ts, src/services/fieldManagementService.ts, src/lib/validation.ts]
 symbols: [validateGuid, validatePositiveInt, validateColumnName, escapeFilterString]
-related: [../mp-provider/helper.md, ../mp-schema/required-procs.md, tool-service.md, user-service.md, address-label-service.md, group-service.md]
+related: [../mp-provider/architecture.md, ../mp-schema/required-procs.md, tool-service.md, user-service.md, address-label-service.md, group-service.md]
 last_verified: 2026-04-17
 ---
 
@@ -108,7 +108,7 @@ export function escapeFilterString(value: string): string {
 Used where?
 
 ```typescript
-// src/services/groupService.ts:151-170
+// src/services/groupService.ts:151-160
 async searchContacts(term: string): Promise<ContactSearchResult[]> {
   const escaped = escapeFilterString(term);
   return this.mp!.getTableRecords<ContactSearchResult>({
@@ -179,7 +179,7 @@ To resolve the numeric MP User ID from the session's `User_GUID`, call `UserServ
 Guard empty arrays, batch large IN-lists to ≤100 IDs per request:
 
 ```typescript
-// src/services/addressLabelService.ts:21, 69-89
+// src/services/addressLabelService.ts:21, 69-90
 const BATCH_SIZE = 100;
 
 async getAddressesForContacts(contactIds: number[]): Promise<ContactAddressRow[]> {
@@ -263,7 +263,7 @@ filter: "Group_ID = 5 AND Group_Role_ID = 7 AND End_Date IS NULL"
 - Building a filter from unescaped user input → risk of broken queries and injection. Always `escapeFilterString()` or `term.replace(/'/g, "''")`.
 
 ## Related docs
-- `../mp-provider/helper.md` — `MPHelper` facade (what services call)
+- `../mp-provider/architecture.md` — `MPHelper` facade (what services call)
 - `../mp-schema/required-procs.md` — stored procs called from services
 - `../auth/sessions.md` — `userGuid` vs `user.id`
 - `tool-service.md`, `user-service.md`, `address-label-service.md`, `group-service.md`, `field-management-service.md`

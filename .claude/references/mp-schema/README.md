@@ -13,9 +13,8 @@ Auto-generated catalogs of Ministry Platform tables and stored procedures, plus 
 |------|---------|--------------|
 | `tables.md` | 301 MP tables with PKs, FKs, access levels (auto-generated) | Looking up a table name, PK, or FK relationship before writing a query |
 | `stored-procs.md` | 532 MP stored procedures with parameter signatures (auto-generated) | Verifying a proc name, its parameters, or bounded string sizes |
-| `required-procs.md` | The 3 procs the app actively calls via `ToolService` + infrastructure docs | Working on `ToolService`, page/selection lookups, or user tool routing |
-
-> `data-model-map.md` will land here in a later review phase (not produced by this agent).
+| `required-procs.md` | The 7 procs the app actively calls via `ToolService` + `FieldManagementService` + infrastructure docs | Working on `ToolService`, `FieldManagementService`, page/selection lookups, or user tool routing |
+| `data-model-map.md` | Map from MP schema → which tables, FK traversals, and procs the app actually queries (19 hot tables, 7 procs) | Understanding data access footprint or impact of schema changes |
 
 ## Regeneration commands
 

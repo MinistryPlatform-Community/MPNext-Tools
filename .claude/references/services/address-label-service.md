@@ -4,7 +4,7 @@ domain: services
 type: reference
 applies_to: [src/services/addressLabelService.ts, src/services/addressLabelService.test.ts]
 symbols: [AddressLabelService, ContactAddressRow]
-related: [query-patterns.md, ../dto-constants/address-labels.md, ../components/address-labels.md]
+related: [query-patterns.md, ../dto-constants/dtos.md, ../components/address-labels.md]
 last_verified: 2026-04-17
 ---
 
@@ -140,7 +140,7 @@ export interface ContactAddressRow {
 
 ## DTOs used downstream
 
-The server action (`src/components/address-labels/actions.ts`) transforms `ContactAddressRow[]` into `LabelData[]` / `SkipRecord[]` — see `../dto-constants/address-labels.md` for `LabelData`, `SkipRecord`, `SkipReason`, `AddressMode`, `BarcodeFormat`, `LabelConfig`, `FetchAddressLabelsResult`.
+The server action (`src/components/address-labels/actions.ts`) transforms `ContactAddressRow[]` into `LabelData[]` / `SkipRecord[]` — see `../dto-constants/dtos.md` for `LabelData`, `SkipRecord`, `SkipReason`, `AddressMode`, `BarcodeFormat`, `LabelConfig`, `FetchAddressLabelsResult`.
 
 ## Consumers
 
@@ -156,5 +156,5 @@ The server action (`src/components/address-labels/actions.ts`) transforms `Conta
 
 ## Related docs
 - `query-patterns.md` — FK traversal rules and batching
-- `../dto-constants/address-labels.md` — `LabelData`, `FetchAddressLabelsResult`
+- `../dto-constants/dtos.md` — `LabelData`, `FetchAddressLabelsResult`
 - `../components/address-labels.md` — consuming UI

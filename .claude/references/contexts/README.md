@@ -17,7 +17,7 @@ Two React client contexts composed at the app shell: `UserProvider` (enriched MP
 | Path | Role |
 |------|------|
 | `src/contexts/user-context.tsx` | `UserProvider` + `useUser` hook (loads `MPUserProfile` from `userGuid`) |
-| `src/contexts/user-context.test.tsx` | 5 test cases: throw-outside-provider, load-with-guid, null-session, missing-guid, error path, refresh |
+| `src/contexts/user-context.test.tsx` | 6 test cases: throw-outside-provider, load-with-guid, null-session, missing-guid, error path, refresh |
 | `src/contexts/session-context.tsx` | `useAppSession()` + `SessionData` type alias |
 | `src/contexts/session-context.test.tsx` | 2 test cases: data passthrough, null session |
 | `src/contexts/index.ts` | Barrel: `UserProvider`, `useUser`, `useAppSession`, `SessionData` |

@@ -12,7 +12,7 @@ last_verified: 2026-04-17
 Reads MP page list + `dp_Page_Fields` rows for the drag-and-drop field editor, merges in table-metadata columns to surface unsaved fields, and persists reorders via `api_MPNextTools_UpdatePageFieldOrder` (concurrency-capped at 5).
 
 ## Files
-- `src/services/fieldManagementService.ts` — 111 lines
+- `src/services/fieldManagementService.ts` — 110 lines
 - `src/services/fieldManagementService.test.ts` — 254 lines
 
 ## Singleton

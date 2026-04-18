@@ -20,8 +20,6 @@ Reference docs for `src/components/` — the tool layout framework, layout wrapp
 | `field-management.md` | Drag-and-drop page field ordering (shard 16) | Working on MP page field layout UX |
 | `user-menu.md` | User dropdown + OIDC sign-out (shard 17) | Working on sign-out or RP-initiated logout |
 
-<!-- UNVERIFIED: links to shards 12-17 are placeholders; those files are produced by sibling Phase 2 shards and may not exist yet at the time this shard runs. -->
-
 ## Code surfaces
 | Path | Role |
 |------|------|

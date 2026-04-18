@@ -101,7 +101,7 @@ export async function AuthWrapper({ children }: { children: React.ReactNode }) {
 Mounted via:
 
 ```typescript
-// src/app/(web)/layout.tsx:33-43
+// src/app/(web)/layout.tsx:34-42
 <AuthWrapper>
   <Providers>
     <div className={...}>
@@ -140,7 +140,7 @@ Tested:
 - **Proxy is a cookie-presence check only.** A forged/expired/invalid cookie will pass the proxy and only be caught by `AuthWrapper`. This is by design (edge speed), but it means route guards **must** rely on `AuthWrapper` (or equivalent `auth.api.getSession()` check) for correctness — never the proxy alone.
 - **`/api/auth/*` is public at the proxy layer.** Better Auth's handler validates its own auth; protected app APIs should check `auth.api.getSession()` in the route handler.
 - **`x-pathname` forwarding:** proxy only forwards it via `NextResponse.next({ request: { headers: forwardedHeaders } })`. When the proxy redirects, the header is not used — `AuthWrapper` only sees it on pass-through requests (`src/proxy.test.ts:178-186`).
-- **Trailing-slash fallback:** if `x-pathname` is missing (e.g., request didn't route through the proxy), `AuthWrapper` falls back to `"/"` (`src/components/layout/auth-wrapper.tsx:14`).
+- **Trailing-slash fallback:** if `x-pathname` is missing (e.g., request didn't route through the proxy), `AuthWrapper` falls back to `"/"` (`src/components/layout/auth-wrapper.tsx:13`).
 
 ## Related docs
 - `sessions.md` — what the cookie contains and how `getSession` decodes it

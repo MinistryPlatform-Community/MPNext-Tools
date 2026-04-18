@@ -12,8 +12,8 @@ last_verified: 2026-04-17
 Execute MP stored procedures over REST at `/procs/{name}`. Supports query-string params (GET) and body params (POST). Procedures prefixed `api_dev_` are routed through a separate dev-credential HttpClient.
 
 ## Files
-- `src/lib/providers/ministry-platform/services/procedure.service.ts` — implementation (101 lines)
-- `src/lib/providers/ministry-platform/services/procedure.service.test.ts` — tests (243 lines)
+- `src/lib/providers/ministry-platform/services/procedure.service.ts` — implementation (100 lines)
+- `src/lib/providers/ministry-platform/services/procedure.service.test.ts` — tests (242 lines)
 
 ## Key concepts
 - **Dev-credential routing:** procedures whose name begins with `api_dev_` (case-insensitive, requires trailing underscore) use `client.ensureValidDevToken()` + `client.getDevHttpClient()`. All other procedures use the default pipeline.
@@ -120,7 +120,7 @@ const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool',
 - **Never pass `@DomainID`** — the MP API injects it from the authenticated domain context. Passing it manually causes a parameter mismatch. Comments in real callers repeat this: `// DomainID is automatically injected by MP API` (`src/services/toolService.ts:126`, `:178`).
 - **Every `api_*` procedure definition must declare `@DomainID INT` first** — MP API will not expose procedures that omit it (`.claude/commands/newstoredproc.md:171`). This is SQL-side, not TS-side.
 - **Dev-prefix match is trim+lowercase** — leading whitespace in the procedure name is tolerated; internal whitespace is URL-encoded and forwarded (`procedure.service.test.ts:105-112`).
-- **Result shape is nested `unknown[][]`** — callers must guard for empty result sets and empty row arrays before indexing (`src/services/toolService.ts:132, :188`).
+- **Result shape is nested `unknown[][]`** — callers must guard for empty result sets and empty row arrays before indexing (`src/services/toolService.ts:132, :189`).
 
 ## Related docs
 - `../README.md` — provider overview

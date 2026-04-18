@@ -12,8 +12,8 @@ last_verified: 2026-04-17
 HTTP-level wrapper around the Ministry Platform REST `/tables/{table}` endpoints. Stateless; each method calls `client.ensureValidToken()` then the underlying `HttpClient` verb. No validation at this layer — Zod `schema` validation lives one level up in `MPHelper` (see Gotchas).
 
 ## Files
-- `src/lib/providers/ministry-platform/services/table.service.ts` — implementation (151 lines)
-- `src/lib/providers/ministry-platform/services/table.service.test.ts` — tests (520 lines)
+- `src/lib/providers/ministry-platform/services/table.service.ts` — implementation (150 lines)
+- `src/lib/providers/ministry-platform/services/table.service.test.ts` — tests (519 lines)
 
 ## Key concepts
 - Constructor takes a `MinistryPlatformClient`; no singleton.
@@ -120,7 +120,7 @@ await mp.createTableRecords('Contact_Log', [{
 
 ## Error handling
 
-Errors from the underlying `HttpClient` propagate after being logged (`table.service.ts:28`, `:47`, `:66`, `:95`, `:123`, `:146`). Covered by tests:
+Errors from the underlying `HttpClient` propagate after being logged (`table.service.ts:28`, `:48`, `:67`, `:95`, `:124`, `:147`). Covered by tests:
 
 | Status | Operation | Test location |
 |---|---|---|

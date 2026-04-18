@@ -30,7 +30,7 @@ last_verified: 2026-04-17
 - **Data source:** MP `/tables` metadata endpoint via `MPHelper.getTables(search?)`, which hits `MetadataService`
 - **Column-driven typing is the default path;** `--detailed` falls back to record-sampling only if a table has no column metadata
 - **Field-name safety:** non-identifier field names are quoted (e.g. `"Allow_Check-in"`, `"SSN/EIN"`) — see `generate-types.ts:163-166`
-- **Environment load order:** `.env.local` → `.env.development` → `.env` (each loaded via `dotenv.config`, earlier files don't override later ones because `dotenv` skips already-set keys) — `generate-types.ts:9-20`
+- **Environment load order:** `.env.local` → `.env.development` → `.env` (each loaded via `dotenv.config`, later files don't override earlier ones because `dotenv` skips already-set keys — so `.env.local` wins) — `generate-types.ts:9-20`
 
 ## API / Interface
 

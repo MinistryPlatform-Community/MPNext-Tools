@@ -100,7 +100,7 @@ Also exposed via `MPHelper.getDomainInfo` / `.getGlobalFilters` (`src/lib/provid
 | 500 Internal Server Error | `getDomainInfo` | `domain.service.test.ts:48-52` |
 
 ## Gotchas
-- **`Key: 0` = unfiltered records** — documented in the JSDoc (`domain.service.ts:30-31`). Treat 0 as sentinel, not as a real filter id.
+- **`Key: 0` = unfiltered records** — documented in the JSDoc (`domain.service.ts:28-29`). Treat 0 as sentinel, not as a real filter id.
 - **`$ignorePermissions: true` bypasses per-user filter scoping** — only usable where caller has admin context. MP 403s otherwise.
 - **`GlobalFilterTableName` is optional** — on domains with no global filter configured, `DomainInfo.GlobalFilterTableName` is `undefined`, and `getGlobalFilters` still returns `[]` (not an error).
 - **Response type is loose where MP sends more fields** — test fixture `{ DomainName: 'Test', DomainId: 1 }` does not match `DomainInfo` (which uses `DisplayName`, no `DomainId`). The mock is intentionally loose; production MP returns the `DomainInfo` shape.

@@ -4,7 +4,7 @@ domain: services
 type: reference
 applies_to: [src/services/userService.ts, src/services/userService.test.ts]
 symbols: [UserService, MPUserProfile]
-related: [query-patterns.md, ../auth/sessions.md, ../components/shared-actions.md]
+related: [query-patterns.md, ../auth/sessions.md, ../components/layout.md]
 last_verified: 2026-04-17
 ---
 
@@ -13,7 +13,7 @@ Fetches the enriched MP user profile (by `User_GUID`) plus role names and user-g
 
 ## Files
 - `src/services/userService.ts` — singleton
-- `src/services/userService.test.ts` — 160 lines; covers singleton, `getUserProfile` happy/empty/error paths, and `getUserIdByGuid` (including malformed GUID).
+- `src/services/userService.test.ts` — 159 lines; covers singleton, `getUserProfile` happy/empty/error paths, and `getUserIdByGuid` (including malformed GUID).
 
 ## Singleton
 ```typescript
@@ -123,7 +123,7 @@ public async getUserIdByGuid(guid: string): Promise<number> {
 ## Return type
 
 ```typescript
-// MPUserProfile — from src/lib/providers/ministry-platform/types.ts
+// MPUserProfile — from src/lib/providers/ministry-platform/types/user-profile.types.ts
 {
   User_ID: number;
   User_GUID: string;
@@ -167,4 +167,4 @@ See `../auth/sessions.md` for `userGuid` vs `user.id`.
 ## Related docs
 - `query-patterns.md` — FK traversal + validation rules
 - `../auth/sessions.md` — `userGuid` vs `user.id`
-- `../components/shared-actions.md` — `getCurrentUserProfile`
+- `../components/layout.md` — `getCurrentUserProfile`

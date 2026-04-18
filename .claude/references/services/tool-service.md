@@ -13,7 +13,7 @@ Resolves MP page metadata, user tool authorization, selection record IDs, and co
 
 ## Files
 - `src/services/toolService.ts` — singleton implementation
-- `src/services/toolService.test.ts` — 549 lines; covers every public method including error paths, batching, and `deployTool` payload shaping
+- `src/services/toolService.test.ts` — 548 lines; covers every public method including error paths, batching, and `deployTool` payload shaping
 
 ## Singleton
 ```typescript

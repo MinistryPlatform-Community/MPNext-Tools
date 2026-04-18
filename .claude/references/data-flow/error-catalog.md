@@ -34,7 +34,7 @@ All MP REST errors originate in `src/lib/providers/ministry-platform/utils/http-
 | Type | Thrown at | Caught at | User-facing | Logged |
 |---|---|---|---|---|
 | `GET ${endpoint} failed: ${status} ${statusText} - ${body}` | `src/lib/providers/ministry-platform/utils/http-client.ts:32` | service catch (e.g., `table.service.ts:29`) logs + re-throws; bubbles to action | server action throws → component catch sets error state | yes, `logger.error("GET Request failed:", {status, statusText, url, responseBody})` |
-| `POST ${endpoint} failed: ${status} ${statusText} - ${body}` (JSON) | `src/lib/providers/ministry-platform/utils/http-client.ts:59` | service catch (e.g., `table.service.ts:49`, `procedure.service.ts:26`) re-throws | as above | yes |
+| `POST ${endpoint} failed: ${status} ${statusText} - ${body}` (JSON) | `src/lib/providers/ministry-platform/utils/http-client.ts:59` | service catch (e.g., `table.service.ts:49`, `procedure.service.ts:78`) re-throws | as above | yes |
 | `POST ${endpoint} failed: ${status} ${statusText}` (FormData; **no body** included) | `src/lib/providers/ministry-platform/utils/http-client.ts:79` | `file.service.ts:80` re-throws | upload error surfaces to component | no — FormData path does NOT log the response body (gotcha) |
 | `PUT ${endpoint} failed: ${status} ${statusText}` (JSON) | `src/lib/providers/ministry-platform/utils/http-client.ts:112` | `table.service.ts:68`, `file.service.ts:129` re-throw | as above | yes, `logger.error("PUT Request failed:", {...})` |
 | `PUT ${endpoint} failed: ${status} ${statusText}` (FormData; no body logging) | `src/lib/providers/ministry-platform/utils/http-client.ts:132` | `file.service.ts:129` re-throws | as above | no body logged |

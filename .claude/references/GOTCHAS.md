@@ -77,7 +77,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `session.user.id` is Better Auth's internal nanoid-style ID (e.g. `1gYSNMvy6OqAm9q3DdVhtKj3Czkxd0ms`), NOT the MP `User_GUID` (UUID). The MP `sub` claim is stored in a separate `userGuid` additionalField.
 **Fix:** Always use `session.user.userGuid` for MP API lookups. Needs a cast at the call site: `const userGuid = (session.user as { userGuid?: string }).userGuid`.
 **Enforced where:** `src/lib/auth.ts:22-30` (additionalFields definition), `src/contexts/user-context.tsx:29` (cast pattern), `src/auth.test.ts:189-207` (regression test).
-**Related:** [auth/session-model.md](auth/session-model.md), [services/](services/)
+**Related:** [auth/user-identity.md](auth/user-identity.md), [services/](services/)
 
 ### GOTCHA-002: TypeScript error "Property userGuid does not exist on type..."
 
@@ -85,7 +85,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** Better Auth 1.5's `customSessionClient` does not propagate `additionalFields` into its inferred session type. Runtime is correct, types are not.
 **Fix:** Cast at the read site: `(session.user as { userGuid?: string }).userGuid`. Do not try to extend Better Auth's types globally.
 **Enforced where:** `src/contexts/user-context.tsx:29`, `src/lib/auth.ts:85` (map function also needs a cast).
-**Related:** [auth/known-issues.md](auth/known-issues.md)
+**Related:** [auth/README.md](auth/README.md)
 
 ### GOTCHA-003: Proxy lets forged/expired session cookies through
 
@@ -125,7 +125,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** Caller passed `session.user.id` (the Better Auth internal) as `$userId`. MP expects the numeric `User_ID` (integer), not a GUID and certainly not a nanoid.
 **Fix:** Resolve the numeric MP `User_ID` before the MP call: `const userId = await UserService.getInstance().then(s => s.getUserIdByGuid(session.user.userGuid))`, then pass that integer as `$userId`.
 **Enforced where:** `src/services/groupService.ts:232,248` (correct pattern — uses `userId: number`), `src/services/userService.ts:68-79` (`getUserIdByGuid` helper).
-**Related:** [auth/session-model.md](auth/session-model.md), [services/](services/)
+**Related:** [auth/user-identity.md](auth/user-identity.md), [services/](services/)
 
 ---
 
@@ -169,7 +169,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** MP REST does not auto-qualify columns that appear in both base and joined tables. The `Contact_ID` on `Contacts` is ambiguous with `Contact_ID` on `Contact_Addresses`, for example.
 **Fix:** Prefix every ambiguous column with its table: `Contacts.Contact_ID` instead of bare `Contact_ID`. For FK traversal use `FKColumn_TABLE.Column` (e.g. `Contact_ID_TABLE.First_Name`). For multi-level FK chains use underscores between `_TABLE_` hops and a single dot before the final field: `Building_ID_TABLE_Location_ID_TABLE.Congregation_ID`.
 **Enforced where:** Documented in CLAUDE.md practice #10. Examples: `src/services/userService.ts:85` (FK traversal), `src/services/addressLabelService.ts:83` (multi-level).
-**Related:** [services/mp-query-rules.md](services/mp-query-rules.md)
+**Related:** [services/query-patterns.md](services/query-patterns.md)
 
 ### GOTCHA-013: Passing `@DomainID` in `executeProcedureWithBody` causes parameter-count mismatch
 
@@ -185,7 +185,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** Procedures prefixed with `api_dev_` are routed to the dev credentials pipeline by the provider. Without that prefix, `DeployTool` would run under production credentials.
 **Fix:** Keep the `api_dev_` prefix on any proc that should stay out of prod. Ensure `MINISTRY_PLATFORM_DEV_CLIENT_ID` / `MINISTRY_PLATFORM_DEV_CLIENT_SECRET` are set in `.env.local`. Keep the dev-panel localhost-only (see GOTCHA-033). Never rename these procs without checking the ProcedureService routing.
 **Enforced where:** `src/services/toolService.ts:242-247`, `src/lib/providers/ministry-platform/client.ts:75-94` (dev pipeline).
-**Related:** [mp-provider/dev-pipeline.md](mp-provider/dev-pipeline.md)
+**Related:** [mp-provider/client.md](mp-provider/client.md)
 
 ### GOTCHA-015: File uploaded but no `$userId` audit trail
 
@@ -221,7 +221,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** MP `$filter` accepts raw OData-style strings. If user input is interpolated without escaping, single quotes close the literal prematurely.
 **Fix:** Always escape before embedding: `term.replace(/'/g, "''")`. For LIKE patterns with wildcards also escape `%` and `_`: use `escapeFilterString` from `src/lib/validation.ts:25-30`. Documented in CLAUDE.md practice #11.
 **Enforced where:** `src/lib/validation.ts:25-30` (helper), `src/services/toolService.ts:229` (correct inline), `src/services/groupService.ts` passim.
-**Related:** [services/mp-query-rules.md](services/mp-query-rules.md), [dto-constants/](dto-constants/)
+**Related:** [services/query-patterns.md](services/query-patterns.md), [dto-constants/](dto-constants/)
 
 ### GOTCHA-019: MP filter breaks on non-numeric record ID (NaN interpolation)
 
@@ -229,7 +229,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `parseInt('abc', 10)` returns `NaN`; if the service doesn't validate before interpolating into `` `Record_ID = ${id}` ``, `NaN` slips through.
 **Fix:** Call `validatePositiveInt(id)` from `src/lib/validation.ts:11-16` before building any `` `ID = ${id}` `` filter. Services like `addressLabelService` batch-validate in loops; copy that pattern.
 **Enforced where:** `src/services/addressLabelService.ts:76` (positive pattern), `src/lib/validation.ts:11-16` (helper).
-**Related:** [services/mp-query-rules.md](services/mp-query-rules.md)
+**Related:** [services/query-patterns.md](services/query-patterns.md)
 
 ### GOTCHA-020: Field-management partial save leaves `dp_Page_Fields` inconsistent
 
@@ -237,7 +237,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `FieldManagementService.updatePageFieldOrder` calls `api_MPNextTools_UpdatePageFieldOrder` once per field, 5 at a time, with no transaction wrapper. A failure in batch 3 leaves batches 1-2 committed.
 **Fix:** Caller should wrap in `try/catch` and surface partial-save state. For true atomicity, rewrite `api_MPNextTools_UpdatePageFieldOrder` to accept a table-valued parameter and commit all rows in a single SP transaction.
 **Enforced where:** `src/services/fieldManagementService.ts:74-109`.
-**Related:** [services/](services/), [components/field-management/](components/field-management/)
+**Related:** [services/](services/), [components/field-management.md](components/field-management.md)
 
 ### GOTCHA-021: Negative `Page_Field_ID` values sent to MP if passed through carelessly
 
@@ -245,7 +245,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `fetchPageFieldData` synthesizes client-only IDs starting at `-1` and decrementing (`nextId--`) for rows that exist in the table metadata but not yet in `dp_Page_Fields`. These negative IDs are sentinel values for "not yet persisted" and must never be sent back to MP.
 **Fix:** Never send `Page_Field_ID` to MP. `FieldOrderPayload` intentionally omits it. When you add a new payload type, omit `Page_Field_ID` explicitly.
 **Enforced where:** `src/components/field-management/actions.ts:34-42` (negative ID synthesis).
-**Related:** [components/field-management/](components/field-management/)
+**Related:** [components/field-management.md](components/field-management.md)
 
 ### GOTCHA-022: SkipRecord / FetchAddressLabelsResult indexing returns undefined
 
@@ -265,7 +265,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `vi.mock()` factories are hoisted above `const mockX = vi.fn()` declarations, so the factory references a variable that does not yet exist at the hoisted call site.
 **Fix:** Wrap all mock variables in `vi.hoisted()`: `const { mockX } = vi.hoisted(() => ({ mockX: vi.fn() }))`. Then reference `mockX` freely in `vi.mock()` factories.
 **Enforced where:** `src/services/toolService.test.ts:4-7` (canonical pattern).
-**Related:** [testing/mock-patterns.md](testing/mock-patterns.md)
+**Related:** [testing/mocks.md](testing/mocks.md)
 
 ### GOTCHA-024: `TypeError: this.mp.methodName is not a function` in service tests
 
@@ -273,7 +273,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `MPHelper` was mocked with `vi.fn().mockImplementation(...)` returning an object, or the class mock is missing a method the service calls.
 **Fix:** Mock `MPHelper` as a class with every used method attached: `vi.mock('@/lib/providers/ministry-platform', () => ({ MPHelper: class { executeProcedureWithBody = mockExecuteProcedureWithBody; getTableRecords = mockGetTableRecords } }))`.
 **Enforced where:** `src/services/toolService.test.ts:9-16`.
-**Related:** [testing/mock-patterns.md](testing/mock-patterns.md)
+**Related:** [testing/mocks.md](testing/mocks.md)
 
 ### GOTCHA-025: Test passes in isolation but fails with full suite
 
@@ -281,7 +281,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** The service singleton (`ServiceClass.instance`) is cached across test files. The previous file's mock `MPHelper` is still attached.
 **Fix:** Reset the singleton in `beforeEach`: `(ServiceClass as any).instance = undefined`.
 **Enforced where:** `src/services/toolService.test.ts:19-23` (canonical pattern).
-**Related:** [testing/mock-patterns.md](testing/mock-patterns.md)
+**Related:** [testing/mocks.md](testing/mocks.md)
 
 ### GOTCHA-026: Server action test crashes with `headers(...).get is not a function`
 
@@ -289,7 +289,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `next/headers` was mocked with a plain object (`{}`) or `new Map()`. Better Auth internally calls `.get('cookie')` on a `Headers` instance — plain objects don't implement that interface.
 **Fix:** `vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }))`. Use a real `Headers` instance.
 **Enforced where:** `src/components/dev-panel/panels/user-tools-actions.test.ts:17-19` (canonical pattern).
-**Related:** [testing/mock-patterns.md](testing/mock-patterns.md)
+**Related:** [testing/mocks.md](testing/mocks.md)
 
 ---
 
@@ -345,7 +345,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `AuthWrapper` must be a server component — it calls `await headers()` and `await auth.api.getSession({ headers })`. These are server-only APIs. Adding `"use client"` silently no-ops the redirect.
 **Fix:** Keep `auth-wrapper.tsx` as a server component. Move any interactive state into a child client component.
 **Enforced where:** `src/components/layout/auth-wrapper.tsx:1-20` (no `"use client"`).
-**Related:** [components/layout/](components/layout/), [auth/](auth/)
+**Related:** [components/layout.md](components/layout.md), [auth/](auth/)
 
 ### GOTCHA-033: Dev overlay unexpectedly appears in production
 
@@ -353,7 +353,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** The self-gating lives inside `DevPanel` (`process.env.NODE_ENV === "development"` AND hostname === localhost) — not in `ToolContainer`. `ToolContainer` always renders `<DevPanel />` when `params` is provided.
 **Fix:** Trust the DevPanel self-gate. If you need to hide the overlay locally (e.g. for a screenshot), drop the `params` prop from `ToolContainer`. Do NOT remove the self-gate.
 **Enforced where:** `src/components/dev-panel/dev-panel.tsx:20-22,56-58`.
-**Related:** [components/dev-panel/](components/dev-panel/)
+**Related:** [components/dev-panel.md](components/dev-panel.md)
 
 ### GOTCHA-034: Dev-panel server actions callable in production despite UI hidden
 
@@ -361,7 +361,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `"use server"` exports create network-addressable RPC endpoints regardless of where (or whether) the UI imports them. Only `deploy-tool-actions.ts` currently has the `requireDevSession` guard that throws on `NODE_ENV === "production"`.
 **Fix:** Every dev-panel server action must call `requireDevSession()` (or an equivalent `NODE_ENV !== "production"` check) before doing any work. Consider extracting a shared helper. TODO: `.claude/TODO/2026-04-17-components-dev-panel-prod-guard-gap.md`.
 **Enforced where:** `src/components/dev-panel/panels/deploy-tool-actions.ts:13-21` (correct pattern, not consistently applied elsewhere).
-**Related:** [components/dev-panel/](components/dev-panel/)
+**Related:** [components/dev-panel.md](components/dev-panel.md)
 
 ### GOTCHA-035: Dev-panel `UserToolsPanel` always shows "NOT AUTHORIZED"
 
@@ -369,7 +369,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `NEXT_PUBLIC_PROD_URL` is unset (or has a trailing slash mismatch). The check is `path.includes(prodToolUrl)` where `prodToolUrl = ${prodBase}${pathname}`; if `prodBase` is empty, the match can never succeed.
 **Fix:** Set `NEXT_PUBLIC_PROD_URL` in `.env.local` to the deployed tool base URL (no trailing slash). The component already renders a helpful amber banner when unset — check for that banner instead of the red one.
 **Enforced where:** `src/components/dev-panel/panels/user-tools-panel.tsx:38-42,112-133` (handles the unset case explicitly).
-**Related:** [components/dev-panel/](components/dev-panel/)
+**Related:** [components/dev-panel.md](components/dev-panel.md)
 
 ### GOTCHA-036: Edit-mode Review screen shows "ID: &lt;n&gt;" for Primary Contact / Parent Group
 
@@ -377,7 +377,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `fetchGroupRecord` returns numeric IDs only. The display maps (`contactDisplayMap`, `groupDisplayMap`) are only seeded from user interactions during the wizard flow, never from a loaded record.
 **Fix:** Extend `GroupService.getGroup` to return display names alongside IDs and seed the display maps before `form.reset` in the edit-mode effect. TODO: `.claude/TODO/2026-04-17-components-group-wizard-display-map-edit-mode.md`.
 **Enforced where:** `src/app/(web)/tools/groupwizard/group-wizard.tsx:69-84` (not currently enforced).
-**Related:** [components/group-wizard/](components/group-wizard/)
+**Related:** [components/group-wizard.md](components/group-wizard.md)
 
 ### GOTCHA-037: Renaming `Secure_Check-in` breaks compilation in non-obvious places
 
@@ -385,7 +385,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** The field name contains a hyphen and is referenced as a quoted string literal (`'Secure_Check-in'`) across schema, `STEP_FIELDS`, `SwitchRow`, and `step-review`. A refactor tool that only renames symbols will miss the string literals.
 **Fix:** Grep-search for `Secure_Check-in` across `src/components/group-wizard` and rename at all five sites. TypeScript will not help you here — the key is a string literal, not a symbol.
 **Enforced where:** `src/components/group-wizard/schema.ts:43` (declaration).
-**Related:** [components/group-wizard/](components/group-wizard/)
+**Related:** [components/group-wizard.md](components/group-wizard.md)
 
 ### GOTCHA-038: SSR/build error "window is not defined" when loading `/tools/templateeditor`
 
@@ -393,7 +393,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** GrapesJS touches `window` / `document` at import time. Any server-side import of a GrapesJS module blows up.
 **Fix:** Import `EditorCanvas` (or anything that imports `grapesjs`) via `next/dynamic` with `ssr: false`. Keep `"use client"` at the top of every file that imports from `grapesjs`.
 **Enforced where:** `src/components/template-editor/template-editor-form.tsx:6-15` (canonical pattern).
-**Related:** [components/template-editor/](components/template-editor/)
+**Related:** [components/template-editor.md](components/template-editor.md)
 
 ### GOTCHA-039: Merge tokens like `{{First_Name}}` appear verbatim in sent emails
 
@@ -401,7 +401,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** The template-editor has no token resolver. Tokens are emitted literally by the MJML compile step; the downstream send pipeline is responsible for substitution but does not yet exist.
 **Fix:** Resolve tokens in the downstream send/render pipeline before emitting the final HTML. TODO: `.claude/TODO/2026-04-17-components-template-editor-merge-token-resolver.md`.
 **Enforced where:** `src/components/template-editor/merge-fields.ts:9-28` (defines tokens but no resolver exists).
-**Related:** [components/template-editor/](components/template-editor/)
+**Related:** [components/template-editor.md](components/template-editor.md)
 
 ---
 
@@ -413,7 +413,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `preEncodeBarcodes` wraps `imbEncode` in a bare `try {} catch {}` with no logging, falling through to POSTNET. Also, if `config.mailerId` is empty (`''`), the `config.barcodeFormat === 'imb' && config.mailerId` guard skips IMb entirely and falls through silently.
 **Fix:** (a) Users: enter a valid 6- or 9-digit USPS Mailer ID. (b) Code: log the caught IMb error and surface a per-label `barcodeError` field so the UI can warn the user. TODO: `.claude/TODO/2026-04-17-utils-imb-fallback-silent.md`.
 **Enforced where:** `src/lib/barcode-helpers.ts:41-50` (silent fallback), `src/lib/dto/address-label.dto.ts:40` (mailerId not validated at config level).
-**Related:** [utils/](utils/), [components/address-labels/](components/address-labels/)
+**Related:** [utils/](utils/), [components/address-labels.md](components/address-labels.md)
 
 ### GOTCHA-041: Avery label cells misaligned after adding new stock
 
@@ -421,7 +421,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Root cause:** `LABEL_STOCKS` dimensions are in PDF points (72pt = 1 inch). Contributors frequently enter inches or millimeters.
 **Fix:** Always enter dimensions in points. Use the `/72 = inches` sanity check. See the `5160` entry for a reference: 612pt × 792pt = 8.5" × 11" Letter.
 **Enforced where:** `src/lib/label-stock.ts:22-23` (documented in the comment above the array).
-**Related:** [components/address-labels/](components/address-labels/)
+**Related:** [components/address-labels.md](components/address-labels.md)
 
 ### GOTCHA-042: Tool page crashes when it assumes `params.pageData` is present
 

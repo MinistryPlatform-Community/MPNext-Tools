@@ -22,7 +22,7 @@ End-to-end OAuth2/OIDC flow against Ministry Platform: sign-in, token exchange, 
 ## Key concepts
 - Provider is registered under **`providerId: "ministry-platform"`** (`src/lib/auth.ts:35`). This string is the key for both the OAuth callback URL and `signIn.oauth2({ providerId })`.
 - **OIDC discovery** is used — no hand-wired endpoints. `discoveryUrl` points at MP's well-known config.
-- **PKCE is disabled** (`pkce: false`, `src/lib/auth.ts:44`). Tracked in `.claude/TODO/002-security-pkce-disabled.md` (per existing notes).
+- **PKCE is disabled** (`pkce: false`, `src/lib/auth.ts:44`). <!-- UNVERIFIED: prior TODO path `.claude/TODO/002-security-pkce-disabled.md` does not exist in current tree (2026-04-17). Security concern still valid but no tracking file. -->
 - MP requires a **`realm=realm`** authorization URL param (`authorizationUrlParams`, `src/lib/auth.ts:45-47`).
 - **`getUserInfo`** fetches `${MP_BASE_URL}/oauth/connect/userinfo` with the access token and returns `{ id: profile.sub, email, name, image: undefined, emailVerified: true }`.
 - **`mapProfileToUser`** persists the OIDC `sub` claim as the custom `userGuid` field. See `user-identity.md`.
@@ -121,7 +121,7 @@ mapProfileToUser: (profile) => {
 ## Sign-in entry (verbatim from `src/app/signin/page.tsx`)
 
 ```typescript
-// src/app/signin/page.tsx:24-29
+// src/app/signin/page.tsx:25-28
 authClient.signIn.oauth2({
   providerId: "ministry-platform",
   callbackURL: callbackUrl,
@@ -173,7 +173,7 @@ Register these URLs on the MP OAuth client:
 ## Gotchas
 - `user.id` ≠ `userGuid`. See `user-identity.md`.
 - `emailVerified` is always `true` — no client-side re-verification. `src/lib/auth.ts:74`
-- PKCE disabled — see existing TODO `.claude/TODO/002-security-pkce-disabled.md`.
+- PKCE disabled — `pkce: false` at `src/lib/auth.ts:44`. <!-- UNVERIFIED: referenced TODO `.claude/TODO/002-security-pkce-disabled.md` does not exist; see new TODO `2026-04-17-verify-auth-oauth-flow.md`. -->
 - No `id_token_hint` on `endsession` — `post_logout_redirect_uri` **must** be pre-registered on MP.
 - `handleSignOut` falls back to `http://localhost:3000` if neither `BETTER_AUTH_URL` nor `NEXTAUTH_URL` is set (`src/components/user-menu/actions.ts:20`). Deploying without the env var will 302 to localhost.
 

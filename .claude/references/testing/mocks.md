@@ -66,7 +66,7 @@ Every method that the service under test calls must be declared as a class field
 
 ## Pattern: Singleton reset between tests
 
-All services in `src/services/` use a private static `instance` field (`toolService.ts:15`, `userService.ts:17`, etc.). Without resetting, cached instances hold stale mocked methods across tests (including stale `mockClear`ed state).
+All services in `src/services/` use a private static `instance` field (`toolService.ts:82`, `userService.ts:12`, etc.). Without resetting, cached instances hold stale mocked methods across tests (including stale `mockClear`ed state).
 
 ```typescript
 // From src/services/toolService.test.ts:19-23

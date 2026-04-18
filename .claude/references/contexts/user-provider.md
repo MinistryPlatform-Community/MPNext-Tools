@@ -13,7 +13,7 @@ Client context that watches the Better Auth session, extracts `userGuid` (OIDC `
 
 ## Files
 - `src/contexts/user-context.tsx` — provider + hook + error handling
-- `src/contexts/user-context.test.tsx` — 5 test cases covering load/error/refresh/missing-guid
+- `src/contexts/user-context.test.tsx` — 6 test cases covering load/error/refresh/missing-guid
 - `src/app/providers.tsx` — mounts `<UserProvider>` at the app shell
 - `src/components/shared-actions/user.ts` — `getCurrentUserProfile(id)` server action
 - `src/services/userService.ts:81` — `UserService.getUserProfile(id)` downstream lookup

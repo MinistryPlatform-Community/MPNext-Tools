@@ -29,7 +29,7 @@ Session strategy: stateless JWT cookie cache (no DB), a lightweight `customSessi
 ## Configuration (verbatim from `src/lib/auth.ts`)
 
 ```typescript
-// src/lib/auth.ts:11-21
+// src/lib/auth.ts:11-30
 session: {
   cookieCache: {
     enabled: true,

@@ -34,8 +34,8 @@ symbols:
   - STORAGE_KEY
   - compileMjml
 related:
-  - ../routing/tools.md
-  - ../data-flow/server-actions.md
+  - ../routing/app-router.md
+  - ../data-flow/README.md
 last_verified: 2026-04-17
 ---
 
@@ -234,8 +234,8 @@ const handleCompileHtml = async () => {
 
 ## Related docs
 
-- `../routing/tools.md` — tool route conventions (`/tools/<slug>`) and `ToolParams` usage
-- `../data-flow/server-actions.md` — server-action pattern used by `compileMjml`
+- `../routing/app-router.md` — tool route conventions (`/tools/<slug>`) and `ToolParams` usage
+- `../data-flow/README.md` — server-action pattern used by `compileMjml`
 
 ---
 
@@ -271,13 +271,13 @@ const handleCompileHtml = async () => {
     {"name": "merge-field-insert", "hint": "entry: src/components/template-editor/merge-field-picker.tsx:handleInsertField → editor.getSelected | editor.getWrapper → component.append({type:'mj-section'...}) (no server call)"}
   ],
   "errors": [
-    {"layer": "oauth", "type": "Unauthorized (thrown Error when session is missing)", "thrown_at": "src/components/template-editor/actions.ts:10", "caught_at": "src/components/template-editor/editor-code-dialog.tsx:49 (try/catch in handleCompileHtml)"},
+    {"layer": "oauth", "type": "Unauthorized (thrown Error when session is missing)", "thrown_at": "src/components/template-editor/actions.ts:9", "caught_at": "src/components/template-editor/editor-code-dialog.tsx:49 (try/catch in handleCompileHtml)"},
     {"layer": "validation", "type": "MJML size guard (empty or >500KB)", "thrown_at": "src/components/template-editor/actions.ts:19", "caught_at": "src/components/template-editor/editor-code-dialog.tsx:49, src/components/template-editor/editor-export-dialog.tsx:54"},
     {"layer": "client-fetch", "type": "Invalid JSON import", "thrown_at": "src/components/template-editor/editor-import-dialog.tsx:36 (JSON.parse throws)", "caught_at": "src/components/template-editor/editor-import-dialog.tsx:36 (try/catch sets error state)"}
   ],
   "cross_refs_needed": [
-    "routing/tools.md",
-    "data-flow/server-actions.md"
+    "routing/app-router.md",
+    "data-flow/README.md"
   ],
   "critical_flag": null
 }

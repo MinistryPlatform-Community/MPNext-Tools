@@ -21,7 +21,7 @@ Hand-written application-level DTOs/ViewModels (`src/lib/dto/`), shared runtime 
 | `src/lib/dto/address-label.dto.ts` | All current DTOs + `SERVICE_TYPES` constant |
 | `src/lib/dto/index.ts` | Barrel re-export for `@/lib/dto` |
 | `src/lib/validation.ts` | SQL-safety helpers (GUID, positive int, column name, LIKE escape) |
-| `src/lib/validation.test.ts` | 18 tests across the 4 helpers |
+| `src/lib/validation.test.ts` | 19 tests across the 4 helpers |
 | `src/lib/label-stock.ts` | `LABEL_STOCKS` constant (Avery sheet geometries) |
 | `src/lib/barcode-helpers.ts` | Pre-encodes `LabelData[]` using `LabelConfig` |
 | `src/lib/tool-params.ts` | `PageData`, `ToolParams` URL-param view models |

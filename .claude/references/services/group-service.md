@@ -12,7 +12,7 @@ last_verified: 2026-04-17
 Backs the group-wizard feature: parallel lookup-table fetch, contact/group search, and group create/update with date-string coercion and `$userId` audit.
 
 ## Files
-- `src/services/groupService.ts` — 253 lines
+- `src/services/groupService.ts` — 252 lines
 - `src/services/groupService.test.ts` — 401 lines
 
 ## Singleton

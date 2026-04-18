@@ -38,7 +38,7 @@ All 37 test files grouped by area. Totals from facts snapshot: **37 files / 507 
 | `src/services/addressLabelService.test.ts` | Address fetching, batching, single contact |
 | `src/services/userService.test.ts` | Profile with roles/groups, `getUserIdByGuid`, GUID validation |
 
-## Components (9 files)
+## Components (10 files)
 
 | Test File | What It Covers |
 |---|---|
@@ -74,7 +74,7 @@ All 37 test files grouped by area. Totals from facts snapshot: **37 files / 507 
 | `src/contexts/session-context.test.tsx` | `useAppSession` hook wrapper |
 
 ## Totals
-- Files in this inventory: 36 (12 provider + 5 services + 10 component + 8 lib + 2 contexts = 37 — the `src/components/` group contains 10 files; the table above lists 10 rows)
+- Files in this inventory: 37 (12 provider + 5 services + 10 component + 8 lib + 2 contexts)
 
 ## Known uncovered surfaces
 - `src/lib/providers/ministry-platform/scripts/` (`build-sql-install.ts`, `generate-types.ts`, `generate-storedprocs.ts`) — CLI build scripts exercised via `npm run mp:build:install` / `npm run mp:generate:models`

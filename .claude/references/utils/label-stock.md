@@ -21,7 +21,7 @@ Static geometry for US Letter Avery label sheets (5160/5161/5162/5163) plus a po
 
 ## Files
 - `src/lib/label-stock.ts` — config array + helpers
-- `src/lib/label-stock.test.ts` — 6 tests covering dimensions, lookup, and position math
+- `src/lib/label-stock.test.ts` — 9 tests covering dimensions, lookup, and position math
 
 ## Key concepts
 - **Points unit** — All dimensions are typographic points. US Letter = 612 × 792 pt.
@@ -113,7 +113,7 @@ import type { LabelStockConfig } from '@/lib/label-stock';
 ```
 
 ## Gotchas
-- **`getLabelStock` returns `undefined` for unknown IDs.** Callers must guard before dereferencing — see `src/components/address-labels/address-labels.tsx:10` and `actions.ts:21`. The test `should return undefined for unknown stock ID` (`src/lib/label-stock.test.ts:28`) pins the behavior.
+- **`getLabelStock` returns `undefined` for unknown IDs.** Callers must guard before dereferencing — see `src/app/(web)/tools/addresslabels/address-labels.tsx:64-65` and `src/components/address-labels/actions.ts:135-138`. The test `should return undefined for unknown stock ID` (`src/lib/label-stock.test.ts:28`) pins the behavior.
 - **`startPosition` offset is handled by the caller**, not by `getLabelPosition`. Features that "skip N used labels" add the offset to the index before calling.
 - **Landscape / non-Letter stocks are not modeled.** If a new stock is added, it must follow the 612×792 Letter-portrait assumption or the PDF layout code in `label-document.tsx` needs updating.
 

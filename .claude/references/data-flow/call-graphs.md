@@ -40,7 +40,7 @@ last_verified: 2026-04-17
 **Related:**
 - `../auth/oauth-flow.md` — full OAuth round-trip (continues from step 10)
 - `../auth/sessions.md` — JWT cookie, `cookieCache`, `customSession`
-- `../auth/proxy.md` — proxy matcher and header forwarding
+- `../routing/proxy.md` — proxy matcher and header forwarding
 
 ---
 
@@ -62,7 +62,7 @@ last_verified: 2026-04-17
 10. `src/app/(web)/tools/addresslabels/page.tsx:11` — renders `<AddressLabels params={params} />` (client subtree).
 
 **Side effects:**
-- MP API call: `POST /procs/api_Tools_GetPageData` (first tool page hit within token TTL triggers token refresh — see `../mp-provider/auth-pipeline.md`).
+- MP API call: `POST /procs/api_Tools_GetPageData` (first tool page hit within token TTL triggers token refresh — see `../mp-provider/client.md`).
 - Cookie set: none (read-only flow).
 
 **Error paths:**
@@ -74,7 +74,7 @@ last_verified: 2026-04-17
 **Related:**
 - `../services/tool-service.md` — `getPageData` contract
 - `../mp-schema/required-procs.md` — `api_Tools_GetPageData` shape
-- `../routing/tool-pages.md` — tool page convention
+- `../routing/app-router.md` — tool page convention
 
 ---
 
@@ -88,7 +88,7 @@ last_verified: 2026-04-17
 2. `src/components/dev-panel/panels/selection-actions.ts:17` — `auth.api.getSession({ headers: await headers() })`; throws `'Unauthorized'` at line 18 if no user.
 3. `src/components/dev-panel/panels/selection-actions.ts:20-21` — reads `(session.user as {userGuid}).userGuid`; throws `'User GUID not found in session'` if absent.
 4. `src/components/dev-panel/panels/selection-actions.ts:23-24` — `UserService.getInstance()` → `userService.getUserIdByGuid(userGuid)`.
-5. `src/services/userService.ts:68-79` — `getUserIdByGuid` runs `mp.getTableRecords('dp_Users', { select: 'User_ID', filter: "User_GUID = '<guid>'", top: 1 })`; throws `'User not found'` at line 77 if empty.
+5. `src/services/userService.ts:68-79` — `getUserIdByGuid` runs `mp.getTableRecords('dp_Users', { select: 'User_ID', filter: "User_GUID = '<guid>'", top: 1 })`; throws `'User not found'` at line 76 if empty.
 6. `src/components/dev-panel/panels/selection-actions.ts:26-27` — `ToolService.getInstance()` → `toolService.getSelectionRecordIds(selectionId, userId, pageId)`.
 7. `src/services/toolService.ts:152-174` — `getSelectionRecordIds` calls `mp.executeProcedureWithBody('api_Common_GetSelection', { '@SelectionID', '@UserID', '@PageID' })` (line 154) and finds the result set containing `Record_ID` (line 163).
 8. Returns `{ recordIds, count }` to client.
@@ -103,7 +103,7 @@ last_verified: 2026-04-17
 **Error paths:**
 - No session → `Error('Unauthorized')` thrown at `src/components/dev-panel/panels/selection-actions.ts:18`.
 - Missing `userGuid` on session → `Error('User GUID not found in session')` at `src/components/dev-panel/panels/selection-actions.ts:21`.
-- User GUID not in MP → `Error('User not found')` at `src/services/userService.ts:77`.
+- User GUID not in MP → `Error('User not found')` at `src/services/userService.ts:76`.
 - MP procedure failure → `HttpClient.post` throws at `src/lib/providers/ministry-platform/utils/http-client.ts:59`; rethrown by `ToolService.getSelectionRecordIds` at `src/services/toolService.ts:171-173`.
 
 **Return shape:** `{ recordIds: number[], count: number }` (dev-panel variant — `SelectionResult` at `src/components/dev-panel/panels/selection-actions.ts:8-11`).
@@ -182,7 +182,7 @@ last_verified: 2026-04-17
 **Return shape:** `MPUserProfile | null` in context state (with `roles: string[]`, `userGroups: string[]`).
 
 **Related:**
-- `../contexts/user-context.md` — hook usage, lifecycle
+- `../contexts/user-provider.md` — hook usage, lifecycle
 - `../services/user-service.md` — `getUserProfile` and `getUserIdByGuid` contracts
 - `../auth/sessions.md` — why `userGuid` (additionalField) is needed instead of `user.id`
 
@@ -230,7 +230,7 @@ last_verified: 2026-04-17
 1. `src/app/(web)/tools/groupwizard/group-wizard.tsx:121-129` — `handleSubmit` calls `updateGroup(params.recordID, data)` in edit mode (line 126) or `createGroup(data)` in create mode (line 128).
 2. `src/components/group-wizard/actions.ts:65` — `createGroup(data)` server action.
 3. `src/components/group-wizard/actions.ts:69` — `getSession()` (helper at lines 17-21); throws `'Unauthorized'` if no `session.user.id`.
-4. `src/components/group-wizard/actions.ts:70` — `getMPUserId(session)` (helper at lines 23-29) → reads `userGuid` → `UserService.getUserIdByGuid(userGuid)` → throws `'User not found'` if missing (`src/services/userService.ts:77`).
+4. `src/components/group-wizard/actions.ts:70` — `getMPUserId(session)` (helper at lines 23-29) → reads `userGuid` → `UserService.getUserIdByGuid(userGuid)` → throws `'User not found'` if missing (`src/services/userService.ts:76`).
 5. `src/components/group-wizard/actions.ts:71-72` — `GroupService.getInstance()` → `service.createGroup(data, userId)`.
 6. `src/services/groupService.ts:227-237` — `createGroup`:
    - `prepareForApi(data)` (line 231, defined at line 18) — coerces dates, maps form fields to MP columns.
@@ -249,7 +249,7 @@ last_verified: 2026-04-17
 - **No Zod validation** is currently wired for `createGroup` (the `GroupService.createGroup` call does not pass a `schema`) — schema validation only runs when callers opt in per helper contract at `src/lib/providers/ministry-platform/helper.ts:183`.
 
 **Error paths:**
-- Unauthorized / missing userGuid / user not found → thrown at `src/components/group-wizard/actions.ts:19`, `:25`, or `src/services/userService.ts:77`; caught at `src/components/group-wizard/actions.ts:74-76` and returned as `{ success: false, error }`.
+- Unauthorized / missing userGuid / user not found → thrown at `src/components/group-wizard/actions.ts:19`, `:25`, or `src/services/userService.ts:76`; caught at `src/components/group-wizard/actions.ts:74-76` and returned as `{ success: false, error }`.
 - MP HTTP failure → `HttpClient.post` throws at `src/lib/providers/ministry-platform/utils/http-client.ts:59`; propagates to action catch block → `{ success: false, error: <message> }`.
 - Zod validation (when enabled by caller) → `Error('Validation failed for record <i>: ...')` at `src/lib/providers/ministry-platform/helper.ts:189-196`, prior to any HTTP call.
 
@@ -259,4 +259,4 @@ last_verified: 2026-04-17
 - `../services/group-service.md` — `GroupService.createGroup` + `prepareForApi`
 - `../components/group-wizard.md` — wizard steps and form
 - `../mp-provider/services/table.md` — `createTableRecords` path
-- `../services/validation.md` — Zod schema opt-in pattern
+- `../services/query-patterns.md` — Zod schema opt-in pattern

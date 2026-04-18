@@ -163,7 +163,7 @@ Client/UI (consume the `ToolParams` type and/or predicates):
 ## Gotchas
 - **`pageData` may be `undefined` even when `pageID` is set.** The fetch is wrapped in `try/catch` and swallowed — callers must guard. See `src/lib/tool-params.ts:54-60`.
 - **`recordDescription` is URI-decoded; other strings are not.** Only `recordDescription` passes through `decodeURIComponent`. `q` and `addl` come through raw.
-- **Integer parse errors silently produce `NaN` via `parseInt` semantics.** `parseInt('abc', 10) === NaN`, and the conditional `x ? parseInt(x) : undefined` still assigns `NaN` back. Callers that check `typeof pageID === 'number'` see `NaN` (passes), so pre-validation is the caller's responsibility.
+- **Integer parse errors silently produce `NaN` via `parseInt` semantics.** `parseInt('abc', 10)` returns `NaN` (note: `NaN === NaN` is `false` — use `Number.isNaN()` to test). The conditional `x ? parseInt(x, 10) : undefined` still assigns `NaN` back when `x` is a non-empty non-numeric string. Callers that check `typeof pageID === 'number'` see `NaN` (passes, since `typeof NaN === 'number'`), so pre-validation is the caller's responsibility.
 - **`searchParams` must be awaited first.** Next.js 16 dynamic APIs (`params`, `searchParams`) are `Promise`s; `await searchParams` in the page, then pass the result to `parseToolParams`.
 
 ## Related docs

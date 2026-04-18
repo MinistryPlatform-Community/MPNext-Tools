@@ -12,8 +12,8 @@ last_verified: 2026-04-17
 CRUD on files attached to MP records via `/files/*` REST endpoints. Uploads use `multipart/form-data`; downloads by UniqueFileId are public (no auth header).
 
 ## Files
-- `src/lib/providers/ministry-platform/services/file.service.ts` — implementation (214 lines)
-- `src/lib/providers/ministry-platform/services/file.service.test.ts` — tests (333 lines)
+- `src/lib/providers/ministry-platform/services/file.service.ts` — implementation (213 lines)
+- `src/lib/providers/ministry-platform/services/file.service.test.ts` — tests (332 lines)
 
 ## Key concepts
 - Uploads use `FormData` with field key pattern `file-{index}` per file (`file.service.ts:52-54`). Optional params (`description`, `isDefaultImage`, `longestDimension`) are appended as both form fields AND query string params (`file.service.ts:57-71`).

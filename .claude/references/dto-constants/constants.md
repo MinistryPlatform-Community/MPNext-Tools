@@ -16,7 +16,7 @@ Inventory of module-level runtime constants and SQL-safety validation helpers. A
 - `src/lib/dto/address-label.dto.ts:26-32` — `SERVICE_TYPES`
 - `src/lib/label-stock.ts` — `LABEL_STOCKS` (Avery sheet dimensions)
 - `src/lib/validation.ts` — 4 SQL-safety helpers + 2 regexes
-- `src/lib/validation.test.ts` — 18 test cases
+- `src/lib/validation.test.ts` — 19 test cases
 - `src/components/group-wizard/types.ts:51-60` — `WIZARD_STEPS`, `WizardStepIndex`
 - `src/components/template-editor/grapes-config.ts:5` — `DEFAULT_MJML_TEMPLATE`
 - `src/services/addressLabelService.ts:21` — `BATCH_SIZE = 100` (module-local)

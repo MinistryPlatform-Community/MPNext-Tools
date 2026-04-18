@@ -128,7 +128,7 @@ const result = await service.createCommunication(communicationInfo, [file]);
 //   formData.get('file-0').name === 'test.pdf'
 ```
 
-Note: no application-layer wrapper currently calls these methods (greppable via `Grep createCommunication src/services`). They are exposed through `MPHelper` (`helper.ts:707, :743`) and ready for use by `src/components/**/actions.ts`.
+Note: no application-layer wrapper currently calls these methods (greppable via `Grep createCommunication src/services`). They are exposed through `MPHelper` (`helper.ts:559, :573`) and ready for use by `src/components/**/actions.ts`.
 
 ## Error handling
 

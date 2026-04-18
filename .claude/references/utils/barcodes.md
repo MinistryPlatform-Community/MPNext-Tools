@@ -173,9 +173,9 @@ import { imbBarcodeToBmp, postnetBarcodeToBmp } from '@/lib/barcode-image';
 
 Word accepts BMP natively, so the renderer returns raw `Buffer`s that can be inline-embedded without converting to PNG.
 
-### On-screen preview
-- `src/components/address-labels/imb-barcode.tsx` — React SVG preview; imports `type BarState` from `@/lib/imb-encoder`.
-- `src/components/address-labels/postnet-barcode.tsx` — React SVG preview; imports `type PostnetBar` from `@/lib/postnet-encoder`.
+### PDF-preview rendering
+- `src/components/address-labels/imb-barcode.tsx` — `@react-pdf/renderer` `<View>` component for PDF output; imports `type BarState` from `@/lib/imb-encoder`.
+- `src/components/address-labels/postnet-barcode.tsx` — `@react-pdf/renderer` `<View>` component for PDF output; imports `type PostnetBar` from `@/lib/postnet-encoder`.
 
 ### IMb test vector (USPS-B-3200 example 4)
 From `src/lib/imb-encoder.test.ts:11-13`:

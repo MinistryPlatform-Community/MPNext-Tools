@@ -23,7 +23,7 @@ Hand-rolled, framework-agnostic utilities under `src/lib/`: USPS barcode encoder
 | `src/lib/barcode-image.ts` | `imbBarcodeToBmp()` + `postnetBarcodeToBmp()` — 24-bit BMP renderers for Word embedding |
 | `src/lib/label-stock.ts` | `LABEL_STOCKS` array, `getLabelStock()`, `getLabelPosition()` (points-based geometry) |
 | `src/lib/tool-params.ts` | `ToolParams`, `PageData`, `parseToolParams()` (calls `ToolService.getPageData`), `isNewRecord()`, `isEditMode()` |
-| `src/lib/utils.ts` | shadcn `cn(...inputs)` — `twMerge(clsx(...))`; 27 consumers under `src/components/ui/**` and a few feature components |
+| `src/lib/utils.ts` | shadcn `cn(...inputs)` — `twMerge(clsx(...))`; 27 consumers total (22 under `src/components/ui/**` + 5 feature components) |
 
 ## Related domains
 - `../components/README.md` — `address-labels` consumes every barcode utility + `label-stock`; `tool` / `dev-panel` consume `tool-params`
