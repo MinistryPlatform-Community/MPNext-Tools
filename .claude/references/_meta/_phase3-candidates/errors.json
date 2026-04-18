@@ -1,0 +1,59 @@
+{
+  "aggregated_from_shards": 17,
+  "errors_by_layer": {
+    "oauth": [
+      {"type": "getUserInfo userinfo fetch non-OK (returns null)", "thrown_at": "src/lib/auth.ts:59-65", "caught_at": "Better Auth internals (null result aborts user creation)"},
+      {"type": "handleSignOut — MINISTRY_PLATFORM_BASE_URL missing", "thrown_at": "src/components/user-menu/actions.ts:15", "caught_at": "uncaught — surfaces as server action error"},
+      {"type": "authClient.getSession rejection on /signin", "thrown_at": "src/app/signin/page.tsx:30", "caught_at": "src/app/signin/page.tsx:30-40 (logs, fallback to signIn.oauth2)"},
+      {"type": "proxy getSessionCookie throw (cookie parse error)", "thrown_at": "src/proxy.ts:24", "caught_at": "src/proxy.ts:36 (logs, redirect to /signin)"},
+      {"type": "Session missing at AuthWrapper", "thrown_at": "src/components/layout/auth-wrapper.tsx:10", "caught_at": "src/components/layout/auth-wrapper.tsx:16 — redirect"},
+      {"type": "Failed to get client credentials token: ${statusText}", "thrown_at": "src/lib/providers/ministry-platform/auth/client-credentials.ts:25", "caught_at": "src/lib/providers/ministry-platform/client.ts:63"},
+      {"type": "Dev client credentials not configured", "thrown_at": "src/lib/providers/ministry-platform/auth/client-credentials.ts:36", "caught_at": "propagates to caller"},
+      {"type": "Network TypeError: fetch failed (token POST)", "thrown_at": "src/lib/providers/ministry-platform/auth/client-credentials.ts:16", "caught_at": "src/lib/providers/ministry-platform/client.ts:63"}
+    ],
+    "mp-api": [
+      {"type": "400 Bad Request (validation / malformed body)", "thrown_at": "http-client.ts", "caught_at": "services re-throw"},
+      {"type": "403 Forbidden (permission denied)", "thrown_at": "http-client.ts", "caught_at": "services re-throw"},
+      {"type": "404 Not Found", "thrown_at": "http-client.ts", "caught_at": "services re-throw"},
+      {"type": "409 Conflict (duplicate key)", "thrown_at": "http-client.ts", "caught_at": "table.service.ts:46 re-throw"},
+      {"type": "413 Payload Too Large (file upload)", "thrown_at": "http-client.ts", "caught_at": "file.service.ts:78 re-throw"},
+      {"type": "500 Internal Server Error", "thrown_at": "http-client.ts", "caught_at": "all services re-throw"},
+      {"type": "Ambiguous column name (HTTP 500)", "thrown_at": "MP REST", "caught_at": "MPHelper → service → server action"},
+      {"type": "Missing result set (empty unknown[][])", "thrown_at": "MP stored proc", "caught_at": "src/services/toolService.ts:132,161,189 (length checks)"}
+    ],
+    "validation": [
+      {"type": "Validation failed for record ${i}: ${zod message}", "thrown_at": "src/lib/providers/ministry-platform/helper.ts:189,273", "caught_at": "MPHelper try/catch re-throws — no API call"},
+      {"type": "Error('Invalid GUID format: X')", "thrown_at": "src/lib/validation.ts:6 (validateGuid)", "caught_at": "server action try/catch"},
+      {"type": "Error('Expected positive integer, got: X')", "thrown_at": "src/lib/validation.ts:13 (validatePositiveInt)", "caught_at": "server action try/catch"},
+      {"type": "Error('Invalid column name: X')", "thrown_at": "src/lib/validation.ts:20 (validateColumnName)", "caught_at": "server action try/catch"},
+      {"type": "Error('Unauthorized')", "thrown_at": "server actions (address-labels, dev-panel panels, field-management, group-wizard)", "caught_at": "component-level try/catch → setError"},
+      {"type": "Error('User GUID not found in session')", "thrown_at": "src/components/address-labels/actions.ts:36, src/components/dev-panel/panels/user-tools-actions.ts:17, group-wizard/actions.ts:25", "caught_at": "component setError"},
+      {"type": "Error('Unknown label stock id')", "thrown_at": "src/components/address-labels/actions.ts:138,179", "caught_at": "address-labels.tsx:110,149 setError"},
+      {"type": "Error('Template exceeds 5MB')", "thrown_at": "src/components/address-labels/actions.ts:219", "caught_at": "mail-merge-tab.tsx:123 setError"},
+      {"type": "Error('Deploy Tool is not available in production.')", "thrown_at": "src/components/dev-panel/panels/deploy-tool-actions.ts:15", "caught_at": "deploy-tool-panel.tsx:123 setError"},
+      {"type": "Error('Input must contain only digits' / IMb size errors)", "thrown_at": "src/lib/imb-encoder.ts", "caught_at": "src/lib/barcode-helpers.ts:48 (silently falls to POSTNET)"},
+      {"type": "Error('POSTNET input must be 5, 9, or 11 digits')", "thrown_at": "src/lib/postnet-encoder.ts:35,39", "caught_at": "src/lib/barcode-helpers.ts:58,62 (silently nested)"},
+      {"type": "Zod ZodError via zodResolver (group-wizard)", "thrown_at": "src/components/group-wizard/schema.ts groupWizardSchema", "caught_at": "RHF form.trigger in group-wizard.tsx:104"},
+      {"type": "MJML size guard (empty or >500KB)", "thrown_at": "src/components/template-editor/actions.ts:19", "caught_at": "editor-code-dialog.tsx:49, editor-export-dialog.tsx:54"}
+    ],
+    "service": [
+      {"type": "Error('User not found')", "thrown_at": "src/services/userService.ts:76 (getUserIdByGuid)", "caught_at": "server action (user-tools-actions.ts)"},
+      {"type": "Error('Deploy did not return a tool row')", "thrown_at": "src/services/toolService.ts:273", "caught_at": "src/components/dev-panel/panels/deploy-tool-actions.ts"},
+      {"type": "Error('Tool Name is required' / length limits)", "thrown_at": "src/services/toolService.ts:248-253", "caught_at": "deploy-tool UI"},
+      {"type": "procedure invocation failure from api_MPNextTools_UpdatePageFieldOrder", "thrown_at": "src/services/fieldManagementService.ts:93", "caught_at": "src/components/field-management/actions.ts:69 → { success: false, error }"}
+    ],
+    "client-fetch": [
+      {"type": "GET ${endpoint} failed: ${status} ${statusText} - ${body}", "thrown_at": "src/lib/providers/ministry-platform/utils/http-client.ts:32", "caught_at": "propagates through service"},
+      {"type": "POST ${endpoint} failed: ${status} ${statusText} - ${body}", "thrown_at": "src/lib/providers/ministry-platform/utils/http-client.ts:59", "caught_at": "propagates"},
+      {"type": "POST ${endpoint} failed: ${status} ${statusText} (FormData; no body)", "thrown_at": "http-client.ts:79", "caught_at": "propagates"},
+      {"type": "PUT ${endpoint} failed: ${status} ${statusText}", "thrown_at": "http-client.ts:112,132", "caught_at": "propagates"},
+      {"type": "DELETE ${endpoint} failed: ${status} ${statusText}", "thrown_at": "http-client.ts:150", "caught_at": "propagates"},
+      {"type": "GET /files/{uniqueId} failed: ${status} ${statusText}", "thrown_at": "file.service.ts:177", "caught_at": "file.service.ts:183 re-throw"},
+      {"type": "Profile fetch failure (UserProvider)", "thrown_at": "src/components/shared-actions/user.ts:10 (Unauthorized) or src/services/userService.ts:82", "caught_at": "src/contexts/user-context.tsx:43 (try/catch sets error)"},
+      {"type": "useUser called outside UserProvider", "thrown_at": "src/contexts/user-context.tsx:79", "caught_at": "uncaught — surfaces to React error boundary"},
+      {"type": "PDF render failure (@react-pdf/renderer toBlob)", "thrown_at": "src/components/address-labels/actions.ts:157", "caught_at": "actions.ts:162-168 → { success: false }"},
+      {"type": "Docxtemplater render error (tag mismatch)", "thrown_at": "src/components/address-labels/actions.ts:273", "caught_at": "actions.ts:280-285 wrapped"},
+      {"type": "Invalid JSON import (template-editor)", "thrown_at": "src/components/template-editor/editor-import-dialog.tsx:36", "caught_at": "editor-import-dialog.tsx:36 (try/catch sets error)"}
+    ]
+  }
+}

@@ -1,0 +1,567 @@
+---
+title: Ministry Platform Stored Procedures
+domain: mp-schema
+type: generated-reference
+last_verified: 2026-04-17
+source: npm run mp:generate:storedprocs
+---
+
+## Purpose
+Auto-generated reference of every Ministry Platform stored procedure exposed via the MP API, with its input parameters and bounded string sizes. Regenerate with `npm run mp:generate:storedprocs` (runs `src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts`).
+
+## How to call
+- HTTP: `POST /procs/{procName}` with JSON body `{ "@ParamName": value, ... }` (or GET for simple query params).
+- Code: use `MPHelper.executeProcedure()` / `executeProcedureWithBody()` (`src/lib/providers/ministry-platform/helper.ts`), which delegate to `ProcedureService`.
+- Return shape: `unknown[][]` — an array of result sets, each an array of row objects.
+- `@DomainID` is auto-injected by the MP API — do not pass it.
+
+## Generated metadata
+
+**Generated (source):** 2026-04-16T02:10:03.119Z
+**Procedures:** 532
+
+---
+
+All procedures listed with input parameters. String sizes shown where bounded, e.g. `String(50)`.
+
+### api_* (526)
+
+- `api_Advanced_EventsAndRoomsByRecord(@RecordID: Integer32)`
+- `api_Advanced_GetRecurringItems(@SequenceID: Integer32)`
+- `api_Advanced_GetRecurringSequenceTables(no parameters)`
+- `api_Advanced_GetRecurringSeries(@TableName: String(50))`
+- `api_Advanced_GetSubPageRecords(@ParentTableName: String(75), @ParentRecordID: Integer32)`
+- `api_BatchManager_AutoAssignPledges(@BatchId: Integer32)`
+- `api_BatchManager_CreateFromMemorizedBatch(@MemorizedBatchId: Integer32, @UserId: Integer32)`
+- `api_BatchManager_GetBatchImages(@BatchIds: Text)`
+- `api_BatchManager_GetDuplicateChecks(@BatchId: Integer32)`
+- `api_BatchManager_IgnoreDuplicateCheck(@DonationId: Integer32)`
+- `api_BatchManager_SetDonationScanMode(@DonationId: Integer32, @IsCheckScan: Boolean)`
+- `api_BatchManager_UpdatePledgeReadonlyValues(@PledgeId: Integer32, @Frequency: Integer32)`
+- `api_CareConnect_GetCareCases(@UserID: Integer32, @ApiUrl: String(500), @SelectAll: Boolean)`
+- `api_CareConnect_GetCareConnectStats(@UserID: Integer32)`
+- `api_CareConnect_GetHouseholds(no parameters)`
+- `api_CareConnect_SearchHouseholds(@LastName: String(50), @FirstName: String(50), @ApiUrl: String(500))`
+- `api_CareLife_GetCareCases(@UserID: Integer32, @ApiUrl: String(500), @SelectAll: Boolean)`
+- `api_CareLife_GetCareLifeStats(@UserID: Integer32)`
+- `api_CareLife_SearchHouseholds(@LastName: String(50), @FirstName: String(50), @ApiUrl: String(500))`
+- `api_CareSuite_GetCareCases(@UserID: Integer32, @ApiUrl: String(500), @SelectAll: Boolean)`
+- `api_CheckIn_GetActivitiesInScope(@ActivityList: String(2000))`
+- `api_CheckIn_GetCheckInEvents(@LocalTime: DateTime, @CongregationID: Integer32, @MinistryID: Integer32)`
+- `api_CheckIn_GetCheckInMatches(@FirstName: String(25), @LastName: String(25), @PhoneNumber: String(25), @ActivityList: String(200), @CheckedInStatus: Integer32, @HouseholdID: Integer32, @CardID: String(50), @IsAttended: Boolean, @DefaultEarlyCheckIn: Integer16, @DefaultLateCheckIn: Integer16, @StopMsg: String(50), @GuestMsg: String(50), @NoEventMsg: String(50), @LocalTime: DateTime)`
+- `api_CheckIn_GetCongregations(@BlankParam: String(50))`
+- `api_CheckIn_GetCongregationsAndMinistries(no parameters)`
+- `api_CheckIn_GetDefaultGroupRole(@GroupID: Integer32)`
+- `api_CheckIn_GetGroupsByActivity(@EventID: Integer32)`
+- `api_CheckIn_GetHouseholdMembers(@HouseholdID: Integer32)`
+- `api_CheckIn_GetHouseholdRecord(@HouseholdID: Integer32)`
+- `api_CheckIn_GetLabelData(@CheckInData: Xml, @AllergyAttributeID: Integer32, @CallNumberType: Integer32, @CallNumberChar: Integer32)`
+- `api_CheckIn_GetOrCreateParticipant(@ContactID: Integer32, @DefaultParticipantTypeID: Integer32)`
+- `api_CheckIn2_GetActivitiesInScope(@ActivityList: String(2000))`
+- `api_CheckIn2_GetCheckInEvents(@LocalTime: DateTime, @CongregationID: Integer32, @MinistryID: Integer32)`
+- `api_CheckIn2_GetCheckInHouseholdsFromSharedID(@ActivityList: String(200), @CardID: String(50), @IsAttended: Boolean, @LocalTime: DateTime, @HouseholdID: Integer32, @FirstName: String(25), @LastName: String(25), @PhoneNumber: String(25))`
+- `api_CheckIn2_GetCheckInMatchesFromSharedID(@ActivityList: String(200), @CardID: String(50), @IsAttended: Boolean, @LocalTime: DateTime, @HouseholdID: Integer32, @FirstName: String(25), @LastName: String(25), @PhoneNumber: String(25))`
+- `api_CheckIn2_GetCheckInMatchesFromUniqueID(@ActivityList: String(200), @CardID: String(50), @HouseholdID: Integer32, @IsAttended: Boolean, @LocalTime: DateTime)`
+- `api_CheckIn2_GetCongregations(no parameters)`
+- `api_CheckIn2_GetCongregationsAndMinistries(no parameters)`
+- `api_CheckIn2_GetDefaultGroupRole(@GroupID: Integer32)`
+- `api_CheckIn2_GetDropDownData(no parameters)`
+- `api_CheckIn2_GetGroups(@CongregationID: Integer32, @MinistryID: Integer32)`
+- `api_CheckIn2_GetGroupsByActivity(@EventID: Integer32, @AgeMonths: Integer32)`
+- `api_CheckIn2_GetHouseholdMembers(@HouseholdID: Integer32, @ContactID: Integer32)`
+- `api_CheckIn2_GetHouseholdRecord(@HouseholdID: Integer32)`
+- `api_CheckIn2_GetLabelData(@CheckInData: Xml, @AllergyAttributeID: Integer32, @CallNumberType: Integer32, @CallNumberChar: Integer32)`
+- `api_CheckIn2_GetMinistries(no parameters)`
+- `api_CheckIn2_GetOrCreateParticipant(@ContactID: Integer32, @DefaultParticipantTypeID: Integer32)`
+- `api_CheckIn2_GetRooms(@CongregationID: Integer32)`
+- `api_CheckScan_DeleteBatch(@BatchID: Integer32)`
+- `api_CheckScan_DeleteDistribution(@DistributionID: Integer32)`
+- `api_CheckScan_DeleteDonation(@DonationID: Integer32)`
+- `api_CheckScan_FindDonor(@LastNameOrCompany: String(25), @AddressLine1: String(25), @EnvelopeNumber: String(25), @AccountNumber: String(25), @RoutingNumber: String(25))`
+- `api_CheckScan_FindDonorAccount(@AccountNumber: String(50), @RoutingNumber: String(50), @ContactID: Integer32)`
+- `api_CheckScan_FindDonorAccounts(@CheckData: Xml)`
+- `api_CheckScan_FindMatchingContact(@FirstName: String(50), @LastName: String(50), @Phone: String(50), @AddressLine1: String(75))`
+- `api_CheckScan_FindPledgesByDonorID(@DonorID: Integer32)`
+- `api_CheckScan_FindPledgesByEventID(@EventID: Integer32)`
+- `api_CheckScan_GetBatchByID(@BatchID: Integer32)`
+- `api_CheckScan_GetBatchSummaries(@UserID: Integer32)`
+- `api_CheckScan_GetDonorHistory(@DonorID: Integer32)`
+- `api_CheckScan_GetLookupData(@EventTypeID: Integer32, @UserID: Integer32)`
+- `api_CIM_GetCheckInHouseholds(@SearchTerm: String(50), @RestrictToEventList: String(2000), @IsAttended: Boolean, @HouseholdId: Integer32, @AllowPhoneNumber: Boolean, @AllowIdCardBarcode: Boolean, @AllowLastName: Boolean)`
+- `api_CIM_GetCheckInResults(@HouseholdID: Integer32, @EventList: Text, @IsAttended: Boolean, @ID_Card: String(50), @GuestContactID: Integer32)`
+- `api_CIM_GetCheckInRooms(@EventList: String(2000), @ActiveOnly: Boolean)`
+- `api_CIM_GetDomainTimezone(no parameters)`
+- `api_Classroom_GetCongregations(no parameters)`
+- `api_Classroom_GetDropDownData(no parameters)`
+- `api_Classroom_GetEvents(@GroupsList: Xml)`
+- `api_Classroom_GetFriendsAndFamily(@ContactID: Integer32)`
+- `api_Classroom_GetGroups(@CongregationID: Integer32, @MinistryID: Integer32)`
+- `api_Classroom_GetParticipants(@ParticipationStatusID: Integer32, @EventID: Integer32, @GroupsList: Xml, @SearchTerm: String(75), @DataPageIndex: Integer16, @GroupRoleTypeID: Integer32)`
+- `api_Classroom_GetRooms(@GroupsList: Xml, @CongregationID: Integer32)`
+- `api_CloudApps_GetDomainInfo(no parameters)`
+- `api_CloudServices_GetContactsToInactivate(no parameters)`
+- `api_CloudServices_GetContactsToReactivate(no parameters)`
+- `api_CloudServices_GetStats(no parameters)`
+- `api_CloudTools_AddAuditLog(@TableName: String(50), @RecordID: Integer32, @AuditDescription: String(50), @UserName: String(254), @UserID: Integer32, @FieldName: String(50), @FieldLabel: String(50), @PreviousValue: Text, @NewValue: Text)`
+- `api_CloudTools_CreateSelection(@UserID: Integer32, @PageID: Integer32, @SelectionName: String(50))`
+- `api_CloudTools_CreateSelectionRecords(@UserID: Integer32, @SelectionID: Integer32, @Records: Xml)`
+- `api_CloudTools_ExportDeposit_BANKONE(@PageID: Integer32, @SelectionID: Integer32, @NameID: Integer32)`
+- `api_CloudTools_ExportDeposit_GetDataForShelbyGLTRN2000(@SelectionID: Integer32, @BankID: Integer32, @AccountingPeriod: String(2))`
+- `api_CloudTools_GetDomainGUID(no parameters)`
+- `api_CloudTools_GetPageData(@pageID: Integer32)`
+- `api_CloudTools_GetSelection(@SelectionID: Integer32, @UserID: Integer32, @PageID: Integer32)`
+- `api_CloudTools_GetSelections(@UserID: Integer32, @PageID: Integer32)`
+- `api_CloudTools_GetUserTools(@UserID: Integer32)`
+- `api_CloudTools_ResetUserSecurity(@ContactID: Integer32, @UserID: Integer32)`
+- `api_CloudTools_UpdateCommunicationMessage(@CommunicationMessageID: Integer32, @StatusID: Integer32, @UserID: Integer32)`
+- `api_Common_FindMatchingContact(@FirstName: String(50), @LastName: String(50), @Suffix: String(10), @EmailAddress: String(150), @Phone: String(50), @RequireEmail: Boolean)`
+- `api_Common_GenerateSlug(@TableName: String(50), @RecordID: Integer32, @SubPage: String(50))`
+- `api_Common_GetConfigurationLists(@ApplicationCode: String(50))`
+- `api_Common_GetConfigurationSettings(@ApplicationCode: String(50), @KeyName: String(50))`
+- `api_Common_GetCongregations(no parameters)`
+- `api_Common_GetContact_PKFK(@NextTable: String(150), @RefField: String(150))`
+- `api_Common_GetContactByEmail(@EmailAddress: String(254))`
+- `api_Common_GetContactHouseholdInfo(@HouseholdID: String(11))`
+- `api_Common_GetContactLookupData(no parameters)`
+- `api_Common_GetDataRecord(@TableName: String(75), @RecordId: Integer32)`
+- `api_Common_GetDDLRelationships(no parameters)`
+- `api_Common_GetDomainConfigurationInfo(no parameters)`
+- `api_Common_GetEventsInSeries(@EventID: Integer32)`
+- `api_Common_GetMatchingContacts(@FirstName: String(50), @LastName: String(50), @EmailAddress: String(150), @Phone: String(50), @AddressLine1: String(75), @City: String(75), @Zip: String(75), @StateRegion: String(75))`
+- `api_Common_GetPageID(@TableName: String(50))`
+- `api_Common_GetSelection(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32)`
+- `api_Common_GetStandardStatement(@StatementID: Integer32)`
+- `api_Common_GetUserRecord(@UserID: Integer32)`
+- `api_Common_GetUserRecordFromGUID(@UserGUID: Guid)`
+- `api_Common_GetUserRoles(@UserID: Integer32)`
+- `api_Common_StoredProcParameters(@ProcName: String(128))`
+- `api_CORE_AuthenticateContactGUID(@DomainGUID: String(40), @ContactGUID: String(40))`
+- `api_CORE_AuthenticateUser(@UserName: String(256), @Password: String(256))`
+- `api_CORE_AuthenticateUserGUID(@DomainGUID: String(40), @UserGUID: String(40))`
+- `api_CORE_FindContactByMobile(@MobilePhone: String(50))`
+- `api_CORE_FindContacts(@MobilePhone: String(50), @EmailAddress: String(256))`
+- `api_CORE_GetDDLData(@tableName: String(255), @filterRequest: String(255))`
+- `api_CORE_GetDomainData(no parameters)`
+- `api_CORE_GetGroupContacts(@groupID: Integer32)`
+- `api_CORE_GetGroupDetails(@groupID: Integer32)`
+- `api_CORE_GetGroupParticipant(@groupID: Integer32, @contactID: Integer32)`
+- `api_CORE_GetLookupValuesData(no parameters)`
+- `api_CORE_GetMyGroups(@ContactID: Integer32)`
+- `api_CORE_GetPageID(@page: String(255))`
+- `api_CORE_GetPrimaryKey(@TableName: String(40))`
+- `api_CORE_GetReAuth(@UserID: Integer32)`
+- `api_CORE_GetRecordFile(@tableName: String(255), @recordID: Integer32, @defaultImage: Integer32, @thumbnailImage: Integer32)`
+- `api_CORE_GetRichPerson(@contactID: Integer32)`
+- `api_CORE_GetRoleContacts(@roleID: Integer32)`
+- `api_CORE_GetTableData(@tableName: String(255), @primaryKey: String(64), @recordID: Integer32, @filterRequest: String(255), @orderBy: String(255), @orderByDesc: Integer32, @topCount: Integer32)`
+- `api_CORE_GetTemplate(@TemplateID: Integer32)`
+- `api_CORE_GetUserGroups(@UserID: Integer32)`
+- `api_CORE_GetUserRoles(@UserID: Integer32)`
+- `api_CoreTool_ACH_GetCompanies(@UserID: Integer32)`
+- `api_CoreTool_ACH_GetData(@AccountingCompanyID: Integer32, @ACHPaymentTypeID: Integer32, @DayOfMonth: Integer32)`
+- `api_CoreTool_AddFamily_GetDropDownData(no parameters)`
+- `api_CoreTool_AddFamily_GetHousehold(@HouseholdID: Integer32)`
+- `api_CoreTool_AssignDonor_GetDonations(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32, @RecordID: Integer32)`
+- `api_CoreTool_AssignEnvelopeNumber(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32, @RecordID: Integer32)`
+- `api_CoreTool_AssignParticipant_CleanUp(@EventParticipantID: Integer32)`
+- `api_CoreTool_AssignParticipant_GetEvents(@SearchTerm: String(50), @EventID: Integer32)`
+- `api_CoreTool_AssignParticipant_GetRegistrations(@RecordID: Integer32)`
+- `api_CoreTool_BatchImport_GetContactBySysID(@DonorSysID: Integer32)`
+- `api_CoreTool_BatchImport_GetProgramIdByAccountNumber(@AccountNumber: String(5))`
+- `api_CoreTool_ChangeCongregation(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32, @RecordID: Integer32)`
+- `api_CoreTool_CombineGroupParticipants_Delete(@GroupParticipantIDToDelete: Integer32, @GroupParticipantIDToKeep: Integer32)`
+- `api_CoreTool_CombineGroupParticipants_GetAttendance(@GroupParticipantIDToDelete: Integer32)`
+- `api_CoreTool_CombineGroupParticipants_GetData(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32, @RecordID: Integer32)`
+- `api_CoreTool_Common_CreateGeography(@AddressID: Integer32)`
+- `api_CoreTool_Common_CreateSelection(@UserID: Integer32, @CurrentSelectionID: Integer32, @NewSelectionName: String(50), @ContactIDList: Text, @AddPrimaryFamily: Boolean)`
+- `api_CoreTool_Common_DeleteRecord(@TableName: String(100), @PrimaryKey: String(100), @RecordID: Integer32)`
+- `api_CoreTool_Common_GetCongregations(no parameters)`
+- `api_CoreTool_Common_GetContactForPage(@pageID: Integer32, @recordID: Integer32, @ContactField: String(150), @Table1Field: String(150))`
+- `api_CoreTool_Common_GetContactForPage_Backup(@pageID: Integer32, @recordID: Integer32, @ContactField: String(150), @Table1Field: String(150))`
+- `api_CoreTool_Common_GetContactInfo(@ContactID: Integer32)`
+- `api_CoreTool_Common_GetContactRelationships(@ContactID1: Integer32, @ContactID2: Integer32, @RelationshipID: Integer32)`
+- `api_CoreTool_Common_GetCopyRecord_Data(@recordID: Integer32, @TableName: String(50))`
+- `api_CoreTool_Common_GetDonationsBySubscriptionCode(@SubscriptionCode: String(50))`
+- `api_CoreTool_Common_GetDonor(@DonorID: Integer32)`
+- `api_CoreTool_Common_GetFKRecords(@TableName: String(100), @PrimaryKey: String(100), @ForeignKey: String(100), @OldRecordID: Integer32)`
+- `api_CoreTool_Common_GetHouseholdForContact(@ContactID: Integer32)`
+- `api_CoreTool_Common_GetParticipant(@ParticipantID: Integer32)`
+- `api_CoreTool_Common_GetParticipantTypes(no parameters)`
+- `api_CoreTool_Common_GetPKFK(@TableName: String(100))`
+- `api_CoreTool_Common_GetProgramsByCongregation(@CongregationID: Integer32)`
+- `api_CoreTool_Common_GetTableInfo(@TableName: String(100))`
+- `api_CoreTool_Common_GetUserByID(@userID: Integer32)`
+- `api_CoreTool_Common_GetUsersWithRoles(no parameters)`
+- `api_CoreTool_Common_GetUserTools(@UserID: Integer32)`
+- `api_CoreTool_Common_UpdateFileRecords(@Page: String(100), @OldRecordID: Integer32, @NewRecordID: Integer32)`
+- `api_CoreTool_Common_UpdateRecords(@TableName: String(100), @ColumnName: String(100), @MasterRecord: Integer32, @MergeRecord: Integer32)`
+- `api_CoreTool_ConnectionCard_GetDropDownData(@CongregationID: Integer32)`
+- `api_CoreTool_ConnectionCard_GetFamilyMembers(@HouseholdID: Integer32)`
+- `api_CoreTool_ConnectionCard_GetHouseholds(@LastName: String(50), @FirstName: String(50))`
+- `api_CoreTool_ContactMerge_CleanUp(@ContactID: Integer32)`
+- `api_CoreTool_ContactMerge_FindDuplicates(@ContactID: Integer32, @UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32)`
+- `api_CoreTool_ContactMerge_FindDuplicates_SDM(@ContactID: Integer32)`
+- `api_CoreTool_ContactMerge_GetContacts(@ContactsXML: Xml, @UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32)`
+- `api_CoreTool_ContactMerge_Prepare_Contact(@MasterContactID: Integer32, @MergeContactID: Integer32)`
+- `api_CoreTool_ContactMerge_Prepare_Donor(@MasterDonorID: Integer32, @MergeDonorID: Integer32)`
+- `api_CoreTool_ContactMerge_Prepare_Participant(@MasterParticipantID: Integer32, @MergeParticipantID: Integer32)`
+- `api_CoreTool_ContactMerge_Prepare_User(@MasterUserID: Integer32, @MergeUserID: Integer32)`
+- `api_CoreTool_ContactTool_GetData(@Mode: String(50), @itemID: Integer32, @pageID: Integer32, @UserID: Integer32)`
+- `api_CoreTool_CopyBatch_CheckBatchName(@BatchName: String(75))`
+- `api_CoreTool_CopyBatch_GetBatchData(@recordID: Integer32)`
+- `api_CoreTool_CopyBatch_GetDonationDistributions(@DonationID: Integer32)`
+- `api_CoreTool_CreateParticipant(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32, @RecordID: Integer32)`
+- `api_CoreTool_DeceasedPerson_GetData(@RecordID: Integer32)`
+- `api_CoreTool_DeleteFiles_DeleteFile(@DeleteFileID: Integer32)`
+- `api_CoreTool_DeleteFiles_GetFiles(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32, @RecordID: Integer32)`
+- `api_CoreTool_DonationImport_AddUpdateDonorAddress(@AddressID: Integer32, @AddressLine1: String(75), @AddressLine2: String(75), @City: String(50), @StateRegion: String(50), @PostalCode: String(15))`
+- `api_CoreTool_DonationImport_FindContact(@LastName: String(50), @FirstName: String(50))`
+- `api_CoreTool_DonationImport_FindDonorAddress(@AddressLine1: String(75), @City: String(50), @PostalCode: String(15))`
+- `api_CoreTool_DonationImport_FindDonorsSpouse(@DonorID: Integer32)`
+- `api_CoreTool_DonationImport_GetAddressByDonorID(@DonorID: Integer32)`
+- `api_CoreTool_DonationImport_GetBatchSummaryData(@BatchID: Integer32)`
+- `api_CoreTool_DonationImport_GetCongregations(no parameters)`
+- `api_CoreTool_DonationImport_GetPaymentTypes(no parameters)`
+- `api_CoreTool_DonationImport_GetPrograms(no parameters)`
+- `api_CoreTool_DonationImport_GetProjects(no parameters)`
+- `api_CoreTool_DonationImport_GetRelationshipID(@RelationshipName: String(50))`
+- `api_CoreTool_DonationImport_GetUnfinalizedBatches(@BatchSearchString: String(64))`
+- `api_CoreTool_DonationImport_ImportDonation(@AccountNumber: String(50), @RoutingNumber: String(50), @EnvelopeNumber: String(15), @DonationAmount: Money, @DonationDate: DateTime, @PaymentTypeID: Integer32, @ItemNumber: String(15), @BatchID: Integer32, @DefaultProgramID: Integer32, @Notes: String(255))`
+- `api_CoreTool_DonationImport_IsMarriedHeadHousehold(@DonorID: Integer32)`
+- `api_CoreTool_DonationImport_LookupDonor(@SearchTerm: String(50))`
+- `api_CoreTool_DonationImport_UpdateDonationInfo(@DonationID: Integer32, @ContactID: Integer32, @DonorID: Integer32, @Amount1: Money, @Amount2: Money, @Amount3: Money, @Amount4: Money, @Amount5: Money, @Program1: Integer32, @Program2: Integer32, @Program3: Integer32, @Program4: Integer32, @Program5: Integer32, @Event1: Integer32, @Event2: Integer32, @Event3: Integer32, @Event4: Integer32, @Event5: Integer32, @DonorAccountID: Integer32)`
+- `api_CoreTool_EventMetrics_GetData(@eventID: Integer32, @ministryID: Integer32, @metricID: Integer32, @groupID: Integer32)`
+- `api_CoreTool_ExportDeposit_GetDataForBANKONE(@PageID: Integer32, @SelectionID: Integer32, @DomainGUID: String(40), @UserGUID: String(40), @NameID: Integer32)`
+- `api_CoreTool_ExportDeposit_GetDataForBANKONE_Standard(@PageID: Integer32, @SelectionID: Integer32, @DomainGUID: String(40), @UserGUID: String(40))`
+- `api_CoreTool_ExportDeposit_GetDataForQuickBooks(no parameters)`
+- `api_CoreTool_ExportDeposit_GetDataForShelbyGLTRN2000(@SelectionID: Integer32, @BankID: Integer32, @AccountingPeriod: String(2))`
+- `api_CoreTool_ExportDeposit_UpdateDepositClearSelection(@PageID: Integer32, @SelectionID: Integer32, @UserGUID: String(40))`
+- `api_CoreTool_ExportDeposti_GetBanks(@BankID: Integer32)`
+- `api_CoreTool_FormResponse_GetDDL(@EventID: Integer32, @FormID: Integer32)`
+- `api_CoreTool_FormResponses(@FormID: Integer32, @EventID: Integer32, @FromDate: DateTime, @ToDate: DateTime)`
+- `api_CoreTool_FormResponses_FromEvent(@EventID: Integer32, @FromDate: DateTime, @ToDate: DateTime)`
+- `api_CoreTool_FormResponses_FromOpportunity(@OpportunityID: Integer32, @FromDate: DateTime, @ToDate: DateTime)`
+- `api_CoreTool_FormResponses_FromPledgeCampaign(@PledgeCampaignID: Integer32, @FromDate: DateTime, @ToDate: DateTime)`
+- `api_CoreTool_FormViewer_GetFormGuid(@FormID: Integer32)`
+- `api_CoreTool_GetGroupParticipants(@groupID: Integer32, @eventID: Integer32)`
+- `api_CoreTool_GetPageInfo(@pageID: Integer32)`
+- `api_CoreTool_GetParticipantData(@RecordID: Integer32)`
+- `api_CoreTool_GetPledgeData(@donorID: Integer32)`
+- `api_CoreTool_GetResetSecurityData(@Mode: String(50), @itemID: Integer32, @userID: Integer32, @pageID: Integer32)`
+- `api_CoreTool_GetSubscriptions(@ContactID: Integer32)`
+- `api_CoreTool_GetSuffixes(no parameters)`
+- `api_CoreTool_GroupAttendance_GetData(@recordID: Integer32, @MinistryID: Integer32)`
+- `api_CoreTool_GroupAttendance_GetGroupParticipants(@groupID: Integer32, @eventID: Integer32)`
+- `api_CoreTool_GroupAttendance_GetSingleData(@groupParticipantID: Integer32, @eventID: Integer32)`
+- `api_CoreTool_Impersonate_GetContacts(@SelectionID: Integer32, @PageID: Integer32, @UserID: Integer32, @RecordID: Integer32)`
+- `api_CoreTool_Impersonate_GetUsers(@SelectionID: Integer32, @PageID: Integer32, @UserID: Integer32, @RecordID: Integer32, @SearchString: String(75))`
+- `api_CoreTool_Inactivate_GetContactPublications(@ContactID: Integer32)`
+- `api_CoreTool_Inactivate_GetData(@Mode: String(50), @itemID: Integer32, @userID: Integer32, @pageID: Integer32)`
+- `api_CoreTool_Inactivate_GetUserRoles(@ContactID: Integer32)`
+- `api_CoreTool_LookUpDonor(@SearchTerm: String(50))`
+- `api_CoreTool_MailChimpSync_FindContacts(@Data: Xml)`
+- `api_CoreTool_MailChimpSync_FindSubscribers(@PublicationID: Integer32, @Data: Xml)`
+- `api_CoreTool_MailChimpSync_GetContactsByEmail(@Email: String(256))`
+- `api_CoreTool_MailChimpSync_GetPublications(no parameters)`
+- `api_CoreTool_MailChimpSync_GetSubscriberByEmail(@Email: String(256), @PublicationID: Integer32)`
+- `api_CoreTool_MailChimpSync_GettPublicationSubscribers(@PublicationID: Integer32)`
+- `api_CoreTool_MapSelection_GetData(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32, @ContactID: Integer32)`
+- `api_CoreTool_PAV_GetAddresses(@UserID: Integer32, @AddressesPageID: Integer32, @SelectionID: Integer32, @PageNumber: Integer32, @ReturnIndividuals: Boolean)`
+- `api_CoreTool_PAV_GetAddresses_OLD(@UserID: Integer32, @AddressesPageID: Integer32, @SelectionID: Integer32, @PageNumber: Integer32)`
+- `api_CoreTool_RegistrationManager_FindPayer(@SearchTerm: String(50), @EventParticipantID: Integer32)`
+- `api_CoreTool_RegistrationManager_GetEvents(@SearchTerm: String(50), @EventID: Integer32)`
+- `api_CoreTool_RegistrationManager_GetParticipantData(@EventParticipantID: Integer32)`
+- `api_CoreTool_RegistrationManager_GetParticipants(@EventID: Integer32)`
+- `api_CoreTool_ResetUserSecurity(@ContactID: Integer32)`
+- `api_CoreTool_ReverseDonation_GetData(@UserID: Integer32, @PageID: Integer32, @SelectionID: Integer32, @RecordID: Integer32)`
+- `api_CoreTool_RollScan_GetEventInfoByEventID(@EventID: Integer32)`
+- `api_CoreTool_RollScan_GetGroupParticipantByID(@GroupParticipantID: Integer32)`
+- `api_CoreTool_RollScan_GetParticipationStatuses(no parameters)`
+- `api_CoreTool_RollScan_IsEventParticipant(@EventID: Integer32, @GroupParticipantID: Integer32)`
+- `api_CoreTool_TransferSelection(@UserID: Integer32, @CurrentSelectionID: Integer32, @TargetPageName: String(50), @TargetPageID: Integer32, @TargetSelectionID: Integer32, @NewSelectionName: String(50), @Remove: Boolean, @Heads: Boolean, @NonCustodialHeads: Boolean, @CreateMissingRecords: Boolean)`
+- `api_CoreTool_TransferSelection_GetData(@SelectionID: Integer32, @PageID: Integer32, @UserID: Integer32)`
+- `api_CoreTool_TrimSelection_GetData(@PageID: Integer32, @UserID: Integer32, @SelectionID: Integer32, @ContactStatusID: Integer32, @MaritalStatusID: Integer32, @GenderID: Integer32, @AgeFrom: Integer32, @AgeTo: Integer32, @HouseholdPositionID: Integer32, @CongregationID: Integer32, @ParticipantTypeID: Integer32, @MinistryID: Integer32, @GroupTypeID: Integer32, @GroupRoleTypeID: Integer32, @GroupRoleID: Integer32, @GroupID: Integer32, @PublicationIDCurrent: Integer32, @PublicationIDPrevious: Integer32)`
+- `api_CoreTool_TrimSelection_GetDropDownData(@MinistryID: Integer32, @GroupTypeID: Integer32, @GroupRoleTypeID: Integer32)`
+- `api_CoreTool_TrimSelection_Trim(@SelectionID: Integer32, @FunctionName: String(75), @ContactStatusID: Integer32, @MaritalStatusID: Integer32, @GenderID: Integer32, @AgeFrom: Integer32, @AgeTo: Integer32, @HouseholdPositionID: Integer32, @CongregationID: Integer32, @ParticipantTypeID: Integer32, @MinistryID: Integer32, @GroupTypeID: Integer32, @GroupRoleTypeID: Integer32, @GroupRoleID: Integer32, @GroupID: Integer32, @CreateRemainderSelection: Boolean, @RemainderSelectionName: String(50), @PublicationIDCurrent: Integer32, @PublicationIDPrevious: Integer32)`
+- `api_Custom_BrowserCommunication(@UserName: String(75), @CommunicationGUID: String(150))`
+- `api_custom_Dashboard(@Username: String(75))`
+- `api_custom_EventFinder(@UserName: String(75), @ProgramID: String(255))`
+- `api_Custom_GetCongregation(@CongregationID: Integer32)`
+- `api_custom_GroupManagerWidget_JSON(@Username: String(75), @GroupID: Integer32)`
+- `api_custom_GroupWidget(@Username: String(75), @GroupFocusID: Integer32, @MeetingDayID: Integer32, @CongregationID: Integer32, @Keyword: String(50), @ShowFullAddress: Boolean, @ShowFutureGroups: Boolean)`
+- `api_custom_MilestoneGamification(@Username: String(75), @JourneyID: Integer32)`
+- `api_custom_MyFamilyEvents(@Username: String(75))`
+- `api_Custom_MyForms(@Username: String(75))`
+- `api_custom_MyMissionTrips(@Username: String(75), @PledgeID: Integer32)`
+- `api_custom_PlatformWidget(@Username: String(75), @RecordID: Integer32)`
+- `api_custom_PledgeGaugeWidget_JSON(@Username: String(75), @PledgeCampaignID: Integer32)`
+- `api_Custom_Publication_Messages(@UserName: String(75), @PublicationID: Integer32, @MessageID: Integer32)`
+- `api_custom_StaffWidget(@UserName: String(75))`
+- `api_Custom_VBSHub(@UserName: String(75))`
+- `api_DeleteRecurringDonations(@SubscriptionCode: String(50))`
+- `api_FindMatchingContact(@FirstName: String(50), @LastName: String(50), @CompanyName: String(50), @Suffix: String(10), @Phone: String(50), @Address: String(50), @City: String(50), @State: String(2), @Zip: String(25), @CongregationID: Integer32, @CreateParticipant: Boolean, @CreateDonor: Boolean, @DonorAccountID: Integer32)`
+- `api_GetBatchSummaryData(@BatchID: Integer32)`
+- `api_GetEventProducts(@ProductID: Integer32)`
+- `api_GetInvoiceDetailData(@Invoice_ID: Integer32)`
+- `api_GetPurchaseHistoryData(@ContactID: Integer32, @Month: Integer32, @Year: Integer32)`
+- `api_GetUserInfo(@User_ID: Integer32)`
+- `api_GetUserRoles(@UserID: Integer32)`
+- `api_GroupConnect_CreateOrUpdateGroupEventParticipantRSVP(@Event_ID: Integer32, @Participant_ID: Integer32, @Event_Participant_ID: Integer32, @Group_Participant_ID: Integer32, @Participation_Status_ID: Integer32, @Group_ID: Integer32, @RSVP_Status_ID: Integer32, @Notes: String(4000), @UserId: Integer32, @UserName: String(255))`
+- `api_GroupConnect_GetEventsAndSchedules(@GroupId: Integer32, @ViewablePastMonths: Integer32)`
+- `api_GroupConnect_GetGroupApplicants(@GroupId: Integer32)`
+- `api_GroupConnect_GetGroupDetails(@ImageBaseUrl: String(255), @GroupId: Integer32, @UserId: Integer32)`
+- `api_GroupConnect_GetGroupInfoBySchedule(@ScheduleIds: Integers)`
+- `api_GroupConnect_GetGroupMeetings(@GroupId: Integer32, @EventId: Integer32, @UserId: Integer32, @ImageBaseUrl: String(255))`
+- `api_GroupConnect_GetGroupMembers(@GroupId: Integer32)`
+- `api_GroupConnect_GetGroupRoles(@GroupId: Integer32)`
+- `api_GroupConnect_GetGroupRsvp(@GroupId: Integer32, @EventId: Integer32, @RSVP_Status_ID: Integer32)`
+- `api_GroupConnect_GetGroupSchedules(@GroupId: Integer32, @ViewablePastMonths: Integer32)`
+- `api_GroupConnect_GetGroupSchedulesAttendance(@GroupId: Integer32)`
+- `api_GroupConnect_GetMeetingAttendees(@MeetingId: Integer32, @GroupId: Integer32)`
+- `api_GroupConnect_GetMeetingEvent(@Group_ID: Integer32, @Event_ID: Integer32)`
+- `api_GroupConnect_GetMeetingSchedule(@Group_ID: Integer32, @Sequence_ID: Integer32)`
+- `api_GroupConnect_GetMyGroups(@ContactId: Integer32, @ImageBaseUrl: String(255))`
+- `api_GroupConnect_GetNotMarkedAttendanceCount(@GroupId: Integer32)`
+- `api_GroupConnect_GetPendingMembers(@GroupId: Integer32)`
+- `api_GroupConnect_GetScheduleAvailableContacts(@ScheduleIds: Integers)`
+- `api_GroupConnect_GetScheduledMembers(@StartDate: DateTime, @EndDate: DateTime)`
+- `api_GroupConnect_GetScheduleParticipants(@ScheduleId: Integer32)`
+- `api_GroupConnect_GetScheduleRoles(@ScheduleId: Integer32)`
+- `api_GroupConnect_GetSelfSignUpAssignments(@ContactId: Integer32)`
+- `api_GroupConnect_GetUniqueNonSequenceMeetings(@GroupId: Integer32)`
+- `api_GroupConnect_GetUniqueSequenceMeetings(@GroupId: Integer32)`
+- `api_GroupConnect_GetVolunteerAssignments(@ContactId: Integer32)`
+- `api_GroupConnect_GetVolunteerTeams(@ContactId: Integer32)`
+- `api_GroupConnect_ResetStatus(@EventId: Integer32)`
+- `api_GroupConnect_UpdateGroupParticipantPrivacy(@UserId: Integer32, @UserName: String(254), @GroupParticipantId: Integer32, @ShowBirthday: Boolean, @ShowEmail: Boolean, @ShowHomePhone: Boolean, @ShowMobilePhone: Boolean, @ShowAddress: Boolean, @ShowPhoto: Boolean)`
+- `api_GroupLife_GetGroupApplicants(@GroupId: Integer32)`
+- `api_GroupLife_GetGroupDetails(@ImageBaseUrl: String(255), @GroupId: Integer32, @UserId: Integer32)`
+- `api_GroupLife_GetGroupMeetings(@GroupId: Integer32, @EventId: Integer32, @ImageBaseUrl: String(255))`
+- `api_GroupLife_GetGroupMembers(@GroupId: Integer32)`
+- `api_GroupLife_GetGroupRsvp(@GroupId: Integer32, @EventId: Integer32, @RSVP_Status_ID: Integer32)`
+- `api_GroupLife_GetMeetingAttendees(@MeetingId: Integer32, @GroupId: Integer32)`
+- `api_GroupLife_GetMyGroups(@ContactId: Integer32, @ImageBaseUrl: String(255))`
+- `api_GroupLife_GetPendingMembers(@GroupId: Integer32)`
+- `api_GroupLife_UpdateGroupParticipantPrivacy(@UserId: Integer32, @UserName: String(254), @GroupParticipantId: Integer32, @ShowBirthday: Boolean, @ShowEmail: Boolean, @ShowHomePhone: Boolean, @ShowMobilePhone: Boolean, @ShowAddress: Boolean, @ShowPhoto: Boolean)`
+- `api_ImportDonation(@AccountNumber: String(50), @RoutingNumber: String(50), @EnvelopeNumber: String(15), @DonationAmount: Money, @DonationDate: DateTime, @PaymentTypeID: Integer32, @ItemNumber: String(15), @BatchID: Integer32, @DefaultProgramID: Integer32, @Notes: String(255))`
+- `api_Integrations_GetChangedContactData(@FromDateTime: DateTime, @ToDateTime: DateTime)`
+- `api_Integrations_GetChangedGroupParticipantData(@FromDateTime: DateTime, @ToDateTime: DateTime)`
+- `api_Integrations_GetChangedParticipantMilestones(@FromDateTime: DateTime, @ToDateTime: DateTime)`
+- `api_ListSync_AddSubscriber(@ContactID: Integer32, @PublicationID: Integer32, @SyncedListName: String(255))`
+- `api_ListSync_GetLists(no parameters)`
+- `api_ListSync_GetListSubscribers(@PublicationID: Integer32)`
+- `api_ListSync_RemoveSubscriber(@ContactID: Integer32, @PublicationID: Integer32)`
+- `api_MatchOrCreateContact(@FirstName: String(50), @LastName: String(50), @EmailAddress: String(255), @PhoneNumber: String(25), @Address: String(75), @City: String(50), @State: String(2), @Zip: String(15))`
+- `api_MOBILE_Dashboard_Kid(no parameters)`
+- `api_MOBILE_GetCareCaseDetail(@careCaseID: Integer32)`
+- `api_MOBILE_GetCareCases(@showAll: Boolean)`
+- `api_MOBILE_GetContactCustomFieldValue(@lookUpField: String(1000), @recordID: Integer32)`
+- `api_MOBILE_GetIncomeData(@statementHeaderID: Integer32, @year: Integer32)`
+- `api_MOBILE_GetMonthAndYearData(no parameters)`
+- `api_MOBILE_GetPersonFiles(@contactID: Integer32)`
+- `api_MOBILE_GetYearGivingByType(@year: Integer32)`
+- `api_MOBILE_PersonLookup(@searchItem: String(50), @searchItem2: String(50))`
+- `api_MPP_DeleteEventGroup(@EventID: Integer32, @GroupID: Integer32)`
+- `api_MPP_DeleteMeetingParticipants(@EventParticipantID: Integer32)`
+- `api_MPP_DeleteRecurringDonations(@SubscriptionCode: String(50))`
+- `api_MPP_DeleteSubscriptions(@ContactID: Integer32)`
+- `api_MPP_EndDateAttributes(@ContactID: Integer32)`
+- `api_MPP_FindContactsByEmail(@EmailAddress: String(150))`
+- `api_MPP_FindGroupMembers(@FirstName: String(25), @LastName: String(25), @EmailAddress: String(254), @MobilePhone: String(50))`
+- `api_MPP_FindMatchingContact(@FirstName: String(50), @LastName: String(50), @Suffix: String(10), @EmailAddress: String(150), @Phone: String(50), @RequireEmail: Boolean)`
+- `api_MPP_FindUserByContactEmail(@EmailAddress: String(150))`
+- `api_MPP_FindUserByUsername(@Username: String(150))`
+- `api_MPP_GetAccountingCompanies(@CongregationID: Integer32)`
+- `api_MPP_GetAttributes(@ContactID: Integer32)`
+- `api_MPP_GetBackgroundCheckByReferenceNumber(@ReferenceNumber: String(40))`
+- `api_MPP_GetCampusesMinistriesAndPurposes(@IsOnlineGiving: Boolean, @CongregationID: Integer32)`
+- `api_MPP_GetCommunication(@CommunicationID: Integer32)`
+- `api_MPP_GetContactByGUID(@ContactGUID: String(40))`
+- `api_MPP_GetContactData(@ContactID: Integer32)`
+- `api_MPP_GetContactFormData(@ContactID: Integer32)`
+- `api_MPP_GetContactLogTypes(no parameters)`
+- `api_MPP_GetCountries(no parameters)`
+- `api_MPP_GetCurrencies(no parameters)`
+- `api_MPP_GetDirectory(@UserContactID: Integer32, @SearchTerm: String(25), @StartsWith: String(1), @HouseholdID: Integer32, @PageNumber: Integer32)`
+- `api_MPP_GetDonationBySubscriptionCode(@TransactionID: String(50))`
+- `api_MPP_GetDonationByTransactionCode(@TransactionID: String(50))`
+- `api_MPP_GetDonorData(@ContactID: Integer32, @DonorID: Integer32)`
+- `api_MPP_GetEncryptionKey(no parameters)`
+- `api_MPP_GetEventByID(@EventID: Integer32)`
+- `api_MPP_GetEventFinderData(no parameters)`
+- `api_MPP_GetEventProducts(@ProductID: Integer32)`
+- `api_MPP_GetEvents(@Year: Integer32, @Month: Integer32, @Ministry: Integer32, @Congregation: Integer32, @HasRegistrations: Boolean, @HasVolunteerOpportunities: Boolean, @FeaturedEvents: Boolean, @GlobalCongregationID: Integer32, @ProgramID: Integer32)`
+- `api_MPP_GetEvents_backup(@Year: Integer32, @Month: Integer32, @Ministry: Integer32, @Congregation: Integer32, @HasRegistrations: Boolean)`
+- `api_MPP_GetEvents2(@Year: Integer32, @Month: Integer32, @Ministry: Integer32, @Congregation: Integer32, @HasRegistrations: Boolean, @HasVolunteerOpportunities: Boolean, @FeaturedEvents: Boolean, @GlobalCongregationID: Integer32)`
+- `api_MPP_GetFamilyMembers(@UserID: Integer32)`
+- `api_MPP_GetForm(@FormGUID: String(40))`
+- `api_MPP_GetGroupByID(@GroupID: Integer32)`
+- `api_MPP_GetGroupFinderData(@CongregationID: Integer32)`
+- `api_MPP_GetGroups(@GroupTypeID: Integer32, @CongregationID: Integer32, @ParentGroupID: Integer32, @ZipCode: String(15), @KeyWord: String(25), @GroupFocus: Integer32, @LifeStage: Integer32, @Sun: Boolean, @Mon: Boolean, @Tue: Boolean, @Wed: Boolean, @Thu: Boolean, @Fri: Boolean, @Sat: Boolean, @Morning: Boolean, @LunchTime: Boolean, @Afternoon: Boolean, @Evening: Boolean, @MinistryID: Integer32, @GlobalCongregationID: Integer32)`
+- `api_MPP_GetGroupsBySurvey(@ContactID: Integer32, @SurveyData: Xml)`
+- `api_MPP_GetInvoiceDetailData(@InvoiceID: Integer32)`
+- `api_MPP_GetMakeAPledgeCampaigns(@PledgeCampaignTypeID: Integer32, @PledgeCampaignID: Integer32)`
+- `api_MPP_GetMeetingParticipants(@EventID: Integer32, @GroupID: Integer32, @ContactID: Integer32, @PendingGroupRoleID: Integer32)`
+- `api_MPP_GetMissionTripParticipants(@CampaignID: Integer32)`
+- `api_MPP_GetMissionTrips(@MissionTripCampaignTypeID: Integer32)`
+- `api_MPP_GetMissionTripsForRegistration(@ContactID: Integer32, @MissionTripCampaignTypeID: Integer32, @PledgeCampaignID: Integer32, @SearchString: String(75))`
+- `api_MPP_GetMyCalls(@ContactID: Integer32)`
+- `api_MPP_GetMyCallsByID(@ContactID: Integer32, @ContactLogID: Integer32)`
+- `api_MPP_GetMyEventByID(@EventID: Integer32, @GroupID: Integer32, @ContactID: Integer32)`
+- `api_MPP_GetMyEvents(@ContactID: Integer32, @FromDate: DateTime, @ToDate: DateTime)`
+- `api_MPP_GetMyGroupByID(@GroupID: Integer32, @ContactID: Integer32, @Year: Integer32, @Month: Integer32, @PendingGroupRoleID: Integer32)`
+- `api_MPP_GetMyGroupInquiries(@GroupID: Integer32, @GroupInquiryID: Integer32)`
+- `api_MPP_GetMyGroupMemberByID(@GroupID: Integer32, @GroupParticipantID: Integer32)`
+- `api_MPP_GetMyGroupMembers(@GroupID: Integer32)`
+- `api_MPP_GetMyGroups(@ContactID: Integer32)`
+- `api_MPP_GetMyMissionTripByID(@PledgeID: Integer32, @ContactID: Integer32)`
+- `api_MPP_GetMyMissionTripDonors(@PledgeID: Integer32, @ContactID: Integer32)`
+- `api_MPP_GetMyMissionTrips(@ContactID: Integer32, @MissionTripCampaignTypeID: Integer32)`
+- `api_MPP_GetMyPledges(@ContactID: Integer32)`
+- `api_MPP_GetMyPublications(@ContactID: Integer32)`
+- `api_MPP_GetNewMeetingData(@GroupID: Integer32, @ContactID: Integer32)`
+- `api_MPP_GetOnlineGivingHistory(@ContactID: Integer32, @Month: Integer32, @Year: Integer32, @ReturnImages: Boolean)`
+- `api_MPP_GetOnlineGivingStatement(@ContactID: Integer32, @StmtYr: Integer32, @AccountingCompanyID: Integer32)`
+- `api_MPP_GetOnlineGivingYears(@ContactID: Integer32)`
+- `api_MPP_GetOpportunities(@Ministry: Integer32, @Congregation: Integer32, @SearchTerm: String(25), @EventID: Integer32, @GroupRoleID: Integer32, @GlobalCongregationID: Integer32)`
+- `api_MPP_GetOpportunitiesBySurvey(@ContactID: Integer32, @SurveyData: Xml)`
+- `api_MPP_GetOpportunityByID(@OpportunityID: Integer32)`
+- `api_MPP_GetOpportunityFinderLookupData(@CongregationID: Integer32, @MinistryID: Integer32, @GroupRoleID: Integer32, @EventID: Integer32)`
+- `api_MPP_GetOpportunityFinderResults(@Ministry: Integer32, @Congregation: Integer32, @SearchTerm: String(25), @EventID: Integer32, @GroupRoleID: Integer32)`
+- `api_MPP_GetParentGroups(@CongregationID: Integer32, @GroupTypeID: Integer32)`
+- `api_MPP_GetPasswordResetData(@EmailAddress: String(150))`
+- `api_MPP_GetPaymentByTransactionCode(@TransactionID: String(50))`
+- `api_MPP_GetPaymentsByPaymentDetailID(@PaymentDetailID: Integer32)`
+- `api_MPP_GetPledgeCampaigns(@CongregationID: Integer32)`
+- `api_MPP_GetProductsAndOptions(@ProductID: Integer32, @EventID: Integer32, @IgnoreQuantities: Boolean)`
+- `api_MPP_GetPromoCode(@PromoCode: String(20), @ProductID: Integer32, @EventID: Integer32)`
+- `api_MPP_GetPurchaseHistoryData(@ContactID: Integer32, @Month: Integer32, @Year: Integer32)`
+- `api_MPP_GetRSVPContacts(@GroupID: Integer32, @ParticipantData: Xml)`
+- `api_MPP_GetSuffixes(no parameters)`
+- `api_MPP_GetTransactionByTransactionCode(@TransactionID: String(40))`
+- `api_MPP_GetUserByUserName(@UserName: String(50))`
+- `api_MPP_GetUserData(@ContactID: Integer32)`
+- `api_MPP_UpdateRSVP(@EventID: Integer32, @ContactGUID: String(40), @RSVPResponse: String(10), @RSVPYesStatus: Integer32, @RSVPNoStatus: Integer32, @RSVPMaybeStatus: Integer32)`
+- `api_MPPW_CleanAbandonedGroupParticipants(@GroupParticipantId: Integer32)`
+- `api_MPPW_GetContactInfo(@ImageBaseUrl: String(255), @UserId: Integer32)`
+- `api_MPPW_GetDonationSubtotal(@PledgeCampaignID: Integer32)`
+- `api_MPPW_GetEventById(@EventId: Integer32, @ImageBaseUrl: String(255), @IsStaffUser: Boolean)`
+- `api_MPPW_GetEvents(@ImageBaseUrl: String(255), @EventIds: Integers)`
+- `api_MPPW_GetFieldLists(no parameters)`
+- `api_MPPW_GetInvoice(@InvoiceGuid: String(40))`
+- `api_MPPW_GetMyContributionStatements(@ContactId: Integer32)`
+- `api_MPPW_GetMyGivingHistory(@ContactId: Integer32, @Year: Integer32, @Month: Integer32)`
+- `api_MPPW_GetMyGroups(@UserId: Integer32, @ImageBaseUrl: String(255))`
+- `api_MPPW_GetMyInvoices(@ContactId: Integer32, @ImageBaseUrl: String(255))`
+- `api_MPPW_GetMyMissionTripDonors(@PledgeCampaignTypeId: Integer32, @UserId: Integer32, @ImageBaseUrl: String(255))`
+- `api_MPPW_GetMyMissionTrips(@UserId: Integer32, @PledgeCampaignTypeId: Integer32, @ImageBaseUrl: String(255))`
+- `api_MPPW_GetMyMissionTripTeamProgress(@UserId: Integer32, @PledgeCampaignTypeId: Integer32, @ImageBaseUrl: String(255))`
+- `api_MPPW_GetMyPledges(@UserId: Integer32, @ImageBaseUrl: String(255))`
+- `api_MPPW_GetPledgeCampaign(@PledgeCampaignId: Integer32, @IsMissionTrip: Boolean, @ImageBaseUrl: String(255))`
+- `api_MPPW_GetPreCheckEvents(@HouseholdID: Integer32, @EventDate: DateTime)`
+- `api_MPPW_GetProduct(@ProductID: Integer32, @EventId: Integer32, @EventParticipantId: Integer32)`
+- `api_MPPW_GetRsvpEvents(@UserID: Integer32, @EventDate: DateTime)`
+- `api_MPPW_GetRsvpEventsSummary(@UserID: Integer32, @StartDate: DateTime, @EndDate: DateTime)`
+- `api_MPPW_GetUnpaidInvoiceDetails(@InvoiceId: Integer32)`
+- `api_MPPW_SearchEvents(@CongregationId: Integer32, @MinistryId: Integer32, @EventTypeId: Integer32, @ProgramId: Integer32, @SignupType: Integer32, @IsFeatured: Boolean, @Keyword: String(50), @IsStaffUser: Boolean, @MonthId: Byte)`
+- `api_MPPW_SearchGroups(@ImageBaseUrl: String(255), @GroupId: Integer32, @GroupTypeId: Integer32, @UserId: Integer32, @CongregationId: Integer32, @MinistryId: Integer32, @ParentGroupId: Integer32, @GroupFocusId: Integer32, @LifeStageId: Integer32, @CityPostalCode: String(25), @Keyword: String(50), @DaysOfWeek: String(20), @Morning: Boolean, @Lunchtime: Boolean, @Afternoon: Boolean, @Evening: Boolean, @ShowFullGroups: Boolean, @CountGroupInquiries: Boolean, @ShowFutureGroups: Boolean, @ShowFullAddress: Boolean, @MeetsOnline: Boolean)`
+- `api_MPPW_SearchMissionTrips(@PledgeCampaignTypeId: Integer32, @CongregationId: Integer32, @MinistryId: Integer32, @ProgramId: Integer32, @Keyword: String(50), @ShowFullTrips: Integer32, @ImageBaseUrl: String(255), @MaxResults: Integer32)`
+- `api_MPPW_SearchOpportunities(@ImageBaseUrl: String(255), @CongregationId: Integer32, @MinistryId: Integer32, @ProgramId: Integer32, @IsStaffUser: Boolean, @EventId: Integer32, @GenderId: Integer32, @MinimumAge: Integer32, @Keyword: String(50), @Frequency: Byte, @AttributeIDs: String(512))`
+- `api_MPPW_SearchSubscriptions(@ContactId: Integer32, @ImageBaseUrl: String(255), @SearchTerm: String(25), @CongregationFilter: Integer32)`
+- `api_OGCC_GetAddressByUserId(@UserID: Integer32)`
+- `api_OGCC_GetEncryptionKey(no parameters)`
+- `api_OGCC_GetPledgeCampainsWithPledges(no parameters)`
+- `api_OGCC_GetProgramsAndPaymentTypes(no parameters)`
+- `api_PAPP_GetContact_JSON(@contactGUID: String(256))`
+- `api_PAPP_VolunteerBirthdays_JSON(no parameters)`
+- `api_PocketPlatform_Device_Updater(no parameters)`
+- `api_PocketPlatform_Set_LatestSermonDate(no parameters)`
+- `api_Tools_AppendSelection(@SelectionID: Integer32, @IDs: Text)`
+- `api_Tools_CheckExistenceOfSelectionById(@SelectionId: Integer32)`
+- `api_Tools_CheckExistenceOfSelectionByName(@Name: String(128), @PageID: Integer32, @UserID: Integer32)`
+- `api_Tools_ClearSelectedRecords(@SelectionId: Integer32, @RecordId: Integer32)`
+- `api_Tools_CreateAuditOnBehalfOfUser(@TableName: String(50), @RecordID: Integer32, @AuditDescription: String(50), @UserID: Integer32, @FieldName: String(50), @FieldLabel: String(50), @PreviousValue: Text, @NewValue: Text, @PreviousID: Integer32, @NewID: Integer32)`
+- `api_Tools_CreateContactIdentifierLogEntry(@ContactID: Integer32, @RecordIds: Integers, @UserId: Integer32)`
+- `api_Tools_CreateHouseholdIdentifierLogEntry(@HouseholdID: Integer32, @RecordIds: Integers, @UserId: Integer32)`
+- `api_Tools_CreateSelection(@Name: String(50), @IDs: Text, @PageID: Integer32, @UserID: Integer32)`
+- `api_Tools_DeleteUsers(@UserIds: String(4000))`
+- `api_Tools_GetAgeGroups(@ParticipantID: Integer32, @AgeGroupTypeID: Integer32)`
+- `api_Tools_GetBatchedDonationDistributions(@SelectionId: Integer32, @BatchId: Integer32)`
+- `api_Tools_GetContactsBackground(@ContactIds: String(255))`
+- `api_Tools_GetDefaultEventParticipants(@EventId: Integer32)`
+- `api_Tools_GetDepositDataToExportToRealmAccounting(@DepositID: Integer32)`
+- `api_Tools_GetDomainData(no parameters)`
+- `api_Tools_GetDonationPossibleMatches(@FirstName: String(50), @LastName: String(50), @Phone: String(25), @Email: String(255), @AddressLine1: String(75), @DateOfBirth: String(10))`
+- `api_Tools_GetGroupAttendance(@EventId: Integer32, @GroupId: Integer32)`
+- `api_Tools_GetHouseholdsWithHeads(@Search: Text)`
+- `api_Tools_GetMatchingPrograms(@Program_ID: Integer32, @Program_Name: String(130), @Account_Number: String(25), @Congregation: Integer32)`
+- `api_Tools_GetMergeTags(@PageId: Integer32)`
+- `api_Tools_GetOrphanedHouseholds(@DeleteContactIds: String(4000))`
+- `api_Tools_GetPageData(@PageID: Integer32)`
+- `api_Tools_GetPagesDataByNamesList(@Names: Text)`
+- `api_Tools_GetParticipantSacramentDetails(@PageId: Integer32, @RecordId: Integer32, @SelectionId: Integer32)`
+- `api_Tools_GetProduct(@ProductId: Integer32)`
+- `api_Tools_GetRecordSequenceId(@TableName: String(64), @RecordId: Integer32)`
+- `api_Tools_GetRoleAccessLevelForPages(@RoleId: Integer32)`
+- `api_Tools_GetRoleAccessLevelForSubPages(@RoleId: Integer32)`
+- `api_Tools_GetRoleAPIProcedures(@RoleId: Integer32)`
+- `api_Tools_GetRolePages(@RoleId: Integer32)`
+- `api_Tools_GetSelectedBatchSummaries(@SelectionId: Integer32, @BatchId: Integer32)`
+- `api_Tools_GetSelectedContacts(@SelectionId: Integer32, @SelectFields: String(4000))`
+- `api_Tools_GetSelectedDonations(@SelectionId: Integer32, @DonationId: Integer32)`
+- `api_Tools_GetSelectedDonationsSummary(@SelectionId: Integer32, @DonationId: Integer32)`
+- `api_Tools_GetSelectedEventParticipants(@EventId: Integer32)`
+- `api_Tools_GetSelectedPaymentsSummary(@SelectionId: Integer32, @PaymentId: Integer32)`
+- `api_Tools_GetSelectedRecords(@SelectionId: Integer32)`
+- `api_Tools_GetSelectionsByPageId(@PageID: Integer32, @UserID: Integer32)`
+- `api_Tools_GetSequenceRecords(@TableName: String(64), @SequenceId: Integer32)`
+- `api_Tools_GetSimilarContactCounts(@ContactId: Integer32)`
+- `api_Tools_GetSimilarContacts(@ContactId: Integer32, @SelectionId: Integer32)`
+- `api_Tools_GetSimilarHouseholdCounts(no parameters)`
+- `api_Tools_GetSimilarHouseholds(@HouseholdId: Integer32, @SelectionId: Integer32)`
+- `api_Tools_GetSubpageByTableNames(@TargetTableName: String(255), @ParentTableName: String(255))`
+- `api_Tools_GetTableForeignKeys(@TableName: String(64), @ColumnName: String(64))`
+- `api_Tools_GetTemplate(@TemplateId: Integer32, @UserId: Integer32)`
+- `api_Tools_GetUserPages(@UserId: Integer32)`
+- `api_Tools_GetUsers(@SearchTerm: String(50))`
+- `api_Tools_GetUserSelections(@UserID: Integer32)`
+- `api_Tools_GetUserTemplates(@UserId: Integer32, @CurrentTemplateId: Integer32)`
+- `api_Tools_GetUserTools(@UserId: Integer32)`
+- `api_Tools_LoadFormById(@FormId: Integer32)`
+- `api_Tools_MoveFilesToAnotherRecord(@PageName: String(64), @PrimaryRecordId: Integer32, @RecordIds: String(4000))`
+- `api_Tools_NextAvailableEnvelopeNumber(@NumberOfEnvelopes: Integer32, @ContactID: Integer32, @CongregationID: Integer32)`
+- `api_Tools_PostContactMergeCleanUp(@ContactID: Integer32)`
+- `api_Tools_ReassignUserToContactId(@UserId: Integer32, @ContactId: Integer32)`
+- `api_Tools_RemoveIdenticalGlobalFilter(@RecordIds: Integers, @UserId: Integer32)`
+- `api_Tools_RemoveIdenticalUserGroup(@RecordIds: Integers, @UserId: Integer32)`
+- `api_Tools_RemoveIdenticalUserRole(@RecordIds: Integers, @UserId: Integer32)`
+- `api_Tools_RemoveRecordsFromSelection(@SelectionId: Integer32, @RecordIds: Text)`
+- `api_Tools_RemoveSelection(@SelectionID: Integer32)`
+- `api_Tools_RemoveUserDuplicates(@PrimaryUserId: Integer32, @UserIds: String(4000))`
+- `api_Tools_ReplaceSelectionRecord(@TableName: String(64), @PrimaryRecordId: Integer32, @ReplaceRecordId: Integer32)`
+- `api_Tools_ResetContactGuids(@ContactID: Integer32, @UserID: Integer32)`
+- `api_Tools_SearchEventsWithDefaultParticipants(@SearchTerm: Text)`
+- `api_Tools_UpdateCertificationGUID(@ParticipantCertificationId: Integer32, @CertificationGUID: String(100))`
+- `api_Tools_UpdateTableForeignKeys(@TableName: String(75), @ColumnName: String(64), @PrimaryRecordId: Integer32, @RecordIds: String(4000), @UserId: Integer32)`
+- `api_Tools_User_Page_Access(@UserId: Integer32, @TableName: String(255), @PageName: String(255))`
+- `api_UpdateDonationInfo(@DonationID: Integer32, @ContactID: Integer32, @DonorID: Integer32, @Amount1: Money, @Amount2: Money, @Amount3: Money, @Amount4: Money, @Program1: Integer32, @Program2: Integer32, @Program3: Integer32, @Program4: Integer32, @Event1: Integer32, @Event2: Integer32, @Event3: Integer32, @Event4: Integer32, @DonorAccountID: Integer32)`
+- `api_UpDateInvoiceStatus(@Invoice_ID: Integer32, @Invoice_Status: Integer32)`
+- `api_Upgrade_GetFileList(no parameters)`
+- `api_XMLTool_GetBatchSummaryData(@BatchID: Integer32)`
+- `api_XMLTool_GetDonationData(@DonationID: Integer32)`
+- `api_XMLTool_ImportDonation(@AccountNumber: String(50), @RoutingNumber: String(50), @EnvelopeNumber: String(15), @DonationAmount: Money, @DonationDate: DateTime, @PaymentTypeID: Integer32, @ItemNumber: String(15), @BatchID: Integer32, @DefaultProgramID: Integer32, @Notes: String(255))`
+- `api_XMLTool_LookupDonor(@SearchTerm: String(50))`
+- `api_XMLTool_UpdateDonationInfo(@DonationID: Integer32, @ContactID: Integer32, @DonorID: Integer32, @Amount1: Money, @Amount2: Money, @Amount3: Money, @Amount4: Money, @Program1: Integer32, @Program2: Integer32, @Program3: Integer32, @Program4: Integer32, @Event1: Integer32, @Event2: Integer32, @Event3: Integer32, @Event4: Integer32, @DonorAccountID: Integer32)`
+
+### service_* (2)
+
+- `service_data_quality_assign_pledge(@BatchId: Integer32)`
+- `service_notification_attendance(no parameters)`
+
+### util_* (4)
+
+- `util_CreateContact(@UpdateExisting: Boolean, @IgnoreDupes: Boolean, @FirstName: String(50), @LastName: String(50), @DateOfBirth: Date, @EmailAddress: String(255), @MobilePhone: String(25), @HomePhone: String(25), @AddressLine1: String(75), @AddressLine2: String(75), @City: String(50), @State: String(50), @Zip: String(15), @CongregationID: Integer32, @DoNotContact: Boolean, @InternalKey: String(24))`
+- `util_MergeSecurityRoles(@RoleID2Keep: Integer32, @RoleID2Combine: Integer32)`
+- `util_mfa_key_configured(@hostName: String(255), @secureSettingId: Integer32)`
+- `util_migrate_Connection(@secureSettingId: Integer32, @domainConnectionId: Integer32)`
+
