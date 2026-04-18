@@ -23,7 +23,7 @@ This guide provides essential information for AI assistants (like Claude) workin
 
 - **Framework**: Next.js 16 (App Router, Turbopack) with React 19, TypeScript strict mode
 - **Ministry Platform Integration**: Custom provider at `src/lib/providers/ministry-platform/` with REST API client, auth, and type-safe models
-- **Auth**: Better Auth with Ministry Platform OAuth via genericOAuth plugin — see **[Auth Reference](.claude/references/auth.md)** for full details
+- **Auth**: Better Auth with Ministry Platform OAuth via genericOAuth plugin — see **[Auth Reference](.claude/references/auth/README.md)** for full details
   - **Key files**: `src/lib/auth.ts` (server config), `src/lib/auth-client.ts` (client), `src/proxy.ts` (route protection)
   - **Critical**: `session.user.id` is Better Auth's internal ID, NOT the MP User_GUID. Use `session.user.userGuid` for all MP API lookups.
   - **Stateless Sessions**: JWT cookie cache, no database; `customSession` does name splitting only (no API calls)
@@ -154,7 +154,7 @@ export default MyComponent;            // ❌ Avoid
 7. **Use TypeScript strict mode** - all code must be type-safe
 8. **Validate at API boundaries** - use Zod schemas with the `schema` parameter in `createTableRecords()` and `updateTableRecords()` for runtime validation
 9. **Use service classes in server actions** - call services from `src/services/`, not MPHelper directly from components or actions
-10. **Disambiguate ambiguous columns** - when querying tables with FK joins, prefix columns that exist in multiple tables (e.g., `Contacts.Contact_ID` not just `Contact_ID`). Use `FKColumn_TABLE.Column` to traverse foreign keys (e.g., `Contact_ID_TABLE.First_Name`). For multi-level FK traversal, chain with `_TABLE_` underscores and use a dot only before the final field (e.g., `Building_ID_TABLE_Location_ID_TABLE.Congregation_ID`). See **[Services Reference](.claude/references/services.md)** for full rules and examples.
+10. **Disambiguate ambiguous columns** - when querying tables with FK joins, prefix columns that exist in multiple tables (e.g., `Contacts.Contact_ID` not just `Contact_ID`). Use `FKColumn_TABLE.Column` to traverse foreign keys (e.g., `Contact_ID_TABLE.First_Name`). For multi-level FK traversal, chain with `_TABLE_` underscores and use a dot only before the final field (e.g., `Building_ID_TABLE_Location_ID_TABLE.Congregation_ID`). See **[Services query-patterns](.claude/references/services/query-patterns.md)** for full rules and examples.
 11. **Escape user input in filters** - always escape single quotes: `term.replace(/'/g, "''")`
 
 ## Validation Best Practices
@@ -202,17 +202,39 @@ await mp.createTableRecords('Contact_Log', records, {
 - **MPHelper mock**: Use mock class (`MPHelper: class { method = mockFn; }`), not `vi.fn().mockImplementation()`
 - **Singleton reset**: Reset `(ServiceClass as any).instance = undefined` in `beforeEach` to prevent state leakage
 - **Server action tests**: Mock `@/lib/auth` (`auth.api.getSession`), `next/headers` (`headers()`), and service singletons
-- See **[Testing Reference](.claude/references/testing.md)** for all mock patterns, coverage data, and test inventory
+- See **[Testing Reference](.claude/references/testing/README.md)** for all mock patterns, coverage data, and test inventory
 
 ## Reference Documents
 
-For detailed context on specific areas, see:
+Agent-facing reference docs are hierarchical under `.claude/references/`. Start with the index:
 
-- **[Auth Reference](.claude/references/auth.md)** - Better Auth configuration, OAuth flow, session access patterns, `userGuid` vs `user.id`, and known limitations
-- **[Components Reference](.claude/references/components.md)** - Detailed inventory of all components, their purposes, server actions, and compliance status
-- **[Services Reference](.claude/references/services.md)** - Service layer docs, MP query patterns, ambiguous column rules, `_TABLE` FK traversal, DTOs, constants, and server actions
-- **[Ministry Platform Schema](.claude/references/ministryplatform.schema.md)** - Auto-generated summary of Ministry Platform database tables, primary keys, and foreign key relationships
-- **[Ministry Platform Stored Procedures](.claude/references/ministryplatform.storedprocs.md)** - Auto-generated reference of stored procedures, parameters, data types, and directions
-- **[Required Stored Procedures](.claude/references/required-stored-procs.md)** - Stored procedures called by the app (`api_Tools_GetPageData`, `api_Common_GetSelection`, `api_Tools_GetUserTools`), parameters, return shapes, and call chain
-- **[Testing Reference](.claude/references/testing.md)** - Vitest setup, mock patterns (`vi.hoisted`, MPHelper, auth), coverage data, and test file inventory
-- **[TODO Items](.claude/TODO/)** - Known issues and improvements identified during code review
+- **[Reference Index](.claude/references/INDEX.md)** — top-level navigation: "for question X, read Y"
+- **[GLOSSARY](.claude/references/GLOSSARY.md)** — domain terms (alphabetized)
+- **[DECISIONS](.claude/references/DECISIONS.md)** — architectural decisions (ADRs)
+- **[GOTCHAS](.claude/references/GOTCHAS.md)** — known traps (symptom-first)
+
+### Domain subfolders
+
+| Domain | Entry point |
+|---|---|
+| auth | [`.claude/references/auth/README.md`](.claude/references/auth/README.md) |
+| mp-provider | [`.claude/references/mp-provider/README.md`](.claude/references/mp-provider/README.md) |
+| mp-schema (generated) | [`.claude/references/mp-schema/README.md`](.claude/references/mp-schema/README.md) |
+| services | [`.claude/references/services/README.md`](.claude/references/services/README.md) |
+| components | [`.claude/references/components/README.md`](.claude/references/components/README.md) |
+| contexts | [`.claude/references/contexts/README.md`](.claude/references/contexts/README.md) |
+| routing | [`.claude/references/routing/README.md`](.claude/references/routing/README.md) |
+| data-flow | [`.claude/references/data-flow/README.md`](.claude/references/data-flow/README.md) |
+| testing | [`.claude/references/testing/README.md`](.claude/references/testing/README.md) |
+| dto-constants | [`.claude/references/dto-constants/README.md`](.claude/references/dto-constants/README.md) |
+| utils | [`.claude/references/utils/README.md`](.claude/references/utils/README.md) |
+
+### Open TODOs
+
+- **[TODO Index](.claude/TODO/INDEX.md)** — all known issues by severity and tag
+- **[TODO Schema](.claude/TODO/SCHEMA.md)** — required format for new TODO files
+
+### Meta
+
+- [`.claude/references/_meta/conventions.md`](.claude/references/_meta/conventions.md) — writing rules
+- [`.claude/references/_meta/verification-rules.md`](.claude/references/_meta/verification-rules.md) — how to verify claims
