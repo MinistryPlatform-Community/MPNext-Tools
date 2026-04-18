@@ -1,7 +1,6 @@
 'use server';
 
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { requireDevSession } from './require-dev-session';
 import { ToolService } from '@/services/toolService';
 import type { ContactRecordResult } from '@/services/toolService';
 
@@ -11,8 +10,7 @@ export async function resolveContactRecords(
   contactIdField: string,
   recordIds: number[]
 ): Promise<ContactRecordResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.id) throw new Error('Unauthorized');
+  await requireDevSession('Dev panel');
 
   const toolService = await ToolService.getInstance();
   return toolService.resolveContactIds(tableName, primaryKey, contactIdField, recordIds);

@@ -142,7 +142,7 @@ export class ToolService {
 
   /**
    * Retrieves the record IDs from a Ministry Platform selection.
-   * Calls the api_CloudTools_GetSelection stored procedure.
+   * Calls the api_Common_GetSelection stored procedure.
    *
    * @param selectionId - The Selection ID
    * @param userId - The Ministry Platform User ID
