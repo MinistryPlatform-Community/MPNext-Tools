@@ -4,6 +4,7 @@ type: index
 last_updated: 2026-04-18
 ---
 
+
 # TODO Index
 
 All open TODOs dropped during the context-engineering review (2026-04-17) and any later additions. Severity tiers:
@@ -13,7 +14,7 @@ All open TODOs dropped during the context-engineering review (2026-04-17) and an
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **34 open TODOs**.
+Total: **33 open TODOs**.
 
 ---
 
@@ -25,10 +26,9 @@ _none open_
 ### High
 _none open_
 
-### Medium (11)
+### Medium (10)
 | Area | Tags | Title | File |
 |---|---|---|---|
-| auth | missing-test | No test coverage for `/signin` page OAuth redirect | [→](2026-04-17-auth-missing-signin-page-test.md) |
 | components | bug, drift | Template editor ignores pageID/recordID (no MP persistence) | [→](2026-04-17-components-template-editor-no-mp-persistence.md) |
 | components | bug, refactor | Merge tokens `{{Field_Name}}` have no resolver anywhere | [→](2026-04-17-components-template-editor-merge-token-resolver.md) |
 | components | bug | Group wizard edit mode does not seed contact/group display maps | [→](2026-04-17-components-group-wizard-display-map-edit-mode.md) |
@@ -82,8 +82,7 @@ _see severity sections above; tag appears on items involving a functional defect
 ### drift (10)
 _doc-to-code or doc-to-doc divergence; mostly resolved inline by Phase 4 verification_
 
-### missing-test (8)
-- auth-missing-signin-page-test — medium
+### missing-test (7)
 - components-group-wizard-missing-tests — medium
 - components-template-editor-missing-tests — medium
 - utils-tool-params-missing-test — medium
@@ -108,7 +107,7 @@ _documentation-only tasks, mostly retiring old flat files or updating CLAUDE.md 
 | Area | Count |
 |---|---|
 | components | 12 |
-| auth | 2 |
+| auth | 1 |
 | mp-provider | 5 |
 | services | 4 |
 | utils | 3 |
