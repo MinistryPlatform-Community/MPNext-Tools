@@ -1,8 +1,23 @@
-# Ministry Platform Stored Procedures Reference
+---
+title: Ministry Platform Stored Procedures
+domain: mp-schema
+type: generated-reference
+last_verified: 2026-04-17
+source: npm run mp:generate:storedprocs
+---
 
-This document provides a summary of stored procedures available via the Ministry Platform API for LLM assistants working on the MPNext project.
+## Purpose
+Auto-generated reference of every Ministry Platform stored procedure exposed via the MP API, with its input parameters and bounded string sizes. Regenerate with `npm run mp:generate:storedprocs` (runs `src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts`).
 
-**Generated:** 2026-04-16T02:10:03.119Z
+## How to call
+- HTTP: `POST /procs/{procName}` with JSON body `{ "@ParamName": value, ... }` (or GET for simple query params).
+- Code: use `MPHelper.executeProcedure()` / `executeProcedureWithBody()` (`src/lib/providers/ministry-platform/helper.ts`), which delegate to `ProcedureService`.
+- Return shape: `unknown[][]` — an array of result sets, each an array of row objects.
+- `@DomainID` is auto-injected by the MP API — do not pass it.
+
+## Generated metadata
+
+**Generated (source):** 2026-04-16T02:10:03.119Z
 **Procedures:** 532
 
 ---

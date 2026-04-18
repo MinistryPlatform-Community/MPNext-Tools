@@ -1,6 +1,17 @@
-# Ministry Platform Schema Reference
+---
+title: Ministry Platform Schema — Tables
+domain: mp-schema
+type: generated-reference
+last_verified: 2026-04-17
+source: npm run mp:generate:models
+---
 
-**Generated:** 2026-04-16T02:07:32.640Z | **Tables:** 301
+## Purpose
+Auto-generated catalog of Ministry Platform tables, primary keys, and foreign key relationships. Regenerate with `npm run mp:generate:models` (runs `src/lib/providers/ministry-platform/scripts/generate-types.ts` with `--clean --zod`, emitting to `src/lib/providers/ministry-platform/models/`).
+
+## Generated metadata
+
+**Generated (source):** 2026-04-16T02:07:32.640Z | **Tables:** 301
 
 **Type files:** `src/lib/providers/ministry-platform/models/{PascalCaseTableName}.ts` and `{PascalCaseTableName}Schema.ts`
 **Access:** R=Read, RW=ReadWrite, RWAD=ReadWriteAssignDelete
@@ -909,4 +920,3 @@ PK: `Z_Form_Notifications_ID`
 
 ### Z_Opp_Notifications [R] [None]
 PK: `Z_Opp_Notifications_ID`
-

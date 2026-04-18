@@ -73,13 +73,13 @@ When referencing a GitHub issue:
 
 Closes #<issue-id>
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
 
 ## Notes
 
 - Always push the new branch to remote with `-u` flag to set upstream tracking
 - Follow conventional commit format if the project uses it
-- Include "Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>" in commits
+- Include "Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>" in commits
 - Use "Closes #<id>" in commit body to auto-close the issue when merged
 - If `gh` CLI is not available or issue fetch fails, fall back to manual input
