@@ -72,6 +72,13 @@ function filterAndTransform(
       continue;
     }
 
+    // Household mode requires a Household_ID for reliable dedup.
+    // Without it, we cannot guarantee unique households, so skip the record.
+    if (config.addressMode === 'household' && !row.Household_ID) {
+      skipped.push({ name, contactId: row.Contact_ID, reason: 'no_household' });
+      continue;
+    }
+
     // Household dedup
     if (config.addressMode === 'household' && row.Household_ID) {
       if (seenHouseholds.has(row.Household_ID)) continue;

@@ -14,7 +14,7 @@ All open TODOs dropped during the context-engineering review (2026-04-17) and an
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **26 open TODOs**.
+Total: **24 open TODOs**.
 
 ---
 
@@ -42,12 +42,10 @@ _none open_
 | utils | bug, refactor | IMb encoding errors silently fall back to POSTNET | [→](2026-04-17-utils-imb-fallback-silent.md) |
 | utils | missing-test | Missing test file for `tool-params.ts` | [→](2026-04-17-utils-tool-params-missing-test.md) |
 
-### Low (14)
+### Low (12)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | auth | — | auth — oauth-flow.md references a missing PKCE TODO file | [→](2026-04-17-verify-auth-oauth-flow.md) |
-| components | bug, refactor | Household dedup silently skipped when `Household_ID` is null | [→](2026-04-17-components-address-labels-no-household-dedup-null-id.md) |
-| components | missing-test, drift | POSTNET barcode test uses malformed input | [→](2026-04-17-components-address-labels-weak-postnet-test.md) |
 | contexts | refactor, doc | Rename `session-context.tsx` — it's a hook module, not a Context | [→](2026-04-17-contexts-session-context-misnamed.md) |
 | doc | doc, drift | CLAUDE.md and README.md report stale test counts (241/21) | [→](2026-04-17-testing-claude-md-readme-counts-drift.md) |
 | dto-constants | refactor, drift | Dedupe two independent `BATCH_SIZE = 100` constants | [→](2026-04-17-dto-constants-batchsize-duplication.md) |
@@ -68,20 +66,19 @@ _none open_
 - [routing-proxy-api-whitelist-too-broad](2026-04-17-routing-proxy-api-whitelist-too-broad.md) — medium
 - [services-get-address-for-contact-unvalidated](2026-04-17-services-get-address-for-contact-unvalidated.md) — medium
 
-### bug (13)
+### bug (12)
 _see severity sections above; tag appears on items involving a functional defect_
 
-### drift (6)
+### drift (5)
 _doc-to-code or doc-to-doc divergence; mostly resolved inline by Phase 4 verification_
 
-### missing-test (6)
+### missing-test (5)
 - components-group-wizard-missing-tests — medium
 - components-template-editor-missing-tests — medium
 - utils-tool-params-missing-test — medium
-- components-address-labels-weak-postnet-test — low
 - mp-provider-services-communication-fixture-shape-mismatch — low
 
-### refactor (11)
+### refactor (10)
 _improvements with real value but no functional defect_
 
 ### doc (4)
@@ -97,7 +94,7 @@ _documentation-only tasks, mostly retiring old flat files or updating CLAUDE.md 
 
 | Area | Count |
 |---|---|
-| components | 7 |
+| components | 5 |
 | auth | 1 |
 | mp-provider | 5 |
 | services | 2 |

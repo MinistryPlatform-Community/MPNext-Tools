@@ -206,6 +206,39 @@ describe('fetchAddressLabels', () => {
     expect(result.printable[0].name).toBe('Smith Family');
   });
 
+  it('should skip contacts with no Household_ID in household mode', async () => {
+    mockGetAddressForContact.mockResolvedValue({
+      Contact_ID: 5, Display_Name: 'Orphan Contact', Household_ID: null,
+      Household_Name: null, Bulk_Mail_Opt_Out: false,
+      Address_Line_1: '500 Lonely Ln', City: 'Solo', 'State/Region': 'CA',
+      Postal_Code: '90001', Bar_Code: '01234567094987654321',
+    });
+
+    const params: ToolParams = { recordID: 5 };
+    const result = await fetchAddressLabels(params, defaultConfig);
+
+    expect(result.printable).toHaveLength(0);
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0].reason).toBe('no_household');
+  });
+
+  it('should include contacts with no Household_ID in individual mode', async () => {
+    mockGetAddressForContact.mockResolvedValue({
+      Contact_ID: 6, Display_Name: 'Orphan Individual', Household_ID: null,
+      Household_Name: null, Bulk_Mail_Opt_Out: false,
+      Address_Line_1: '600 Free Rd', City: 'Solo', 'State/Region': 'CA',
+      Postal_Code: '90002', Bar_Code: '01234567094987654321',
+    });
+
+    const params: ToolParams = { recordID: 6 };
+    const config: LabelConfig = { ...defaultConfig, addressMode: 'individual' };
+    const result = await fetchAddressLabels(params, config);
+
+    expect(result.printable).toHaveLength(1);
+    expect(result.printable[0].name).toBe('Orphan Individual');
+    expect(result.skipped).toHaveLength(0);
+  });
+
   it('should use Display_Name in individual mode', async () => {
     mockGetAddressForContact.mockResolvedValue({
       Contact_ID: 1, Display_Name: 'John Smith', Household_ID: 100,

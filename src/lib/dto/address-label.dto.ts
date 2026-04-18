@@ -12,7 +12,7 @@ export interface LabelData {
   barType?: 'imb' | 'postnet';
 }
 
-export type SkipReason = 'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode';
+export type SkipReason = 'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode' | 'no_household';
 
 export interface SkipRecord {
   name: string;
