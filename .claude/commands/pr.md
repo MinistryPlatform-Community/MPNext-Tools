@@ -53,7 +53,7 @@ Create a pull request for the current branch after validating all prerequisites 
 ## Arguments
 
 - `$ARGUMENTS` - Optional arguments:
-  - `--base <branch>` - Specify base branch (default: dev)
+  - `--base <branch>` - Specify base branch (default: main)
   - `--draft` - Create as draft PR
   - `--title "<title>"` - Override auto-generated title
   - `#123` or `123` - Link to specific GitHub issue (overrides auto-detection)

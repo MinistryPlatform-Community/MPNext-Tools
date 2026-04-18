@@ -4,7 +4,8 @@
       "Bash(node --version:*)",
       "Bash(sed:*)",
       "Bash(node cleanup-models.js:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git rm *)"
     ],
     "deny": [],
     "ask": []
