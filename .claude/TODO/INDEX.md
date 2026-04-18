@@ -14,7 +14,7 @@ All open TODOs dropped during the context-engineering review (2026-04-17) and an
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **30 open TODOs**.
+Total: **29 open TODOs**.
 
 ---
 
@@ -42,13 +42,12 @@ _none open_
 | utils | bug, refactor | IMb encoding errors silently fall back to POSTNET | [→](2026-04-17-utils-imb-fallback-silent.md) |
 | utils | missing-test | Missing test file for `tool-params.ts` | [→](2026-04-17-utils-tool-params-missing-test.md) |
 
-### Low (18)
+### Low (17)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | auth | — | auth — oauth-flow.md references a missing PKCE TODO file | [→](2026-04-17-verify-auth-oauth-flow.md) |
 | components | bug, refactor | Household dedup silently skipped when `Household_ID` is null | [→](2026-04-17-components-address-labels-no-household-dedup-null-id.md) |
 | components | missing-test, drift | POSTNET barcode test uses malformed input | [→](2026-04-17-components-address-labels-weak-postnet-test.md) |
-| components | refactor | `ui/dialog.tsx` mixes direct assignment and forwardRef patterns | [→](2026-04-17-components-framework-dialog-forwardref-inconsistency.md) |
 | components | security, refactor | Dev-panel non-deploy server actions lack `NODE_ENV` guard | [→](2026-04-17-components-dev-panel-prod-guard-gap.md) |
 | contexts | refactor, doc | Rename `session-context.tsx` — it's a hook module, not a Context | [→](2026-04-17-contexts-session-context-misnamed.md) |
 | doc | doc, drift | CLAUDE.md and README.md report stale test counts (241/21) | [→](2026-04-17-testing-claude-md-readme-counts-drift.md) |
@@ -86,7 +85,7 @@ _doc-to-code or doc-to-doc divergence; mostly resolved inline by Phase 4 verific
 - components-address-labels-weak-postnet-test — low
 - mp-provider-services-communication-fixture-shape-mismatch — low
 
-### refactor (13)
+### refactor (12)
 _improvements with real value but no functional defect_
 
 ### doc (6)
@@ -102,7 +101,7 @@ _documentation-only tasks, mostly retiring old flat files or updating CLAUDE.md 
 
 | Area | Count |
 |---|---|
-| components | 9 |
+| components | 8 |
 | auth | 1 |
 | mp-provider | 5 |
 | services | 4 |
