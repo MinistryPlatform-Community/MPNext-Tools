@@ -27,6 +27,19 @@ export interface ToolParams {
   pageData?: PageData;
 }
 
+/**
+ * Parse a query-string value to a finite integer, or return `undefined`.
+ *
+ * Guards against `parseInt('abc', 10)` returning `NaN` — which would otherwise
+ * leak as `typeof === 'number'` and silently corrupt downstream state (e.g.
+ * `ToolService.getPageData(NaN)`, `===` checks, display as `"NaN"`).
+ */
+function parseIntOrUndefined(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export async function parseToolParams(searchParams: URLSearchParams | { [key: string]: string | string[] | undefined }): Promise<ToolParams> {
   const getValue = (key: string): string | undefined => {
     if (searchParams instanceof URLSearchParams) {
@@ -46,8 +59,8 @@ export async function parseToolParams(searchParams: URLSearchParams | { [key: st
   const recordDescription = getValue('recordDescription');
   const addl = getValue('addl');
 
-  const parsedPageID = pageID ? parseInt(pageID, 10) : undefined;
-  
+  const parsedPageID = parseIntOrUndefined(pageID);
+
   // Fetch page data if pageID is provided
   let pageData: PageData | undefined;
   if (parsedPageID) {
@@ -62,12 +75,12 @@ export async function parseToolParams(searchParams: URLSearchParams | { [key: st
 
   return {
     pageID: parsedPageID,
-    s: s ? parseInt(s, 10) : undefined,
-    sc: sc ? parseInt(sc, 10) : undefined,
-    p: p ? parseInt(p, 10) : undefined,
+    s: parseIntOrUndefined(s),
+    sc: parseIntOrUndefined(sc),
+    p: parseIntOrUndefined(p),
     q: q || undefined,
-    v: v ? parseInt(v, 10) : undefined,
-    recordID: recordID ? parseInt(recordID, 10) : undefined,
+    v: parseIntOrUndefined(v),
+    recordID: parseIntOrUndefined(recordID),
     recordDescription: recordDescription ? decodeURIComponent(recordDescription) : undefined,
     addl: addl || undefined,
     pageData: pageData,
