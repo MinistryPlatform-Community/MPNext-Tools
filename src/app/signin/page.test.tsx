@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 /**
  * SignIn Page Tests
@@ -13,6 +13,9 @@ import { render, waitFor } from '@testing-library/react';
  * 2. Not-signed-in happy path: session null → signIn.oauth2 with providerId + callbackURL
  * 3. Error fall-through: getSession rejects → still calls signIn.oauth2
  * 4. callbackUrl defaults to "/" when the query param is absent
+ * 5. ?error=access_denied renders the error card (and does NOT auto-start OAuth)
+ * 6. Retry button re-invokes signIn.oauth2 with the correct callbackURL
+ * 7. 10s redirect-timeout flips to the error state when no navigation happens
  */
 
 const { mockGetSession, mockSignInOauth2, mockUseSearchParams } = vi.hoisted(() => ({
@@ -130,5 +133,79 @@ describe('SignIn page', () => {
         callbackURL: '/',
       });
     });
+  });
+
+  it('renders an error card when ?error=access_denied is present and does NOT auto-start OAuth', async () => {
+    setSearchParams({ callbackUrl: '/tools/addresslabels', error: 'access_denied' });
+    // getSession should not be awaited into an OAuth redirect when the URL
+    // arrived with an error code — the user just came back from a failure.
+    mockGetSession.mockResolvedValue({ data: null });
+
+    render(<SignIn />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText(/sign-in error/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /retry sign-in/i })
+    ).toBeInTheDocument();
+    // Give any pending microtasks a chance to run — OAuth must still NOT fire.
+    await Promise.resolve();
+    expect(mockSignInOauth2).not.toHaveBeenCalled();
+  });
+
+  it('retry button re-invokes signIn.oauth2 with the callbackURL', async () => {
+    setSearchParams({ callbackUrl: '/tools/template', error: 'access_denied' });
+    mockGetSession.mockResolvedValue({ data: null });
+
+    render(<SignIn />);
+
+    const retry = await screen.findByRole('button', { name: /retry sign-in/i });
+    expect(mockSignInOauth2).not.toHaveBeenCalled();
+
+    fireEvent.click(retry);
+
+    await waitFor(() => {
+      expect(mockSignInOauth2).toHaveBeenCalledWith({
+        providerId: 'ministry-platform',
+        callbackURL: '/tools/template',
+      });
+    });
+  });
+
+  it('flips to an error state after a 10s redirect timeout', async () => {
+    // Use fake timers with a shim so queueMicrotask / Promise resolution
+    // still work — we only want setTimeout/setInterval faked.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      setSearchParams({ callbackUrl: '/' });
+      mockGetSession.mockResolvedValue({ data: null });
+      // oauth2 "succeeds" (no throw, no reject) but never navigates — this
+      // mirrors a hung provider redirect.
+      mockSignInOauth2.mockReturnValue(undefined);
+
+      render(<SignIn />);
+
+      // Let the getSession().then(...) microtask resolve so startOAuth runs
+      // and the 10s timeout is armed.
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mockSignInOauth2).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      // Advance past the 10s safety timeout and flush resulting state updates.
+      await act(async () => {
+        vi.advanceTimersByTime(10_000);
+      });
+
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText(/taking longer than expected/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /retry sign-in/i })
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

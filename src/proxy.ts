@@ -14,8 +14,11 @@ export async function proxy(request: NextRequest) {
   const passThrough = () =>
     NextResponse.next({ request: { headers: forwardedHeaders } });
 
-  // Early returns for public paths
-  if (pathname.startsWith('/api') || pathname === '/signin') {
+  // Early returns for public paths. Only the Better Auth catch-all
+  // (`/api/auth/*`) is intentionally unauthenticated — any other `/api/*`
+  // route must go through the session-cookie check below so handlers
+  // don't have to re-implement auth on their own.
+  if (pathname.startsWith('/api/auth') || pathname === '/signin') {
     console.log(`Proxy: Allowing public path ${pathname}`);
     return passThrough();
   }
