@@ -66,4 +66,25 @@ describe('handleSignOut', () => {
 
     await expect(handleSignOut()).rejects.toThrow('MINISTRY_PLATFORM_BASE_URL is not configured');
   });
+
+  it('should throw when neither BETTER_AUTH_URL nor NEXTAUTH_URL is set', async () => {
+    delete process.env.BETTER_AUTH_URL;
+    delete process.env.NEXTAUTH_URL;
+    mockSignOut.mockResolvedValueOnce(undefined);
+
+    await expect(handleSignOut()).rejects.toThrow('BETTER_AUTH_URL (or NEXTAUTH_URL) is not configured');
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it('should fall back to NEXTAUTH_URL when BETTER_AUTH_URL is not set', async () => {
+    delete process.env.BETTER_AUTH_URL;
+    process.env.NEXTAUTH_URL = 'https://fallback.example.com';
+    mockSignOut.mockResolvedValueOnce(undefined);
+
+    await handleSignOut();
+
+    expect(mockRedirect).toHaveBeenCalledWith(
+      expect.stringContaining('post_logout_redirect_uri=https%3A%2F%2Ffallback.example.com')
+    );
+  });
 });

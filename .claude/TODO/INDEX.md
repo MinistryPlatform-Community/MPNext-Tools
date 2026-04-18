@@ -13,7 +13,7 @@ All open TODOs dropped during the context-engineering review (2026-04-17) and an
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **39 open TODOs** at baseline.
+Total: **37 open TODOs** at baseline.
 
 ---
 
@@ -25,15 +25,13 @@ _none open_
 ### High
 _none open_
 
-### Medium (14)
+### Medium (12)
 | Area | Tags | Title | File |
 |---|---|---|---|
-| auth | bug, security | `handleSignOut` silently falls back to `http://localhost:3000` | [→](2026-04-17-auth-localhost-fallback-signout.md) |
 | auth | doc, drift | Retire flat `.claude/references/auth.md` | [→](2026-04-17-auth-retire-flat-auth-md.md) |
 | auth | missing-test | No test coverage for `/signin` page OAuth redirect | [→](2026-04-17-auth-missing-signin-page-test.md) |
 | components | bug, drift | Template editor ignores pageID/recordID (no MP persistence) | [→](2026-04-17-components-template-editor-no-mp-persistence.md) |
 | components | bug, refactor | Merge tokens `{{Field_Name}}` have no resolver anywhere | [→](2026-04-17-components-template-editor-merge-token-resolver.md) |
-| components | bug, security | Sign-out silently falls back to localhost when env unset | [→](2026-04-17-components-user-menu-localhost-fallback.md) |
 | components | bug | Group wizard edit mode does not seed contact/group display maps | [→](2026-04-17-components-group-wizard-display-map-edit-mode.md) |
 | components | drift, doc | CLAUDE.md Component Organization omits `field-management/` | [→](2026-04-17-components-field-management-claudemd-missing.md) |
 | components | drift, doc | README.md Tools section omits Field Management tool | [→](2026-04-17-components-field-management-readme-missing.md) |
@@ -76,9 +74,7 @@ _none open_
 
 ## By tag
 
-### security (5)
-- [auth-localhost-fallback-signout](2026-04-17-auth-localhost-fallback-signout.md) — medium
-- [components-user-menu-localhost-fallback](2026-04-17-components-user-menu-localhost-fallback.md) — medium
+### security (3)
 - [routing-proxy-api-whitelist-too-broad](2026-04-17-routing-proxy-api-whitelist-too-broad.md) — medium
 - [services-get-address-for-contact-unvalidated](2026-04-17-services-get-address-for-contact-unvalidated.md) — medium
 - [components-dev-panel-prod-guard-gap](2026-04-17-components-dev-panel-prod-guard-gap.md) — low
@@ -114,8 +110,8 @@ _documentation-only tasks, mostly retiring old flat files or updating CLAUDE.md 
 
 | Area | Count |
 |---|---|
-| components | 14 |
-| auth | 4 |
+| components | 13 |
+| auth | 3 |
 | mp-provider | 5 |
 | services | 4 |
 | utils | 3 |
