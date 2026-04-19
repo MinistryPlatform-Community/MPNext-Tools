@@ -86,8 +86,11 @@ export class FieldManagementService {
       Depends_On_Field: string | null;
       Field_Label: string | null;
       Writing_Assistant_Enabled: boolean;
-    }[]
+    }[],
+    userId?: number
   ): Promise<void> {
+    const queryParams = userId !== undefined ? { $userId: userId } : undefined;
+
     for (let i = 0; i < fields.length; i += FieldManagementService.CONCURRENCY) {
       const batch = fields.slice(i, i + FieldManagementService.CONCURRENCY);
       await Promise.all(batch.map((f) =>
@@ -103,7 +106,7 @@ export class FieldManagementService {
           "@DependsOnField": f.Depends_On_Field,
           "@FieldLabel": f.Field_Label,
           "@WritingAssistantEnabled": f.Writing_Assistant_Enabled,
-        })
+        }, queryParams)
       ));
     }
   }

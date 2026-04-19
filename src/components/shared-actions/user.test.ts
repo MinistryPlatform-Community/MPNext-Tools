@@ -1,14 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockGetUserProfile, mockGetSession } = vi.hoisted(() => ({
+const { mockGetUserProfile, mockGetSession, mockGetUserIdByGuid } = vi.hoisted(() => ({
   mockGetUserProfile: vi.fn(),
   mockGetSession: vi.fn(),
+  mockGetUserIdByGuid: vi.fn(),
 }));
 
 vi.mock('@/services/userService', () => ({
   UserService: {
     getInstance: vi.fn().mockResolvedValue({
       getUserProfile: mockGetUserProfile,
+      getUserIdByGuid: mockGetUserIdByGuid,
     }),
   },
 }));
@@ -21,7 +23,7 @@ vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }));
 
-import { getCurrentUserProfile } from './user';
+import { getCurrentUserProfile, getCurrentUserIdFromSession } from './user';
 
 describe('getCurrentUserProfile', () => {
   beforeEach(() => {
@@ -65,5 +67,49 @@ describe('getCurrentUserProfile', () => {
 
     await expect(getCurrentUserProfile('550e8400-e29b-41d4-a716-446655440000'))
       .rejects.toThrow('Service error');
+  });
+});
+
+describe('getCurrentUserIdFromSession', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('resolves the MP User_ID via getUserIdByGuid', async () => {
+    mockGetUserIdByGuid.mockResolvedValueOnce(42);
+
+    const result = await getCurrentUserIdFromSession({
+      user: { id: 'internal-id', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
+    } as unknown as Awaited<ReturnType<typeof import('@/lib/auth').auth.api.getSession>>);
+
+    expect(mockGetUserIdByGuid).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440000');
+    expect(result).toBe(42);
+  });
+
+  it('throws when session is null', async () => {
+    await expect(
+      getCurrentUserIdFromSession(
+        null as unknown as Awaited<ReturnType<typeof import('@/lib/auth').auth.api.getSession>>
+      )
+    ).rejects.toThrow('User GUID not found in session');
+  });
+
+  it('throws when session.user has no userGuid', async () => {
+    await expect(
+      getCurrentUserIdFromSession({
+        user: { id: 'internal-id' },
+      } as unknown as Awaited<ReturnType<typeof import('@/lib/auth').auth.api.getSession>>)
+    ).rejects.toThrow('User GUID not found in session');
+    expect(mockGetUserIdByGuid).not.toHaveBeenCalled();
+  });
+
+  it('propagates errors from getUserIdByGuid', async () => {
+    mockGetUserIdByGuid.mockRejectedValueOnce(new Error('User not found'));
+
+    await expect(
+      getCurrentUserIdFromSession({
+        user: { id: 'internal-id', userGuid: 'bogus' },
+      } as unknown as Awaited<ReturnType<typeof import('@/lib/auth').auth.api.getSession>>)
+    ).rejects.toThrow('User not found');
   });
 });

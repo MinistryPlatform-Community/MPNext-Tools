@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { GroupService } from '@/services/groupService';
-import { UserService } from '@/services/userService';
+import { getCurrentUserIdFromSession } from '@/components/shared-actions/user';
 import type {
   GroupWizardLookups,
   ContactSearchResult,
@@ -18,14 +18,6 @@ async function getSession() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) throw new Error('Unauthorized');
   return session;
-}
-
-async function getMPUserId(session: Awaited<ReturnType<typeof getSession>>): Promise<number> {
-  const userGuid = (session.user as Record<string, unknown>).userGuid as string | undefined;
-  if (!userGuid) throw new Error('User GUID not found in session');
-
-  const userService = await UserService.getInstance();
-  return userService.getUserIdByGuid(userGuid);
 }
 
 export async function fetchGroupWizardLookups(): Promise<GroupWizardLookups> {
@@ -74,7 +66,7 @@ export async function createGroup(
 ): Promise<CreateGroupResult | ActionError> {
   try {
     const session = await getSession();
-    const userId = await getMPUserId(session);
+    const userId = await getCurrentUserIdFromSession(session);
     const service = await GroupService.getInstance();
     const result = await service.createGroup(data, userId);
     return { success: true, groupId: result.Group_ID, groupName: result.Group_Name };
@@ -89,7 +81,7 @@ export async function updateGroup(
 ): Promise<UpdateGroupResult | ActionError> {
   try {
     const session = await getSession();
-    const userId = await getMPUserId(session);
+    const userId = await getCurrentUserIdFromSession(session);
     const service = await GroupService.getInstance();
     const result = await service.updateGroup(groupId, data, userId);
     return { success: true, groupId: result.Group_ID, groupName: result.Group_Name };

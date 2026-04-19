@@ -219,19 +219,37 @@ describe('FieldManagementService', () => {
       const service = await FieldManagementService.getInstance();
       await service.updatePageFieldOrder([field]);
 
-      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_MPNextTools_UpdatePageFieldOrder', {
-        '@PageID': 292,
-        '@FieldName': 'First_Name',
-        '@GroupName': 'Basic',
-        '@ViewOrder': 5,
-        '@Required': true,
-        '@Hidden': false,
-        '@DefaultValue': 'default',
-        '@FilterClause': 'Filter',
-        '@DependsOnField': 'Depends',
-        '@FieldLabel': 'Label',
-        '@WritingAssistantEnabled': true,
-      });
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'api_MPNextTools_UpdatePageFieldOrder',
+        {
+          '@PageID': 292,
+          '@FieldName': 'First_Name',
+          '@GroupName': 'Basic',
+          '@ViewOrder': 5,
+          '@Required': true,
+          '@Hidden': false,
+          '@DefaultValue': 'default',
+          '@FilterClause': 'Filter',
+          '@DependsOnField': 'Depends',
+          '@FieldLabel': 'Label',
+          '@WritingAssistantEnabled': true,
+        },
+        undefined
+      );
+    });
+
+    it('should forward $userId as query param when userId is provided', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValue(undefined);
+      const field = makeField(1);
+
+      const service = await FieldManagementService.getInstance();
+      await service.updatePageFieldOrder([field], 42);
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'api_MPNextTools_UpdatePageFieldOrder',
+        expect.any(Object),
+        { $userId: 42 }
+      );
     });
 
     it('should make no calls when given an empty array', async () => {

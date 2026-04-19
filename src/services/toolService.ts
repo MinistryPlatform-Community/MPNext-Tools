@@ -245,7 +245,7 @@ export class ToolService {
    * credentials — this must not be reachable from production. DomainID is auto-injected
    * by the MP API.
    */
-  public async deployTool(input: DeployToolInput): Promise<DeployToolResult> {
+  public async deployTool(input: DeployToolInput, userId?: number): Promise<DeployToolResult> {
     if (!input.toolName.trim()) throw new Error('Tool Name is required');
     if (!input.launchPage.trim()) throw new Error('Launch Page is required');
     if (input.toolName.length > 30) throw new Error('Tool Name must be 30 characters or fewer');
@@ -266,7 +266,8 @@ export class ToolService {
       '@RoleIDs': input.roleIds.length ? input.roleIds.join(',') : null,
     };
 
-    const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool', payload);
+    const queryParams = userId !== undefined ? { $userId: userId } : undefined;
+    const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool', payload, queryParams);
 
     const [toolRows, pageRows, roleRows] = resultSets ?? [];
     const tool = (toolRows?.[0] as DeployedToolRow | undefined);

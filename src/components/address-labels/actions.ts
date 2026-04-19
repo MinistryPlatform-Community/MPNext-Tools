@@ -7,7 +7,7 @@ import { pdf } from '@react-pdf/renderer';
 import { Packer } from 'docx';
 import { ToolService } from '@/services/toolService';
 import { AddressLabelService } from '@/services/addressLabelService';
-import { UserService } from '@/services/userService';
+import { getCurrentUserIdFromSession } from '@/components/shared-actions/user';
 import type { ContactAddressRow } from '@/services/addressLabelService';
 import type { ToolParams } from '@/lib/tool-params';
 import type {
@@ -30,14 +30,6 @@ async function getSession() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) throw new Error('Unauthorized');
   return session;
-}
-
-async function getMPUserId(session: Awaited<ReturnType<typeof getSession>>): Promise<number> {
-  const userGuid = (session.user as Record<string, unknown>).userGuid as string | undefined;
-  if (!userGuid) throw new Error('User GUID not found in session');
-
-  const userService = await UserService.getInstance();
-  return userService.getUserIdByGuid(userGuid);
 }
 
 function filterAndTransform(
@@ -114,7 +106,7 @@ export async function fetchAddressLabels(
 
   if (params.s && params.pageID) {
     // Selection mode — need MP User_ID for the selection stored proc
-    const userId = await getMPUserId(session);
+    const userId = await getCurrentUserIdFromSession(session);
     const toolService = await ToolService.getInstance();
     const contactIds = await toolService.getSelectionRecordIds(params.s, userId, params.pageID);
 

@@ -8,6 +8,7 @@ import {
   type PageLookup,
   type RoleLookup,
 } from "@/services/toolService";
+import { getCurrentUserIdFromSession } from "@/components/shared-actions/user";
 
 export async function listPagesAction(search?: string): Promise<PageLookup[]> {
   await requireDevSession("Deploy Tool");
@@ -22,9 +23,10 @@ export async function listRolesAction(search?: string): Promise<RoleLookup[]> {
 }
 
 export async function deployToolAction(input: DeployToolInput): Promise<DeployToolResult> {
-  await requireDevSession("Deploy Tool");
+  const session = await requireDevSession("Deploy Tool");
+  const userId = await getCurrentUserIdFromSession(session);
   const toolService = await ToolService.getInstance();
-  return toolService.deployTool(input);
+  return toolService.deployTool(input, userId);
 }
 
 export interface DeployToolEnvStatus {

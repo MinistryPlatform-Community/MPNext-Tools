@@ -3,6 +3,7 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { FieldManagementService } from '@/services/fieldManagementService';
+import { getCurrentUserIdFromSession } from '@/components/shared-actions/user';
 import type { PageListItem, PageFieldData, FieldOrderPayload } from './types';
 
 async function getSession() {
@@ -62,9 +63,10 @@ export async function savePageFieldOrder(
   fields: FieldOrderPayload[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await getSession();
+    const session = await getSession();
+    const userId = await getCurrentUserIdFromSession(session);
     const service = await FieldManagementService.getInstance();
-    await service.updatePageFieldOrder(fields);
+    await service.updatePageFieldOrder(fields, userId);
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to save field order' };

@@ -7,6 +7,8 @@ const {
   mockGetTableMetadata,
   mockUpdatePageFieldOrder,
   mockGetInstance,
+  mockGetUserIdByGuid,
+  mockUserGetInstance,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetPages: vi.fn(),
@@ -14,6 +16,8 @@ const {
   mockGetTableMetadata: vi.fn(),
   mockUpdatePageFieldOrder: vi.fn(),
   mockGetInstance: vi.fn(),
+  mockGetUserIdByGuid: vi.fn(),
+  mockUserGetInstance: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({
@@ -30,7 +34,15 @@ vi.mock('@/services/fieldManagementService', () => ({
   },
 }));
 
+vi.mock('@/services/userService', () => ({
+  UserService: { getInstance: mockUserGetInstance },
+}));
+
 import { fetchPages, fetchPageFieldData, savePageFieldOrder } from './actions';
+
+const authedSession = {
+  user: { id: 'internal-id', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
+};
 
 describe('field-management actions', () => {
   beforeEach(() => {
@@ -41,6 +53,10 @@ describe('field-management actions', () => {
       getTableMetadata: mockGetTableMetadata,
       updatePageFieldOrder: mockUpdatePageFieldOrder,
     });
+    mockUserGetInstance.mockResolvedValue({
+      getUserIdByGuid: mockGetUserIdByGuid,
+    });
+    mockGetUserIdByGuid.mockResolvedValue(42);
   });
 
   describe('fetchPages', () => {
@@ -254,18 +270,18 @@ describe('field-management actions', () => {
       },
     ];
 
-    it('should return success:true when service succeeds', async () => {
-      mockGetSession.mockResolvedValueOnce({ user: { id: 'internal-id' } });
+    it('should return success:true when service succeeds and forward userId', async () => {
+      mockGetSession.mockResolvedValueOnce(authedSession);
       mockUpdatePageFieldOrder.mockResolvedValueOnce(undefined);
 
       const result = await savePageFieldOrder(samplePayload);
 
       expect(result).toEqual({ success: true });
-      expect(mockUpdatePageFieldOrder).toHaveBeenCalledWith(samplePayload);
+      expect(mockUpdatePageFieldOrder).toHaveBeenCalledWith(samplePayload, 42);
     });
 
     it('should return success:false with error message when service throws an Error', async () => {
-      mockGetSession.mockResolvedValueOnce({ user: { id: 'internal-id' } });
+      mockGetSession.mockResolvedValueOnce(authedSession);
       mockUpdatePageFieldOrder.mockRejectedValueOnce(new Error('Database error'));
 
       const result = await savePageFieldOrder(samplePayload);
@@ -274,7 +290,7 @@ describe('field-management actions', () => {
     });
 
     it('should return generic error when a non-Error is thrown', async () => {
-      mockGetSession.mockResolvedValueOnce({ user: { id: 'internal-id' } });
+      mockGetSession.mockResolvedValueOnce(authedSession);
       mockUpdatePageFieldOrder.mockRejectedValueOnce('string error');
 
       const result = await savePageFieldOrder(samplePayload);

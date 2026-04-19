@@ -177,7 +177,24 @@ describe('MinistryPlatformProvider', () => {
       const provider = MinistryPlatformProvider.getInstance();
       await provider.executeProcedureWithBody('sp_test', { '@Param1': 'value' });
 
-      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('sp_test', { '@Param1': 'value' });
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'sp_test',
+        { '@Param1': 'value' },
+        undefined
+      );
+    });
+
+    it('should forward queryParams ($userId) to ProcedureService', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[{ result: 1 }]]);
+
+      const provider = MinistryPlatformProvider.getInstance();
+      await provider.executeProcedureWithBody('sp_test', { '@Param1': 'value' }, { $userId: 7 });
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'sp_test',
+        { '@Param1': 'value' },
+        { $userId: 7 }
+      );
     });
 
     it('should delegate getProcedures to ProcedureService', async () => {
@@ -373,8 +390,29 @@ describe('MinistryPlatformProvider', () => {
       const provider = MinistryPlatformProvider.getInstance();
       const result = await provider.createCommunication(comm);
 
-      expect(mockCreateCommunication).toHaveBeenCalledWith(comm, undefined);
+      expect(mockCreateCommunication).toHaveBeenCalledWith(comm, undefined, undefined);
       expect(result).toEqual(created);
+    });
+
+    it('should forward $userId params to createCommunication', async () => {
+      const comm = {
+        AuthorUserId: 1,
+        Subject: 'Hi',
+        Body: '<p>x</p>',
+        StartDate: '2026-01-01',
+        FromContactId: 1,
+        ReplyToContactId: 1,
+        Contacts: [2],
+        CommunicationType: 'Email' as const,
+        IsBulkEmail: false,
+        SendToContactParents: false,
+      };
+      mockCreateCommunication.mockResolvedValueOnce({ Communication_ID: 10, ...comm });
+
+      const provider = MinistryPlatformProvider.getInstance();
+      await provider.createCommunication(comm, undefined, { $userId: 42 });
+
+      expect(mockCreateCommunication).toHaveBeenCalledWith(comm, undefined, { $userId: 42 });
     });
 
     it('should delegate sendMessage to CommunicationService', async () => {
@@ -391,8 +429,23 @@ describe('MinistryPlatformProvider', () => {
       const provider = MinistryPlatformProvider.getInstance();
       const result = await provider.sendMessage(message, [file]);
 
-      expect(mockSendMessage).toHaveBeenCalledWith(message, [file]);
+      expect(mockSendMessage).toHaveBeenCalledWith(message, [file], undefined);
       expect(result).toEqual(sent);
+    });
+
+    it('should forward $userId params to sendMessage', async () => {
+      const message = {
+        FromAddress: { Address: 'a@example.com', DisplayName: 'A' },
+        ToAddresses: [{ Address: 'b@example.com', DisplayName: 'B' }],
+        Subject: 'Test',
+        Body: '<p>Hi</p>',
+      };
+      mockSendMessage.mockResolvedValueOnce({ Communication_ID: 11, ...message });
+
+      const provider = MinistryPlatformProvider.getInstance();
+      await provider.sendMessage(message, undefined, { $userId: 42 });
+
+      expect(mockSendMessage).toHaveBeenCalledWith(message, undefined, { $userId: 42 });
     });
   });
 

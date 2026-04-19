@@ -63,9 +63,36 @@ describe('CommunicationService', () => {
       const result = await service.createCommunication(communicationInfo);
 
       expect(mockClient.ensureValidToken).toHaveBeenCalledTimes(1);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/communications', { ...communicationInfo });
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/communications',
+        { ...communicationInfo },
+        undefined
+      );
       expect(mockHttpClient.postFormData).not.toHaveBeenCalled();
       expect(result).toEqual(mockResult);
+    });
+
+    it('should forward $userId as query param when provided (no attachments)', async () => {
+      (mockHttpClient.post as any).mockResolvedValueOnce({ Communication_ID: 5 });
+
+      await service.createCommunication(communicationInfo, undefined, { $userId: 42 });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/communications',
+        { ...communicationInfo },
+        { $userId: 42 }
+      );
+    });
+
+    it('should forward $userId as query param when provided (with attachments)', async () => {
+      (mockHttpClient.postFormData as any).mockResolvedValueOnce({ Communication_ID: 6 });
+
+      const file = new File(['x'], 'x.pdf', { type: 'application/pdf' });
+      await service.createCommunication(communicationInfo, [file], { $userId: 42 });
+
+      const call = (mockHttpClient.postFormData as any).mock.calls[0];
+      expect(call[0]).toBe('/communications');
+      expect(call[2]).toEqual({ $userId: 42 });
     });
 
     it('should call postFormData with single attachment', async () => {
@@ -113,7 +140,11 @@ describe('CommunicationService', () => {
 
       await service.createCommunication(communicationInfo, []);
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/communications', { ...communicationInfo });
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/communications',
+        { ...communicationInfo },
+        undefined
+      );
       expect(mockHttpClient.postFormData).not.toHaveBeenCalled();
     });
   });
@@ -126,9 +157,25 @@ describe('CommunicationService', () => {
       const result = await service.sendMessage(messageInfo);
 
       expect(mockClient.ensureValidToken).toHaveBeenCalledTimes(1);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/messages', { ...messageInfo });
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/messages',
+        { ...messageInfo },
+        undefined
+      );
       expect(mockHttpClient.postFormData).not.toHaveBeenCalled();
       expect(result).toEqual(mockResult);
+    });
+
+    it('should forward $userId as query param when provided', async () => {
+      (mockHttpClient.post as any).mockResolvedValueOnce({ Communication_ID: 12 });
+
+      await service.sendMessage(messageInfo, undefined, { $userId: 42 });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/messages',
+        { ...messageInfo },
+        { $userId: 42 }
+      );
     });
 
     it('should call postFormData with attachments', async () => {

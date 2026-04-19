@@ -715,9 +715,22 @@ describe('MPHelper', () => {
 
       expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
         'api_Create_Contact_Log',
-        parameters
+        parameters,
+        undefined
       );
       expect(result).toEqual(procedureResult);
+    });
+
+    it('should forward queryParams ($userId) to executeProcedureWithBody', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[{ ok: true }]]);
+
+      await mpHelper.executeProcedureWithBody('api_Dev_Write', { '@ID': 1 }, { $userId: 42 });
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'api_Dev_Write',
+        { '@ID': 1 },
+        { $userId: 42 }
+      );
     });
 
     it('should propagate procedure execution errors', async () => {
@@ -748,7 +761,7 @@ describe('MPHelper', () => {
 
       const result = await mpHelper.createCommunication(communicationInfo);
 
-      expect(mockCreateCommunication).toHaveBeenCalledWith(communicationInfo, undefined);
+      expect(mockCreateCommunication).toHaveBeenCalledWith(communicationInfo, undefined, undefined);
       expect(result).toEqual(createdCommunication);
     });
 
@@ -768,8 +781,32 @@ describe('MPHelper', () => {
 
       const result = await mpHelper.createCommunication(communicationInfo, [mockFile]);
 
-      expect(mockCreateCommunication).toHaveBeenCalledWith(communicationInfo, [mockFile]);
+      expect(mockCreateCommunication).toHaveBeenCalledWith(communicationInfo, [mockFile], undefined);
       expect(result).toEqual(createdCommunication);
+    });
+
+    it('should forward $userId params to createCommunication', async () => {
+      const communicationInfo = {
+        AuthorUserId: 1,
+        Subject: 'Audited',
+        Body: '<p>body</p>',
+        StartDate: '2024-01-01',
+        FromContactId: 123,
+        ReplyToContactId: 123,
+        Contacts: [456],
+        CommunicationType: 'Email' as const,
+        IsBulkEmail: false,
+        SendToContactParents: false,
+      };
+      mockCreateCommunication.mockResolvedValueOnce({ Communication_ID: 99, ...communicationInfo });
+
+      await mpHelper.createCommunication(communicationInfo, undefined, { $userId: 42 });
+
+      expect(mockCreateCommunication).toHaveBeenCalledWith(
+        communicationInfo,
+        undefined,
+        { $userId: 42 }
+      );
     });
 
     it('should send message without attachments', async () => {
@@ -784,7 +821,7 @@ describe('MPHelper', () => {
 
       const result = await mpHelper.sendMessage(messageInfo);
 
-      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, undefined);
+      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, undefined, undefined);
       expect(result).toEqual(sentMessage);
     });
 
@@ -803,8 +840,22 @@ describe('MPHelper', () => {
 
       const result = await mpHelper.sendMessage(messageInfo, [mockFile]);
 
-      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, [mockFile]);
+      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, [mockFile], undefined);
       expect(result).toEqual(sentMessage);
+    });
+
+    it('should forward $userId params to sendMessage', async () => {
+      const messageInfo = {
+        FromAddress: { Address: 'sender@example.com', DisplayName: 'Sender' },
+        ToAddresses: [{ Address: 'recipient@example.com', DisplayName: 'Recipient' }],
+        Subject: 'Audited',
+        Body: '<p>Hi</p>',
+      };
+      mockSendMessage.mockResolvedValueOnce({ Communication_ID: 100, ...messageInfo });
+
+      await mpHelper.sendMessage(messageInfo, undefined, { $userId: 42 });
+
+      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, undefined, { $userId: 42 });
     });
   });
 
