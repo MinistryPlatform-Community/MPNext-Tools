@@ -348,7 +348,7 @@ Test pattern: set `(ServiceClass as any).instance = undefined` inside `beforeEac
 
 ## SkipRecord
 
-Record of a contact excluded from label printing; shape `{ name, contactId, reason }` where `reason` is the `SkipReason` union (`'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode'`).
+Record of a contact excluded from label printing; shape `{ name, contactId, reason }` where `reason` is the `SkipReason` union (`'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode' | 'no_household'`).
 
 **Not to be confused with:** `LabelData` (printable rows).
 **Defined in:** `src/lib/dto/address-label.dto.ts:17`

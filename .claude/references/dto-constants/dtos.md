@@ -44,7 +44,7 @@ export interface LabelData {
   barType?: 'imb' | 'postnet';
 }
 
-export type SkipReason = 'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode';
+export type SkipReason = 'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode' | 'no_household';
 
 export interface SkipRecord {
   name: string;
@@ -209,7 +209,7 @@ import type { AddressMode, BarcodeFormat, LabelConfig } from '@/lib/dto';
 
 - **Naming drift between DTO and service row.** `LabelData` uses camelCase (`addressLine1`, `postalCode`) while `ContactAddressRow` uses MP field names (`Address_Line_1`, `Postal_Code`). Transform happens at `src/components/address-labels/actions.ts:42-96`. Do NOT propagate snake_case MP names into UI-layer DTOs.
 - **`SkipRecord.name` is the computed display label**, not `Display_Name`. It is either `Household_Name` (household mode) or `Display_Name` (individual mode), fallback chain at `src/components/address-labels/actions.ts:51-53`.
-- **`FetchAddressLabelsResult` has fields `printable` + `skipped`** — NOT `labels` / `totalFetched`. See drift TODO.
+- **`FetchAddressLabelsResult` has fields `printable` + `skipped`** — NOT `labels` / `totalFetched`.
 - **DTOs are not validated at runtime.** No Zod schema wraps `LabelConfig` etc. User input in `mailerId` is only stripped to 9 digits at `src/components/address-labels/address-labels-form.tsx:109`.
 
 ## Related docs

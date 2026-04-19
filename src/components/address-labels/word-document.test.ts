@@ -58,7 +58,9 @@ describe('buildWordDocument', () => {
     const label: LabelData = {
       ...baseLabel,
       barType: 'postnet',
-      barStates: 'LFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFLFF',
+      barStates: JSON.stringify(
+        Array.from({ length: 32 }, (_, i) => (i % 2 ? 'tall' : 'short') as const)
+      ),
     };
     const doc = buildWordDocument([label], stock, 1);
     expect(doc).toBeInstanceOf(Document);

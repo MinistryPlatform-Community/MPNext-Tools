@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { mockGetSession, mockListPages, mockListRoles, mockDeployTool } = vi.hoisted(() => ({
+const {
+  mockGetSession,
+  mockListPages,
+  mockListRoles,
+  mockDeployTool,
+  mockGetUserIdByGuid,
+} = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockListPages: vi.fn(),
   mockListRoles: vi.fn(),
   mockDeployTool: vi.fn(),
+  mockGetUserIdByGuid: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({
@@ -25,6 +32,14 @@ vi.mock('@/services/toolService', () => ({
       listPages: mockListPages,
       listRoles: mockListRoles,
       deployTool: mockDeployTool,
+    }),
+  },
+}));
+
+vi.mock('@/services/userService', () => ({
+  UserService: {
+    getInstance: vi.fn().mockResolvedValue({
+      getUserIdByGuid: mockGetUserIdByGuid,
     }),
   },
 }));
@@ -77,6 +92,8 @@ describe('deploy-tool-actions', () => {
     mockListPages.mockReset();
     mockListRoles.mockReset();
     mockDeployTool.mockReset();
+    mockGetUserIdByGuid.mockReset();
+    mockGetUserIdByGuid.mockResolvedValue(42);
     vi.stubEnv('NODE_ENV', 'development');
   });
 
@@ -150,14 +167,24 @@ describe('deploy-tool-actions', () => {
       expect(result).toEqual([{ Role_ID: 1, Role_Name: 'Administrators' }]);
     });
 
-    it('deployToolAction forwards input to service and returns result', async () => {
+    it('deployToolAction forwards input + resolved userId to service and returns result', async () => {
       mockGetSession.mockResolvedValueOnce(validSession);
       mockDeployTool.mockResolvedValueOnce(sampleResult);
 
       const result = await deployToolAction(sampleInput);
 
-      expect(mockDeployTool).toHaveBeenCalledWith(sampleInput);
+      expect(mockGetUserIdByGuid).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440000');
+      expect(mockDeployTool).toHaveBeenCalledWith(sampleInput, 42);
       expect(result).toEqual(sampleResult);
+    });
+
+    it('deployToolAction rejects when userGuid missing from session', async () => {
+      mockGetSession.mockResolvedValueOnce({ user: { id: 'internal-id' } });
+
+      await expect(deployToolAction(sampleInput)).rejects.toThrow(
+        'User GUID not found in session'
+      );
+      expect(mockDeployTool).not.toHaveBeenCalled();
     });
 
     it('deployToolAction propagates service errors', async () => {

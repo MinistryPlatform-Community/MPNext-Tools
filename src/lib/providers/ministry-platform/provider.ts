@@ -270,13 +270,15 @@ export class MinistryPlatformProvider {
      * Executes the requested stored procedure with provided parameters in the request body.
      * @param procedure Stored procedure name
      * @param parameters Parameters to be used for calling stored procedure
+     * @param queryParams Optional query-string params (e.g. `{ $userId }` for audit attribution)
      * @returns Promise with the procedure results
      */
     public async executeProcedureWithBody(
-        procedure: string, 
-        parameters: Record<string, unknown>
+        procedure: string,
+        parameters: Record<string, unknown>,
+        queryParams?: QueryParams
     ): Promise<unknown[][]> {
-        return this.procedureService.executeProcedureWithBody(procedure, parameters);
+        return this.procedureService.executeProcedureWithBody(procedure, parameters, queryParams);
     }
 
     // Communication Service Methods
@@ -285,13 +287,15 @@ export class MinistryPlatformProvider {
      * Supports both simple JSON communication and multipart form data with file attachments.
      * @param communication Communication information object
      * @param attachments Optional array of file attachments
+     * @param params Optional params (`$userId` for audit attribution)
      * @returns Promise with the created communication
      */
     public async createCommunication(
         communication: CommunicationInfo,
-        attachments?: File[]
+        attachments?: File[],
+        params?: Pick<TableQueryParams, '$userId'>
     ): Promise<Communication> {
-        return this.communicationService.createCommunication(communication, attachments);
+        return this.communicationService.createCommunication(communication, attachments, params);
     }
 
     /**
@@ -299,13 +303,15 @@ export class MinistryPlatformProvider {
      * Supports both simple JSON message and multipart form data with file attachments.
      * @param message Message information object
      * @param attachments Optional array of file attachments
+     * @param params Optional params (`$userId` for audit attribution)
      * @returns Promise with the created communication
      */
     public async sendMessage(
         message: MessageInfo,
-        attachments?: File[]
+        attachments?: File[],
+        params?: Pick<TableQueryParams, '$userId'>
     ): Promise<Communication> {
-        return this.communicationService.sendMessage(message, attachments);
+        return this.communicationService.sendMessage(message, attachments, params);
     }
 
     // File Service Methods

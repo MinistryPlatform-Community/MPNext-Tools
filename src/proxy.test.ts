@@ -64,13 +64,26 @@ describe('proxy', () => {
       expect(mockGetSessionCookie).not.toHaveBeenCalled();
     });
 
-    it('should allow nested /api paths without session check', async () => {
-      const request = createMockRequest('/api/some/nested/route');
+    it('should allow nested /api/auth paths without session check', async () => {
+      const request = createMockRequest('/api/auth/callback/ministry-platform');
 
       await proxy(request);
 
       expect(mockNext).toHaveBeenCalled();
       expect(mockGetSessionCookie).not.toHaveBeenCalled();
+    });
+
+    it('should gate non-auth /api paths (e.g. /api/other) behind the session check', async () => {
+      const request = createMockRequest('/api/other');
+      mockGetSessionCookie.mockReturnValueOnce(null);
+
+      await proxy(request);
+
+      expect(mockGetSessionCookie).toHaveBeenCalled();
+      expect(mockRedirect).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: '/signin' })
+      );
+      expect(mockNext).not.toHaveBeenCalled();
     });
 
     it('should allow /signin path without session check', async () => {

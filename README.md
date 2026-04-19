@@ -26,6 +26,7 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 - [Project Structure](#project-structure)
 - [Tools](#tools)
   - [Address Labels](#address-labels)
+  - [Field Management](#field-management)
   - [Template Editor](#template-editor)
   - [Template Tool](#template-tool)
   - [Building Custom Tools](#building-custom-tools)
@@ -49,7 +50,7 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 - **REST API Client**: Six specialized services covering tables, procedures, communications, files, metadata, and domain operations
 - **Type Generation**: CLI tool to generate TypeScript interfaces and Zod v4 schemas from MP database schema
 - **Validation**: Optional Zod v4 runtime validation in MPHelper before API calls
-- **Testing**: 241 test cases across 21 files with Vitest 4.1
+- **Testing**: 621 test cases across 43 files with Vitest 4.1 (see `.claude/references/_meta/facts/` for the authoritative snapshot)
 - **Setup Wizard**: Interactive CLI setup with environment configuration, dependency management, and build verification
 
 ## Architecture
@@ -274,6 +275,7 @@ MPNext-Tools/
 │   │   │   ├── tools/                    # Tools section
 │   │   │   │   ├── layout.tsx            # Full-height gray background
 │   │   │   │   ├── addresslabels/        # Address label printing tool
+│   │   │   │   ├── fieldmanagement/      # MP page field layout editor
 │   │   │   │   ├── template/             # Template tool (scaffold/demo)
 │   │   │   │   └── templateeditor/       # Visual template editor
 │   │   │   └── layout.tsx                # Auth + Providers wrapper
@@ -284,6 +286,7 @@ MPNext-Tools/
 │   │
 │   ├── components/                       # React components
 │   │   ├── address-labels/               # Address label printing & mail merge
+│   │   ├── field-management/             # Drag-and-drop MP page field order editor
 │   │   ├── layout/                       # AuthWrapper (server component)
 │   │   ├── shared-actions/               # Cross-feature server actions
 │   │   ├── template-editor/              # GrapesJS template editor
@@ -394,6 +397,32 @@ A visual email/document template editor built with GrapesJS for creating and edi
 - `EditorImportDialog` — Template import dialog
 - `EditorExportDialog` — Template export dialog
 - `MergeFieldPicker` — MP merge field selection
+
+### Field Management
+
+**Route**: `/tools/fieldmanagement`
+
+A drag-and-drop editor for configuring Ministry Platform page field layout — reorder fields, assign groups, and toggle per-field flags (required, hidden, writing-assistant) without touching the MP UI.
+
+**Features:**
+- Searchable page picker sourced from `dp_Pages`
+- Drag-and-drop reordering within and across field groups
+- Inline editing for label, default value, filter clause, depends-on field, and writing-assistant toggle
+- Create new groups on the fly
+- Auto-merges table columns not yet present in `dp_Page_Fields` so new columns can be added to a page layout
+
+**Components** (`src/components/field-management/`):
+- `PageSearch` — Searchable page picker
+- `FieldOrderEditor` — Main drag-and-drop editor surface
+- `SortableGroup` — Droppable group container
+- `SortableFieldItem` — Draggable field row with inline flag editors
+- `NewGroupDialog` — Create a new field group
+- `useFieldOrderState` — State hook for field order/edits
+
+**Stored procedures:**
+- `api_MPNextTools_GetPages` — List configurable pages
+- `api_MPNextTools_GetPageFields` — Fetch current `dp_Page_Fields` rows for a page
+- `api_MPNextTools_UpdatePageFieldOrder` — Upsert field order and per-field flags
 
 ### Template Tool
 
@@ -546,6 +575,7 @@ Alert, Alert Dialog, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Command,
 ### Feature Components
 
 - **address-labels/** — 12 components for address label printing, barcode generation, and mail merge
+- **field-management/** — Drag-and-drop editor for MP page field order and flags (`PageSearch`, `FieldOrderEditor`, sortable group/field items, `useFieldOrderState`)
 - **template-editor/** — 12 components for visual template editing with GrapesJS
 - **user-menu/** — User dropdown with profile display and OIDC sign-out action
 - **dev-panel/** — Unified developer overlay (localhost-only) showing parsed URL params, MP selection data, contact records, and authorized tools
@@ -577,7 +607,7 @@ Server Action -> Service.getInstance() -> MPHelper -> Ministry Platform API
 - **Framework**: Vitest 4.1 with jsdom environment
 - **Libraries**: @testing-library/react, @testing-library/jest-dom
 - **Coverage**: v8 provider
-- **Total**: **241 test cases across 21 test files**
+- **Total**: **621 test cases across 43 test files** (authoritative snapshot: `.claude/references/_meta/facts/`)
 
 ### Running Tests
 
@@ -734,10 +764,10 @@ Uses calver format: `v{YYYY}.{MM}.{DD}.{HHmm}`. Categorizes PRs as features, fix
 | **[CLAUDE.md](CLAUDE.md)** | Development guide — commands, architecture, code style, testing patterns |
 | **[Ministry Platform Provider](src/lib/providers/ministry-platform/docs/README.md)** | Complete REST API client documentation |
 | **[Type Generator](src/lib/providers/ministry-platform/scripts/README.md)** | CLI tool for generating TypeScript types from MP schema |
-| **[Auth Reference](.claude/references/auth.md)** | Better Auth config, OAuth flow, session access, userGuid vs user.id |
-| **[Components Reference](.claude/references/components.md)** | Component inventory with compliance status |
-| **[Services Reference](.claude/references/services.md)** | Service layer docs, MP query patterns, DTOs |
-| **[Testing Reference](.claude/references/testing.md)** | Vitest patterns, mock setup, coverage data |
+| **[Auth Reference](.claude/references/auth/README.md)** | Better Auth config, OAuth flow, session access, userGuid vs user.id |
+| **[Components Reference](.claude/references/components/README.md)** | Component inventory with compliance status |
+| **[Services Reference](.claude/references/services/README.md)** | Service layer docs, MP query patterns, DTOs |
+| **[Testing Reference](.claude/references/testing/README.md)** | Vitest patterns, mock setup, coverage data |
 | **[MP Schema Reference](.claude/references/ministryplatform.schema.md)** | Auto-generated database schema (436 tables) |
 | **[MP Stored Procedures](.claude/references/ministryplatform.storedprocs.md)** | Auto-generated stored procedure reference |
 
@@ -776,6 +806,7 @@ import { useUser, useAppSession } from '@/contexts';
 ```
 src/components/
 ├── address-labels/       # Address label printing & mail merge (12 files)
+├── field-management/     # Drag-and-drop MP page field order editor
 ├── layout/               # AuthWrapper
 ├── shared-actions/       # Cross-feature server actions
 ├── template-editor/      # Visual template editor (12 files)

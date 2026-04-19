@@ -71,6 +71,25 @@ export function GroupWizard({ params }: GroupWizardProps) {
 
     fetchGroupRecord(params.recordID).then((result) => {
       if (result.success) {
+        // Seed display maps BEFORE form.reset so the combobox triggers render
+        // with a name immediately — otherwise Step 1 / Review show "ID: <n>"
+        // until the user manually re-selects.
+        const contactEntries = Object.entries(result.displayNames.contacts);
+        if (contactEntries.length > 0) {
+          setContactDisplayMap((prev) => {
+            const next = new Map(prev);
+            for (const [id, name] of contactEntries) next.set(Number(id), name);
+            return next;
+          });
+        }
+        const groupEntries = Object.entries(result.displayNames.groups);
+        if (groupEntries.length > 0) {
+          setGroupDisplayMap((prev) => {
+            const next = new Map(prev);
+            for (const [id, name] of groupEntries) next.set(Number(id), name);
+            return next;
+          });
+        }
         form.reset(result.data);
       } else {
         setLoadError(result.error);

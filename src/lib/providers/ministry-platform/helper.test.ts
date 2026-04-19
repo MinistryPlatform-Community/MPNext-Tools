@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { z } from 'zod';
-import { MPHelper } from '@/lib/providers/ministry-platform/helper';
+import { MPHelper, MPValidationError } from '@/lib/providers/ministry-platform/helper';
 
 /**
  * MPHelper Tests
@@ -249,6 +249,48 @@ describe('MPHelper', () => {
       await expect(
         mpHelper.createTableRecords('Test', records, { schema: Schema })
       ).rejects.toThrow('Validation failed for record 1');
+
+      // Also verify: the thrown error preserves the structured ZodError so
+      // callers can render per-field UI feedback without string-parsing.
+      try {
+        await mpHelper.createTableRecords('Test', records, { schema: Schema });
+        throw new Error('expected createTableRecords to reject');
+      } catch (err) {
+        expect(err).toBeInstanceOf(MPValidationError);
+        expect(err).toBeInstanceOf(Error); // subclass — existing catches still work
+        const mpErr = err as MPValidationError;
+        expect(mpErr.recordIndex).toBe(1);
+        expect(mpErr.zodError).toBeInstanceOf(z.ZodError);
+        expect(Array.isArray(mpErr.zodError.issues)).toBe(true);
+        expect(mpErr.zodError.issues.length).toBeGreaterThan(0);
+        expect(mpErr.zodError.issues[0]).toHaveProperty('path');
+        expect(mpErr.zodError.issues[0]).toHaveProperty('code');
+      }
+    });
+
+    it('should throw MPValidationError with populated issues from update-path', async () => {
+      const Schema = z.object({
+        Contact_ID: z.number(),
+        Email: z.string().email(),
+      });
+
+      const records = [
+        { Contact_ID: 1, Email: 'not-an-email' }, // Invalid email
+      ];
+
+      try {
+        await mpHelper.updateTableRecords('Contacts', records, {
+          schema: Schema,
+          partial: false,
+        });
+        throw new Error('expected updateTableRecords to reject');
+      } catch (err) {
+        expect(err).toBeInstanceOf(MPValidationError);
+        const mpErr = err as MPValidationError;
+        expect(mpErr.recordIndex).toBe(0);
+        expect(mpErr.zodError).toBeInstanceOf(z.ZodError);
+        expect(mpErr.zodError.issues.length).toBeGreaterThan(0);
+      }
     });
 
     it('should pass $select parameter with validation', async () => {
@@ -673,9 +715,22 @@ describe('MPHelper', () => {
 
       expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
         'api_Create_Contact_Log',
-        parameters
+        parameters,
+        undefined
       );
       expect(result).toEqual(procedureResult);
+    });
+
+    it('should forward queryParams ($userId) to executeProcedureWithBody', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[{ ok: true }]]);
+
+      await mpHelper.executeProcedureWithBody('api_Dev_Write', { '@ID': 1 }, { $userId: 42 });
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'api_Dev_Write',
+        { '@ID': 1 },
+        { $userId: 42 }
+      );
     });
 
     it('should propagate procedure execution errors', async () => {
@@ -706,7 +761,7 @@ describe('MPHelper', () => {
 
       const result = await mpHelper.createCommunication(communicationInfo);
 
-      expect(mockCreateCommunication).toHaveBeenCalledWith(communicationInfo, undefined);
+      expect(mockCreateCommunication).toHaveBeenCalledWith(communicationInfo, undefined, undefined);
       expect(result).toEqual(createdCommunication);
     });
 
@@ -726,8 +781,32 @@ describe('MPHelper', () => {
 
       const result = await mpHelper.createCommunication(communicationInfo, [mockFile]);
 
-      expect(mockCreateCommunication).toHaveBeenCalledWith(communicationInfo, [mockFile]);
+      expect(mockCreateCommunication).toHaveBeenCalledWith(communicationInfo, [mockFile], undefined);
       expect(result).toEqual(createdCommunication);
+    });
+
+    it('should forward $userId params to createCommunication', async () => {
+      const communicationInfo = {
+        AuthorUserId: 1,
+        Subject: 'Audited',
+        Body: '<p>body</p>',
+        StartDate: '2024-01-01',
+        FromContactId: 123,
+        ReplyToContactId: 123,
+        Contacts: [456],
+        CommunicationType: 'Email' as const,
+        IsBulkEmail: false,
+        SendToContactParents: false,
+      };
+      mockCreateCommunication.mockResolvedValueOnce({ Communication_ID: 99, ...communicationInfo });
+
+      await mpHelper.createCommunication(communicationInfo, undefined, { $userId: 42 });
+
+      expect(mockCreateCommunication).toHaveBeenCalledWith(
+        communicationInfo,
+        undefined,
+        { $userId: 42 }
+      );
     });
 
     it('should send message without attachments', async () => {
@@ -742,7 +821,7 @@ describe('MPHelper', () => {
 
       const result = await mpHelper.sendMessage(messageInfo);
 
-      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, undefined);
+      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, undefined, undefined);
       expect(result).toEqual(sentMessage);
     });
 
@@ -761,8 +840,22 @@ describe('MPHelper', () => {
 
       const result = await mpHelper.sendMessage(messageInfo, [mockFile]);
 
-      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, [mockFile]);
+      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, [mockFile], undefined);
       expect(result).toEqual(sentMessage);
+    });
+
+    it('should forward $userId params to sendMessage', async () => {
+      const messageInfo = {
+        FromAddress: { Address: 'sender@example.com', DisplayName: 'Sender' },
+        ToAddresses: [{ Address: 'recipient@example.com', DisplayName: 'Recipient' }],
+        Subject: 'Audited',
+        Body: '<p>Hi</p>',
+      };
+      mockSendMessage.mockResolvedValueOnce({ Communication_ID: 100, ...messageInfo });
+
+      await mpHelper.sendMessage(messageInfo, undefined, { $userId: 42 });
+
+      expect(mockSendMessage).toHaveBeenCalledWith(messageInfo, undefined, { $userId: 42 });
     });
   });
 

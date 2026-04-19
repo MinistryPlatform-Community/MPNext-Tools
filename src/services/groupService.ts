@@ -7,6 +7,18 @@ import type {
 } from '@/components/group-wizard/types';
 import type { GroupWizardFormData } from '@/components/group-wizard/schema';
 
+export interface GroupWizardDisplayNames {
+  /** Map of Contact_ID → Display_Name for contact-typed fields */
+  contacts: Record<number, string>;
+  /** Map of Group_ID → Group_Name for group-typed fields */
+  groups: Record<number, string>;
+}
+
+export interface GetGroupResult {
+  data: GroupWizardFormData;
+  displayNames: GroupWizardDisplayNames;
+}
+
 /** Convert date-only strings (YYYY-MM-DD) to ISO datetime for the MP API */
 function toDatetime(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -170,17 +182,27 @@ export class GroupService {
     });
   }
 
-  async getGroup(groupId: number): Promise<GroupWizardFormData | null> {
+  async getGroup(groupId: number): Promise<GetGroupResult | null> {
+    // Select all scalar fields plus display-name joins via FK table traversal.
+    // Aliases (AS) keep the joined names on known keys so edit-mode can seed
+    // the contact/group display maps without a second round trip.
     const records = await this.mp!.getTableRecords<Record<string, unknown>>({
       table: 'Groups',
-      filter: `Group_ID = ${validatePositiveInt(groupId)}`,
+      select: [
+        'Groups.*',
+        'Primary_Contact_TABLE.Display_Name AS Primary_Contact_Display_Name',
+        'Parent_Group_TABLE.Group_Name AS Parent_Group_Name',
+        'Promote_to_Group_TABLE.Group_Name AS Promote_to_Group_Name',
+        'Descended_From_TABLE.Group_Name AS Descended_From_Name',
+      ].join(', '),
+      filter: `Groups.Group_ID = ${validatePositiveInt(groupId)}`,
       top: 1,
     });
 
     if (!records || records.length === 0) return null;
 
     const r = records[0];
-    return {
+    const data: GroupWizardFormData = {
       Group_Name: r.Group_Name as string,
       Group_Type_ID: r.Group_Type_ID as number,
       Description: (r.Description as string) ?? null,
@@ -222,6 +244,31 @@ export class GroupService {
       Promotion_Date: r.Promotion_Date ? (r.Promotion_Date as string).split('T')[0] : null,
       Descended_From: (r.Descended_From as number) ?? null,
     };
+
+    const contacts: Record<number, string> = {};
+    const groups: Record<number, string> = {};
+
+    const primaryContactName = r.Primary_Contact_Display_Name as string | null | undefined;
+    if (data.Primary_Contact && primaryContactName) {
+      contacts[data.Primary_Contact] = primaryContactName;
+    }
+
+    const parentGroupName = r.Parent_Group_Name as string | null | undefined;
+    if (data.Parent_Group && parentGroupName) {
+      groups[data.Parent_Group] = parentGroupName;
+    }
+
+    const promoteToGroupName = r.Promote_to_Group_Name as string | null | undefined;
+    if (data.Promote_to_Group && promoteToGroupName) {
+      groups[data.Promote_to_Group] = promoteToGroupName;
+    }
+
+    const descendedFromName = r.Descended_From_Name as string | null | undefined;
+    if (data.Descended_From && descendedFromName) {
+      groups[data.Descended_From] = descendedFromName;
+    }
+
+    return { data, displayNames: { contacts, groups } };
   }
 
   async createGroup(

@@ -419,21 +419,38 @@ describe('ToolService', () => {
 
       const result = await service.deployTool(baseInput);
 
-      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_dev_DeployTool', {
-        '@ToolName': 'FooTool',
-        '@LaunchPage': 'https://example.org/tools/foo',
-        '@Description': 'A test tool',
-        '@LaunchWithCredentials': 1,
-        '@LaunchWithParameters': 1,
-        '@LaunchInNewTab': 0,
-        '@ShowOnMobile': 0,
-        '@PageIDs': '292,305',
-        '@AdditionalData': 'extra',
-        '@RoleIDs': '1,5',
-      });
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'api_dev_DeployTool',
+        {
+          '@ToolName': 'FooTool',
+          '@LaunchPage': 'https://example.org/tools/foo',
+          '@Description': 'A test tool',
+          '@LaunchWithCredentials': 1,
+          '@LaunchWithParameters': 1,
+          '@LaunchInNewTab': 0,
+          '@ShowOnMobile': 0,
+          '@PageIDs': '292,305',
+          '@AdditionalData': 'extra',
+          '@RoleIDs': '1,5',
+        },
+        undefined
+      );
       expect(result.tool).toEqual(toolRow);
       expect(result.pages).toEqual([]);
       expect(result.roles).toEqual([]);
+    });
+
+    it('forwards $userId as query param when userId is provided', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce([[toolRow], [], []]);
+      const service = await ToolService.getInstance();
+
+      await service.deployTool(baseInput, 42);
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith(
+        'api_dev_DeployTool',
+        expect.any(Object),
+        { $userId: 42 }
+      );
     });
 
     it('sends null for empty @PageIDs, @RoleIDs, @Description, @AdditionalData', async () => {
@@ -455,7 +472,8 @@ describe('ToolService', () => {
           '@PageIDs': null,
           '@AdditionalData': null,
           '@RoleIDs': null,
-        })
+        }),
+        undefined
       );
     });
 
@@ -478,7 +496,8 @@ describe('ToolService', () => {
           '@LaunchWithParameters': 0,
           '@LaunchInNewTab': 1,
           '@ShowOnMobile': 1,
-        })
+        }),
+        undefined
       );
     });
 

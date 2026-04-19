@@ -11,7 +11,7 @@ vi.mock('@/lib/auth-client', () => ({
   },
 }));
 
-import { useAppSession } from './session-context';
+import { useAppSession } from './use-app-session';
 
 describe('useAppSession', () => {
   it('should return session data from authClient.useSession', () => {

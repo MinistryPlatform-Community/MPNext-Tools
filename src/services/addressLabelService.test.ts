@@ -106,5 +106,29 @@ describe('AddressLabelService', () => {
       const result = await service.getAddressForContact(999);
       expect(result).toBeNull();
     });
+
+    it('should throw before calling getTableRecords when contactId is NaN', async () => {
+      const service = await AddressLabelService.getInstance();
+      await expect(service.getAddressForContact(NaN)).rejects.toThrow(
+        /Expected positive integer/
+      );
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+    });
+
+    it('should throw before calling getTableRecords when contactId is zero', async () => {
+      const service = await AddressLabelService.getInstance();
+      await expect(service.getAddressForContact(0)).rejects.toThrow(
+        /Expected positive integer/
+      );
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+    });
+
+    it('should throw before calling getTableRecords when contactId is negative', async () => {
+      const service = await AddressLabelService.getInstance();
+      await expect(service.getAddressForContact(-5)).rejects.toThrow(
+        /Expected positive integer/
+      );
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+    });
   });
 });

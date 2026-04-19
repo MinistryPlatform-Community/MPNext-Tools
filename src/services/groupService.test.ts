@@ -154,7 +154,7 @@ describe('GroupService', () => {
   });
 
   describe('getGroup', () => {
-    it('should return mapped GroupWizardFormData for a found group', async () => {
+    it('should return mapped form data and display names for a found group', async () => {
       const rawRecord = {
         Group_Name: 'Bible Study',
         Group_Type_ID: 1,
@@ -165,7 +165,9 @@ describe('GroupService', () => {
         Congregation_ID: 5,
         Ministry_ID: 10,
         Primary_Contact: 42,
-        Parent_Group: null,
+        Primary_Contact_Display_Name: 'Jane Doe',
+        Parent_Group: 77,
+        Parent_Group_Name: 'Parent Group',
         Priority_ID: 1,
         Meeting_Day_ID: 2,
         Meeting_Time: '18:00',
@@ -190,12 +192,14 @@ describe('GroupService', () => {
         Suppress_Nametag: false,
         Suppress_Care_Note: false,
         On_Classroom_Manager: false,
-        Promote_to_Group: null,
+        Promote_to_Group: 88,
+        Promote_to_Group_Name: 'Target Group',
         Age_in_Months_to_Promote: null,
         Promote_Weekly: false,
         Promote_Participants_Only: false,
         Promotion_Date: null,
-        Descended_From: null,
+        Descended_From: 99,
+        Descended_From_Name: 'Origin Group',
       };
       mockGetTableRecords.mockResolvedValueOnce([rawRecord]);
 
@@ -204,16 +208,23 @@ describe('GroupService', () => {
 
       expect(mockGetTableRecords).toHaveBeenCalledWith({
         table: 'Groups',
-        filter: 'Group_ID = 100',
+        select: expect.stringContaining('Primary_Contact_TABLE.Display_Name AS Primary_Contact_Display_Name'),
+        filter: 'Groups.Group_ID = 100',
         top: 1,
       });
       expect(result).not.toBeNull();
-      expect(result!.Group_Name).toBe('Bible Study');
-      expect(result!.Start_Date).toBe('2024-01-15'); // datetime stripped to date-only
-      expect(result!.Group_Type_ID).toBe(1);
-      expect(result!.Meets_Online).toBe(false);
-      expect(result!.Available_Online).toBe(true);
-      expect(result!.Target_Size).toBe(12);
+      expect(result!.data.Group_Name).toBe('Bible Study');
+      expect(result!.data.Start_Date).toBe('2024-01-15'); // datetime stripped to date-only
+      expect(result!.data.Group_Type_ID).toBe(1);
+      expect(result!.data.Meets_Online).toBe(false);
+      expect(result!.data.Available_Online).toBe(true);
+      expect(result!.data.Target_Size).toBe(12);
+      expect(result!.displayNames.contacts).toEqual({ 42: 'Jane Doe' });
+      expect(result!.displayNames.groups).toEqual({
+        77: 'Parent Group',
+        88: 'Target Group',
+        99: 'Origin Group',
+      });
     });
 
     it('should return null when group not found', async () => {
@@ -225,7 +236,7 @@ describe('GroupService', () => {
       expect(result).toBeNull();
     });
 
-    it('should strip time portion from date fields', async () => {
+    it('should strip time portion from date fields and omit absent display names', async () => {
       const rawRecord = {
         Group_Name: 'Test',
         Group_Type_ID: 1,
@@ -236,7 +247,9 @@ describe('GroupService', () => {
         Congregation_ID: 1,
         Ministry_ID: 1,
         Primary_Contact: 1,
+        Primary_Contact_Display_Name: 'Solo Contact',
         Parent_Group: null,
+        Parent_Group_Name: null,
         Priority_ID: null,
         Meeting_Day_ID: null,
         Meeting_Time: null,
@@ -262,20 +275,25 @@ describe('GroupService', () => {
         Suppress_Care_Note: false,
         On_Classroom_Manager: false,
         Promote_to_Group: null,
+        Promote_to_Group_Name: null,
         Age_in_Months_to_Promote: null,
         Promote_Weekly: false,
         Promote_Participants_Only: false,
         Promotion_Date: '2025-09-01T00:00:00Z',
         Descended_From: null,
+        Descended_From_Name: null,
       };
       mockGetTableRecords.mockResolvedValueOnce([rawRecord]);
 
       const service = await GroupService.getInstance();
       const result = await service.getGroup(50);
 
-      expect(result!.Start_Date).toBe('2024-06-01');
-      expect(result!.End_Date).toBe('2024-12-31');
-      expect(result!.Promotion_Date).toBe('2025-09-01');
+      expect(result!.data.Start_Date).toBe('2024-06-01');
+      expect(result!.data.End_Date).toBe('2024-12-31');
+      expect(result!.data.Promotion_Date).toBe('2025-09-01');
+      // Only the populated contact appears in the display maps
+      expect(result!.displayNames.contacts).toEqual({ 1: 'Solo Contact' });
+      expect(result!.displayNames.groups).toEqual({});
     });
   });
 

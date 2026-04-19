@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CommunicationService } from '@/lib/providers/ministry-platform/services/communication.service';
 import type { MinistryPlatformClient } from '@/lib/providers/ministry-platform/client';
 import type { HttpClient } from '@/lib/providers/ministry-platform/utils/http-client';
+import type { CommunicationInfo, MessageInfo } from '@/lib/providers/ministry-platform/types';
 
 describe('CommunicationService', () => {
   let service: CommunicationService;
@@ -33,23 +34,26 @@ describe('CommunicationService', () => {
     vi.restoreAllMocks();
   });
 
-  const communicationInfo = {
-    Author_User_ID: 1,
+  const communicationInfo: CommunicationInfo = {
+    AuthorUserId: 1,
     Subject: 'Test',
     Body: '<p>Body</p>',
-    Start_Date: '2024-01-01',
-    From_Contact: 123,
-    Reply_to_Contact: 123,
-    To_Contact_List: '456',
-  } as any;
+    StartDate: '2024-01-01',
+    FromContactId: 123,
+    ReplyToContactId: 123,
+    Contacts: [456],
+    CommunicationType: 'Email',
+    IsBulkEmail: false,
+    SendToContactParents: false,
+  };
 
-  const messageInfo = {
+  const messageInfo: MessageInfo = {
     FromAddress: { Address: 'sender@example.com', DisplayName: 'Sender' },
-    ReplyToAddress: { Address: 'sender@example.com' },
-    ToAddresses: [{ Address: 'recipient@example.com' }],
+    ReplyToAddress: { Address: 'sender@example.com', DisplayName: 'Sender' },
+    ToAddresses: [{ Address: 'recipient@example.com', DisplayName: 'Recipient' }],
     Subject: 'Hello',
     Body: '<p>Body</p>',
-  } as any;
+  };
 
   describe('createCommunication', () => {
     it('should call post without attachments', async () => {
@@ -59,9 +63,36 @@ describe('CommunicationService', () => {
       const result = await service.createCommunication(communicationInfo);
 
       expect(mockClient.ensureValidToken).toHaveBeenCalledTimes(1);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/communications', { ...communicationInfo });
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/communications',
+        { ...communicationInfo },
+        undefined
+      );
       expect(mockHttpClient.postFormData).not.toHaveBeenCalled();
       expect(result).toEqual(mockResult);
+    });
+
+    it('should forward $userId as query param when provided (no attachments)', async () => {
+      (mockHttpClient.post as any).mockResolvedValueOnce({ Communication_ID: 5 });
+
+      await service.createCommunication(communicationInfo, undefined, { $userId: 42 });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/communications',
+        { ...communicationInfo },
+        { $userId: 42 }
+      );
+    });
+
+    it('should forward $userId as query param when provided (with attachments)', async () => {
+      (mockHttpClient.postFormData as any).mockResolvedValueOnce({ Communication_ID: 6 });
+
+      const file = new File(['x'], 'x.pdf', { type: 'application/pdf' });
+      await service.createCommunication(communicationInfo, [file], { $userId: 42 });
+
+      const call = (mockHttpClient.postFormData as any).mock.calls[0];
+      expect(call[0]).toBe('/communications');
+      expect(call[2]).toEqual({ $userId: 42 });
     });
 
     it('should call postFormData with single attachment', async () => {
@@ -109,7 +140,11 @@ describe('CommunicationService', () => {
 
       await service.createCommunication(communicationInfo, []);
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/communications', { ...communicationInfo });
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/communications',
+        { ...communicationInfo },
+        undefined
+      );
       expect(mockHttpClient.postFormData).not.toHaveBeenCalled();
     });
   });
@@ -122,9 +157,25 @@ describe('CommunicationService', () => {
       const result = await service.sendMessage(messageInfo);
 
       expect(mockClient.ensureValidToken).toHaveBeenCalledTimes(1);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/messages', { ...messageInfo });
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/messages',
+        { ...messageInfo },
+        undefined
+      );
       expect(mockHttpClient.postFormData).not.toHaveBeenCalled();
       expect(result).toEqual(mockResult);
+    });
+
+    it('should forward $userId as query param when provided', async () => {
+      (mockHttpClient.post as any).mockResolvedValueOnce({ Communication_ID: 12 });
+
+      await service.sendMessage(messageInfo, undefined, { $userId: 42 });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/messages',
+        { ...messageInfo },
+        { $userId: 42 }
+      );
     });
 
     it('should call postFormData with attachments', async () => {

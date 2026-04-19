@@ -27,25 +27,29 @@ ministry-platform/
 ├── provider.ts                 # Main provider class
 ├── helper.ts                   # Public API helper
 ├── auth/                       # Authentication
-│   ├── auth-provider.ts        # NextAuth provider
-│   ├── client-credentials.ts   # OAuth client credentials
+│   ├── client-credentials.ts   # OAuth client credentials (default + dev profiles)
+│   ├── index.ts                # Barrel export
 │   └── types.ts                # Auth-related types
 ├── services/                   # Service layer
+│   ├── index.ts
 │   ├── table.service.ts
 │   ├── procedure.service.ts
 │   ├── communication.service.ts
 │   ├── metadata.service.ts
 │   ├── domain.service.ts
 │   └── file.service.ts
-├── models/                     # Data models
-│   ├── congregations.ts
-│   ├── contact-log.ts
-│   └── contact-log-types.ts
-├── types/                      # Type definitions
+├── models/                     # Generated data models (PascalCase, one per MP table)
+│   ├── <Table>.ts              # TypeScript interface
+│   └── <Table>Schema.ts        # Matching Zod schema
+├── types/                      # Hand-written type definitions
+│   ├── index.ts
 │   ├── provider.types.ts
 │   └── user-profile.types.ts
 ├── utils/                      # Utilities
-│   └── http-client.ts
+│   ├── http-client.ts
+│   └── logger.ts
+├── scripts/                    # Type generation CLI (see scripts/README.md)
+├── db/                         # SQL install scripts (stored procs, DDL)
 └── docs/                       # Documentation
     └── README.md
 ```
@@ -79,6 +83,11 @@ await mp.createTableRecords('Contact_Log', [{
 MINISTRY_PLATFORM_BASE_URL=https://your-instance.ministryplatform.com
 MINISTRY_PLATFORM_CLIENT_ID=your_client_id
 MINISTRY_PLATFORM_CLIENT_SECRET=your_client_secret
+
+# Optional — required only if you invoke `api_dev_*` stored procedures via the
+# `dev` credential profile (see auth/client-credentials.ts).
+MINISTRY_PLATFORM_DEV_CLIENT_ID=your_dev_client_id
+MINISTRY_PLATFORM_DEV_CLIENT_SECRET=your_dev_client_secret
 ```
 
 ## Features
@@ -87,7 +96,7 @@ MINISTRY_PLATFORM_CLIENT_SECRET=your_client_secret
 - ✅ Automatic OAuth2 token management
 - ✅ Service-oriented architecture
 - ✅ Zod schema validation
-- ✅ NextAuth integration
+- ✅ Client credentials OAuth2 for server-side MP access (user OAuth handled by Better Auth in `src/lib/auth.ts`)
 - ✅ File upload/download support
 - ✅ Comprehensive error handling
 - ✅ Clean, standards-compliant code organization

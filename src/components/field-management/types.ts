@@ -19,6 +19,7 @@ export interface PageField {
   Depends_On_Field: string | null;
   Field_Label: string | null;
   Writing_Assistant_Enabled: boolean;
+  isSeparator: boolean;
 }
 
 export interface PageFieldData {

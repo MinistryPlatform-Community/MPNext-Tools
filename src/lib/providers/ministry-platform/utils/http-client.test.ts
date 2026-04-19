@@ -284,10 +284,25 @@ describe('HttpClient', () => {
         ok: false,
         status: 413,
         statusText: 'Payload Too Large',
+        text: () => Promise.resolve(''),
       });
 
       await expect(httpClient.postFormData('/files', formData)).rejects.toThrow(
         'POST /files failed: 413 Payload Too Large'
+      );
+    });
+
+    it('should include response body in POST FormData error message', async () => {
+      const formData = new FormData();
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        text: () => Promise.resolve('File type not allowed'),
+      });
+
+      await expect(httpClient.postFormData('/files', formData)).rejects.toThrow(
+        'POST /files failed: 400 Bad Request - File type not allowed'
       );
     });
   });
@@ -317,12 +332,27 @@ describe('HttpClient', () => {
       expect(result).toEqual([updatedRecord]);
     });
 
-    it('should throw error on failed PUT request with response body', async () => {
+    it('should include response body in thrown error message on failed PUT', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 400,
         statusText: 'Bad Request',
         text: () => Promise.resolve('Validation error: Field X is required'),
+      });
+
+      await expect(
+        httpClient.put('/tables/Contacts', { Invalid: 'data' })
+      ).rejects.toThrow(
+        'PUT /tables/Contacts failed: 400 Bad Request - Validation error: Field X is required'
+      );
+    });
+
+    it('should omit body segment from PUT error message when body is empty', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        text: () => Promise.resolve(''),
       });
 
       await expect(
@@ -365,10 +395,27 @@ describe('HttpClient', () => {
         ok: false,
         status: 400,
         statusText: 'Bad Request',
+        text: () => Promise.resolve(''),
       });
 
       await expect(httpClient.putFormData('/files/1', formData)).rejects.toThrow(
         'PUT /files/1 failed: 400 Bad Request'
+      );
+    });
+
+    it('should include response body in PUT FormData error message', async () => {
+      const formData = new FormData();
+      formData.append('file', new Blob(['bad']), 'fail.txt');
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        text: () => Promise.resolve('Unsupported MIME type'),
+      });
+
+      await expect(httpClient.putFormData('/files/1', formData)).rejects.toThrow(
+        'PUT /files/1 failed: 422 Unprocessable Entity - Unsupported MIME type'
       );
     });
   });
@@ -400,10 +447,24 @@ describe('HttpClient', () => {
         ok: false,
         status: 403,
         statusText: 'Forbidden',
+        text: () => Promise.resolve(''),
       });
 
       await expect(httpClient.delete('/tables/Contacts', { id: [1] })).rejects.toThrow(
         'DELETE /tables/Contacts failed: 403 Forbidden'
+      );
+    });
+
+    it('should include response body in DELETE error message', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        statusText: 'Conflict',
+        text: () => Promise.resolve('Record has dependent rows'),
+      });
+
+      await expect(httpClient.delete('/tables/Contacts', { id: [1] })).rejects.toThrow(
+        'DELETE /tables/Contacts failed: 409 Conflict - Record has dependent rows'
       );
     });
   });

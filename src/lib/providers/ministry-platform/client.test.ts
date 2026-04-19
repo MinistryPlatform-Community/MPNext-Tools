@@ -117,7 +117,7 @@ describe('MinistryPlatformClient', () => {
       await expect(client.ensureValidToken()).rejects.toThrow('OAuth server unavailable');
     });
 
-    it('should handle concurrent ensureValidToken calls', async () => {
+    it('should deduplicate concurrent ensureValidToken calls into a single token fetch', async () => {
       let resolveToken: (value: unknown) => void;
       const tokenPromise = new Promise((resolve) => {
         resolveToken = resolve;
@@ -127,10 +127,8 @@ describe('MinistryPlatformClient', () => {
 
       const client = new MinistryPlatformClient();
 
-      // Start multiple concurrent calls
-      const promise1 = client.ensureValidToken();
-      const promise2 = client.ensureValidToken();
-      const promise3 = client.ensureValidToken();
+      // Start N concurrent callers — only one refresh should be in-flight
+      const callers = Array.from({ length: 5 }, () => client.ensureValidToken());
 
       // Resolve the token
       resolveToken!({
@@ -139,11 +137,54 @@ describe('MinistryPlatformClient', () => {
         token_type: 'Bearer',
       });
 
-      await Promise.all([promise1, promise2, promise3]);
+      await Promise.all(callers);
 
-      // Each call triggers getClientCredentialsToken because there's no deduplication
-      // This is current behavior - could be optimized in the future
-      expect(mockGetClientCredentialsToken).toHaveBeenCalled();
+      // Deduplication: all N callers share the single in-flight refresh promise
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should allow a new refresh after the in-flight promise settles', async () => {
+      mockGetClientCredentialsToken
+        .mockResolvedValueOnce({
+          access_token: 'first-token',
+          expires_in: 3600,
+          token_type: 'Bearer',
+        })
+        .mockResolvedValueOnce({
+          access_token: 'second-token',
+          expires_in: 3600,
+          token_type: 'Bearer',
+        });
+
+      const client = new MinistryPlatformClient();
+
+      // First refresh completes (in-flight promise clears)
+      await client.ensureValidToken();
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(1);
+
+      // Expire token — a new refresh must be able to start
+      vi.advanceTimersByTime(6 * 60 * 1000);
+
+      await client.ensureValidToken();
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(2);
+    });
+
+    it('should clear the in-flight refresh promise when the underlying fetch rejects', async () => {
+      mockGetClientCredentialsToken
+        .mockRejectedValueOnce(new Error('transient failure'))
+        .mockResolvedValueOnce({
+          access_token: 'recovery-token',
+          expires_in: 3600,
+          token_type: 'Bearer',
+        });
+
+      const client = new MinistryPlatformClient();
+
+      await expect(client.ensureValidToken()).rejects.toThrow('transient failure');
+
+      // A subsequent call after failure must trigger a brand-new fetch (promise cleared in finally)
+      await client.ensureValidToken();
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -286,6 +327,29 @@ describe('MinistryPlatformClient', () => {
       expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(2);
       expect(mockGetClientCredentialsToken).toHaveBeenNthCalledWith(1, 'dev');
       expect(mockGetClientCredentialsToken).toHaveBeenNthCalledWith(2, 'dev');
+    });
+
+    it('should deduplicate concurrent ensureValidDevToken calls into a single fetch', async () => {
+      let resolveDev: (value: unknown) => void;
+      const devPromise = new Promise((resolve) => {
+        resolveDev = resolve;
+      });
+      mockGetClientCredentialsToken.mockImplementation(() => devPromise);
+
+      const client = new MinistryPlatformClient();
+
+      const callers = Array.from({ length: 4 }, () => client.ensureValidDevToken());
+
+      resolveDev!({
+        access_token: 'dev-concurrent-token',
+        expires_in: 3600,
+        token_type: 'Bearer',
+      });
+
+      await Promise.all(callers);
+
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledTimes(1);
+      expect(mockGetClientCredentialsToken).toHaveBeenCalledWith('dev');
     });
 
     it('should propagate errors from dev token refresh', async () => {

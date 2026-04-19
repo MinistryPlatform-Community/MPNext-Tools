@@ -1,5 +1,6 @@
 import { MPHelper } from '@/lib/providers/ministry-platform';
 import { validatePositiveInt } from '@/lib/validation';
+import { MP_FETCH_BATCH_SIZE } from '@/lib/constants';
 
 export interface ContactAddressRow {
   Contact_ID: number;
@@ -17,8 +18,6 @@ export interface ContactAddressRow {
   Bar_Code: string | null;
   Delivery_Point_Code: string | null;
 }
-
-const BATCH_SIZE = 100;
 
 const SELECT_FIELDS = [
   'Contact_ID',
@@ -71,8 +70,8 @@ export class AddressLabelService {
 
     const results: ContactAddressRow[] = [];
 
-    for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
-      const batch = contactIds.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < contactIds.length; i += MP_FETCH_BATCH_SIZE) {
+      const batch = contactIds.slice(i, i + MP_FETCH_BATCH_SIZE);
       batch.forEach(validatePositiveInt);
       const idList = batch.join(', ');
 
@@ -93,6 +92,8 @@ export class AddressLabelService {
    * Fetch the address for a single contact. Returns null if not found.
    */
   async getAddressForContact(contactId: number): Promise<ContactAddressRow | null> {
+    validatePositiveInt(contactId);
+
     const rows = await this.mp!.getTableRecords<ContactAddressRow>({
       table: 'Contacts',
       select: SELECT_FIELDS,

@@ -15,6 +15,7 @@ const REASON_LABELS: Record<string, string> = {
   no_postal_code: 'Missing postal code',
   opted_out: 'Opted out of bulk mail',
   no_barcode: 'Missing barcode data',
+  no_household: 'Missing household (required in household mode)',
 };
 
 export function AddressLabelsSummary({ printableCount, skipped }: AddressLabelsSummaryProps) {

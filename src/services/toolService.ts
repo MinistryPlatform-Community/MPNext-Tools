@@ -1,6 +1,7 @@
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { PageData } from "@/lib/tool-params";
 import { validatePositiveInt, validateColumnName } from "@/lib/validation";
+import { MP_FETCH_BATCH_SIZE } from "@/lib/constants";
 
 export interface ContactRecord {
   recordId: number;
@@ -142,7 +143,7 @@ export class ToolService {
 
   /**
    * Retrieves the record IDs from a Ministry Platform selection.
-   * Calls the api_CloudTools_GetSelection stored procedure.
+   * Calls the api_Common_GetSelection stored procedure.
    *
    * @param selectionId - The Selection ID
    * @param userId - The Ministry Platform User ID
@@ -244,7 +245,7 @@ export class ToolService {
    * credentials — this must not be reachable from production. DomainID is auto-injected
    * by the MP API.
    */
-  public async deployTool(input: DeployToolInput): Promise<DeployToolResult> {
+  public async deployTool(input: DeployToolInput, userId?: number): Promise<DeployToolResult> {
     if (!input.toolName.trim()) throw new Error('Tool Name is required');
     if (!input.launchPage.trim()) throw new Error('Launch Page is required');
     if (input.toolName.length > 30) throw new Error('Tool Name must be 30 characters or fewer');
@@ -265,7 +266,8 @@ export class ToolService {
       '@RoleIDs': input.roleIds.length ? input.roleIds.join(',') : null,
     };
 
-    const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool', payload);
+    const queryParams = userId !== undefined ? { $userId: userId } : undefined;
+    const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool', payload, queryParams);
 
     const [toolRows, pageRows, roleRows] = resultSets ?? [];
     const tool = (toolRows?.[0] as DeployedToolRow | undefined);
@@ -279,8 +281,6 @@ export class ToolService {
       roles: (roleRows as DeployedToolRoleRow[] | undefined) ?? [],
     };
   }
-
-  private static readonly BATCH_SIZE = 100;
 
   /**
    * Resolves record IDs to their associated Contact IDs by querying the
@@ -329,8 +329,8 @@ export class ToolService {
 
     const allRecords: ContactRecord[] = [];
 
-    for (let i = 0; i < recordIds.length; i += ToolService.BATCH_SIZE) {
-      const batch = recordIds.slice(i, i + ToolService.BATCH_SIZE);
+    for (let i = 0; i < recordIds.length; i += MP_FETCH_BATCH_SIZE) {
+      const batch = recordIds.slice(i, i + MP_FETCH_BATCH_SIZE);
       batch.forEach(validatePositiveInt);
       const rows = await this.mp!.getTableRecords<Record<string, number>>({
         table: tableName,

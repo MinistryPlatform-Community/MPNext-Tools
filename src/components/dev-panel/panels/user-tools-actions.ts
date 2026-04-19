@@ -1,16 +1,11 @@
 "use server";
 
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireDevSession } from "./require-dev-session";
 import { ToolService } from "@/services/toolService";
 import { UserService } from "@/services/userService";
 
 export async function getUserTools(): Promise<string[]> {
-  const session = await auth.api.getSession({ headers: await headers() });
-
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized - Missing user session data");
-  }
+  const session = await requireDevSession("Dev panel");
 
   const userGuid = (session.user as Record<string, unknown>).userGuid as string | undefined;
   if (!userGuid) {

@@ -10,6 +10,31 @@ export class HttpClient {
         this.getToken = getToken;
     }
 
+    /**
+     * Shared error-handling for non-2xx responses. Always attempts to read the
+     * response body (tolerating failure), logs with a consistent key, and throws
+     * an Error whose message includes status/statusText and the body when present.
+     *
+     * All HTTP methods (GET/POST/POST FormData/PUT/PUT FormData/DELETE) route through
+     * this helper so callers get the same shape of error regardless of method.
+     */
+    private async handleFailedResponse(
+        method: string,
+        endpoint: string,
+        response: Response
+    ): Promise<never> {
+        const responseText = await response.text().catch(() => '');
+        logger.error(`${method} Request failed:`, {
+            status: response.status,
+            statusText: response.statusText,
+            endpoint,
+            responseBody: responseText,
+        });
+        throw new Error(
+            `${method} ${endpoint} failed: ${response.status} ${response.statusText}${responseText ? ` - ${responseText}` : ''}`
+        );
+    }
+
     async get<T = unknown>(endpoint: string, queryParams?: QueryParams): Promise<T> {
         const url = this.buildUrl(endpoint, queryParams);
 
@@ -22,14 +47,7 @@ export class HttpClient {
         });
 
         if (!response.ok) {
-            const responseText = await response.text().catch(() => '');
-            logger.error("GET Request failed:", {
-                status: response.status,
-                statusText: response.statusText,
-                url,
-                responseBody: responseText
-            });
-            throw new Error(`GET ${endpoint} failed: ${response.status} ${response.statusText}${responseText ? ` - ${responseText}` : ''}`);
+            await this.handleFailedResponse('GET', endpoint, response);
         }
 
         return await response.json() as T;
@@ -49,14 +67,7 @@ export class HttpClient {
         });
 
         if (!response.ok) {
-            const responseText = await response.text().catch(() => '');
-            logger.error("POST Request failed:", {
-                status: response.status,
-                statusText: response.statusText,
-                url,
-                responseBody: responseText
-            });
-            throw new Error(`POST ${endpoint} failed: ${response.status} ${response.statusText}${responseText ? ` - ${responseText}` : ''}`);
+            await this.handleFailedResponse('POST', endpoint, response);
         }
 
         return await response.json() as T;
@@ -64,7 +75,7 @@ export class HttpClient {
 
     async postFormData<T = unknown>(endpoint: string, formData: FormData, queryParams?: QueryParams): Promise<T> {
         const url = this.buildUrl(endpoint, queryParams);
-        
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -76,7 +87,7 @@ export class HttpClient {
         });
 
         if (!response.ok) {
-            throw new Error(`POST ${endpoint} failed: ${response.status} ${response.statusText}`);
+            await this.handleFailedResponse('POST', endpoint, response);
         }
 
         return await response.json() as T;
@@ -84,14 +95,14 @@ export class HttpClient {
 
     async put<T = unknown>(endpoint: string, body: RequestBody, queryParams?: QueryParams): Promise<T> {
         const url = this.buildUrl(endpoint, queryParams);
-        
+
         logger.debug("HTTP PUT Request:", {
             url,
             endpoint,
             body: JSON.stringify(body, null, 2),
             queryParams
         });
-        
+
         const response = await fetch(url, {
             method: 'PUT',
             headers: {
@@ -103,13 +114,7 @@ export class HttpClient {
         });
 
         if (!response.ok) {
-            const responseText = await response.text();
-            logger.error("PUT Request failed:", {
-                status: response.status,
-                statusText: response.statusText,
-                responseBody: responseText
-            });
-            throw new Error(`PUT ${endpoint} failed: ${response.status} ${response.statusText}`);
+            await this.handleFailedResponse('PUT', endpoint, response);
         }
 
         return await response.json() as T;
@@ -117,7 +122,7 @@ export class HttpClient {
 
     async putFormData<T = unknown>(endpoint: string, formData: FormData, queryParams?: QueryParams): Promise<T> {
         const url = this.buildUrl(endpoint, queryParams);
-        
+
         const response = await fetch(url, {
             method: 'PUT',
             headers: {
@@ -129,7 +134,7 @@ export class HttpClient {
         });
 
         if (!response.ok) {
-            throw new Error(`PUT ${endpoint} failed: ${response.status} ${response.statusText}`);
+            await this.handleFailedResponse('PUT', endpoint, response);
         }
 
         return await response.json() as T;
@@ -137,7 +142,7 @@ export class HttpClient {
 
     async delete<T = unknown>(endpoint: string, queryParams?: QueryParams): Promise<T> {
         const url = this.buildUrl(endpoint, queryParams);
-        
+
         const response = await fetch(url, {
             method: 'DELETE',
             headers: {
@@ -147,7 +152,7 @@ export class HttpClient {
         });
 
         if (!response.ok) {
-            throw new Error(`DELETE ${endpoint} failed: ${response.status} ${response.statusText}`);
+            await this.handleFailedResponse('DELETE', endpoint, response);
         }
 
         return await response.json() as T;

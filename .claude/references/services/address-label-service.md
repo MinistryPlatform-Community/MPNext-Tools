@@ -32,7 +32,7 @@ export class AddressLabelService {
 | Method | Returns | Behavior |
 |--------|---------|----------|
 | `getAddressesForContacts(contactIds: number[])` | `ContactAddressRow[]` | Batches of 100, validates each ID with `validatePositiveInt`, orders by Postal_Code |
-| `getAddressForContact(contactId: number)` | `ContactAddressRow \| null` | Single-row lookup, `top: 1` |
+| `getAddressForContact(contactId: number)` | `ContactAddressRow \| null` | Validates ID with `validatePositiveInt`, single-row lookup, `top: 1` |
 
 ## Shared select (multi-level FK traversal)
 
@@ -102,8 +102,10 @@ async getAddressesForContacts(contactIds: number[]): Promise<ContactAddressRow[]
 ## getAddressForContact
 
 ```typescript
-// src/services/addressLabelService.ts:95-104
+// src/services/addressLabelService.ts:95-106
 async getAddressForContact(contactId: number): Promise<ContactAddressRow | null> {
+  validatePositiveInt(contactId);
+
   const rows = await this.mp!.getTableRecords<ContactAddressRow>({
     table: 'Contacts',
     select: SELECT_FIELDS,
@@ -113,8 +115,6 @@ async getAddressForContact(contactId: number): Promise<ContactAddressRow | null>
   return rows[0] ?? null;
 }
 ```
-
-<!-- Note: getAddressForContact does NOT call validatePositiveInt — tracked in TODO 2026-04-17-services-get-address-for-contact-unvalidated.md -->
 
 ## Return type
 

@@ -1,5 +1,6 @@
 import { imbEncode } from '@/lib/imb-encoder';
 import { postnetEncode } from '@/lib/postnet-encoder';
+import { validateMailerId } from '@/lib/validation';
 import type { LabelData, LabelConfig } from '@/lib/dto';
 
 /**
@@ -19,6 +20,7 @@ export function buildRoutingCode(postalCode?: string, deliveryPointCode?: string
  * Format: [Barcode ID: 2][Service Type: 3][Mailer ID: 6 or 9][Serial: 9 or 6]
  */
 export function buildImbTrackingCode(mailerId: string, serviceType: string, serialNumber: number): string {
+  validateMailerId(mailerId);
   const barcodeId = '00';
   const serialLength = mailerId.length === 6 ? 9 : 6;
   const serial = String(serialNumber).padStart(serialLength, '0');
@@ -37,6 +39,7 @@ export function preEncodeBarcodes(labels: LabelData[], config: LabelConfig): Lab
     if (config.barcodeFormat === 'none') return label;
 
     const routingCode = buildRoutingCode(label.postalCode, label.deliveryPointCode);
+    const labelId = label.name || label.addressLine1 || '(unnamed)';
 
     if (config.barcodeFormat === 'imb' && config.mailerId) {
       try {
@@ -45,8 +48,12 @@ export function preEncodeBarcodes(labels: LabelData[], config: LabelConfig): Lab
         const imbInput = trackingCode + routingCode;
         const bars = imbEncode(imbInput);
         return { ...label, barStates: bars.join(''), barType: 'imb' as const };
-      } catch {
-        // Fall through to POSTNET
+      } catch (err) {
+        // Fall through to POSTNET — log the downgrade so operators see misconfigured mailer IDs / ZIPs.
+        console.warn(
+          `[preEncodeBarcodes] IMb encode failed for "${labelId}", falling back to POSTNET:`,
+          err instanceof Error ? err.message : err
+        );
       }
     }
 
@@ -55,12 +62,19 @@ export function preEncodeBarcodes(labels: LabelData[], config: LabelConfig): Lab
         try {
           const bars = postnetEncode(routingCode);
           return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
-        } catch {
+        } catch (err) {
+          console.warn(
+            `[preEncodeBarcodes] POSTNET encode failed for "${labelId}" with routing "${routingCode}", retrying with 5-digit ZIP:`,
+            err instanceof Error ? err.message : err
+          );
           try {
             const bars = postnetEncode(routingCode.substring(0, 5));
             return { ...label, barStates: JSON.stringify(bars), barType: 'postnet' as const };
-          } catch {
-            // No barcode possible
+          } catch (err2) {
+            console.warn(
+              `[preEncodeBarcodes] POSTNET encode also failed with 5-digit ZIP for "${labelId}", no barcode will be rendered:`,
+              err2 instanceof Error ? err2.message : err2
+            );
           }
         }
       }

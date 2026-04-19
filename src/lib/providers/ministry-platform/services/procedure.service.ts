@@ -57,19 +57,25 @@ export class ProcedureService {
      * Executes the requested stored procedure with provided parameters in the request body.
      * Procedures whose name begins with `api_dev_` are routed through the isolated dev
      * credential pipeline — all other procedures use the default credentials.
+     *
+     * `queryParams` attaches to the URL — primarily for `$userId` audit attribution on
+     * write procedures. The body `parameters` and the `queryParams` are independent;
+     * MP treats them separately (body → SP params, query → API metadata).
      */
     public async executeProcedureWithBody(
         procedure: string,
-        parameters: Record<string, unknown>
+        parameters: Record<string, unknown>,
+        queryParams?: QueryParams
     ): Promise<unknown[][]> {
         try {
             const http = await this.resolveHttpClient(procedure);
 
             logger.debug('Executing procedure with body:', procedure);
             logger.debug('Parameters:', parameters);
+            logger.debug('Query Params:', queryParams);
 
             const endpoint = `/procs/${encodeURIComponent(procedure)}`;
-            const data = await http.post<unknown[][]>(endpoint, parameters);
+            const data = await http.post<unknown[][]>(endpoint, parameters, queryParams);
 
             logger.debug('Procedure results:', data);
             return data;

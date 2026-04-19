@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DomainService } from '@/lib/providers/ministry-platform/services/domain.service';
 import type { MinistryPlatformClient } from '@/lib/providers/ministry-platform/client';
 import type { HttpClient } from '@/lib/providers/ministry-platform/utils/http-client';
+import type { DomainInfo } from '@/lib/providers/ministry-platform/types';
 
 describe('DomainService', () => {
   let service: DomainService;
@@ -35,7 +36,14 @@ describe('DomainService', () => {
 
   describe('getDomainInfo', () => {
     it('should return domain information', async () => {
-      const mockDomain = { DomainName: 'Test', DomainId: 1 };
+      const mockDomain: DomainInfo = {
+        DisplayName: 'Test',
+        TimeZoneName: 'America/New_York',
+        CultureName: 'en-US',
+        IsSimpleSignOnEnabled: false,
+        IsUserTimeZoneEnabled: false,
+        IsSmsMfaEnabled: false,
+      };
       (mockHttpClient.get as any).mockResolvedValueOnce(mockDomain);
 
       const result = await service.getDomainInfo();

@@ -161,8 +161,20 @@ describe('ProcedureService', () => {
       const result = await service.executeProcedureWithBody('api_Test', { foo: 'bar' });
 
       expect(mockClient.ensureValidToken).toHaveBeenCalledTimes(1);
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/procs/api_Test', { foo: 'bar' });
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/procs/api_Test', { foo: 'bar' }, undefined);
       expect(result).toEqual(data);
+    });
+
+    it('should forward queryParams (e.g. $userId) to http.post', async () => {
+      (mockHttpClient.post as any).mockResolvedValueOnce([[]]);
+
+      await service.executeProcedureWithBody('api_Test', { foo: 'bar' }, { $userId: 99 });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        '/procs/api_Test',
+        { foo: 'bar' },
+        { $userId: 99 }
+      );
     });
 
     it('should URL-encode procedure name with special chars', async () => {
@@ -196,7 +208,7 @@ describe('ProcedureService', () => {
       expect(mockDevHttpClient.post).toHaveBeenCalledWith('/procs/api_dev_DeployTool', {
         '@DomainID': 1,
         '@ToolName': 'Foo',
-      });
+      }, undefined);
       expect(mockClient.ensureValidToken).not.toHaveBeenCalled();
       expect(mockHttpClient.post).not.toHaveBeenCalled();
       expect(result).toEqual(data);

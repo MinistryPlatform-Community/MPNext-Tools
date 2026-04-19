@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateGuid, validatePositiveInt, validateColumnName, escapeFilterString } from './validation';
+import { validateGuid, validatePositiveInt, validateColumnName, escapeFilterString, validateMailerId } from './validation';
 
 describe('validation', () => {
   describe('validateGuid', () => {
@@ -65,6 +65,28 @@ describe('validation', () => {
 
     it('throws on SQL injection attempt', () => {
       expect(() => validateColumnName("' OR 1=1--")).toThrow('Invalid column name');
+    });
+  });
+
+  describe('validateMailerId', () => {
+    it('accepts a 6-digit mailer ID', () => {
+      expect(validateMailerId('123456')).toBe('123456');
+    });
+
+    it('accepts a 9-digit mailer ID', () => {
+      expect(validateMailerId('123456789')).toBe('123456789');
+    });
+
+    it('throws on empty string', () => {
+      expect(() => validateMailerId('')).toThrow('Mailer ID must be exactly 6 or 9 digits');
+    });
+
+    it('throws on 7-digit input (invalid length)', () => {
+      expect(() => validateMailerId('1234567')).toThrow('Mailer ID must be exactly 6 or 9 digits');
+    });
+
+    it('throws on non-digit characters', () => {
+      expect(() => validateMailerId('12345a')).toThrow('Mailer ID must be exactly 6 or 9 digits');
     });
   });
 

@@ -17,7 +17,27 @@ import {
   RecurrencePattern,
   CopyParameters,
 } from "./types";
-import type { ZodObject, ZodRawShape } from "zod";
+import { z, type ZodObject, type ZodRawShape } from "zod";
+
+/**
+ * Error thrown by MPHelper when per-record Zod validation fails inside
+ * `createTableRecords` / `updateTableRecords`. Preserves the original
+ * `z.ZodError` so callers (e.g. field-level form UIs) can inspect the
+ * structured `issues` array instead of re-parsing the message string.
+ *
+ * Subclasses `Error`, so existing `instanceof Error` / catch-all handlers
+ * continue to work — callers that want field-level detail can additionally
+ * check `instanceof MPValidationError`.
+ */
+export class MPValidationError extends Error {
+  constructor(
+    public readonly recordIndex: number,
+    public readonly zodError: z.ZodError
+  ) {
+    super(`Validation failed for record ${recordIndex}: ${zodError.message}`);
+    this.name = "MPValidationError";
+  }
+}
 
 /**
  * MPHelper - Main Public API for Ministry Platform Operations
@@ -186,6 +206,10 @@ export class MPHelper {
           try {
             return schema.parse(record) as T;
           } catch (validationError) {
+            // Preserve the structured ZodError for downstream consumers.
+            if (validationError instanceof z.ZodError) {
+              throw new MPValidationError(index, validationError);
+            }
             throw new Error(
               `Validation failed for record ${index}: ${
                 validationError instanceof Error
@@ -270,6 +294,10 @@ export class MPHelper {
           try {
             return validationSchema.parse(record) as T;
           } catch (validationError) {
+            // Preserve the structured ZodError for downstream consumers.
+            if (validationError instanceof z.ZodError) {
+              throw new MPValidationError(index, validationError);
+            }
             throw new Error(
               `Validation failed for record ${index}: ${
                 validationError instanceof Error
@@ -539,13 +567,15 @@ export class MPHelper {
    * Executes the requested stored procedure with provided parameters in the request body.
    * @param procedure Stored procedure name
    * @param parameters Parameters to be used for calling stored procedure
+   * @param queryParams Optional query-string params (e.g. `{ $userId }` for audit attribution)
    * @returns Promise with the procedure results
    */
   public async executeProcedureWithBody(
     procedure: string,
-    parameters: Record<string, unknown>
+    parameters: Record<string, unknown>,
+    queryParams?: QueryParams
   ): Promise<unknown[][]> {
-    return await this.provider.executeProcedureWithBody(procedure, parameters);
+    return await this.provider.executeProcedureWithBody(procedure, parameters, queryParams);
   }
 
   // Communication Service Methods
@@ -554,13 +584,15 @@ export class MPHelper {
    * Supports both simple JSON communication and multipart form data with file attachments.
    * @param communication Communication information object
    * @param attachments Optional array of file attachments
+   * @param params Optional params (`$userId` for audit attribution)
    * @returns Promise with the created communication
    */
   public async createCommunication(
     communication: CommunicationInfo,
-    attachments?: File[]
+    attachments?: File[],
+    params?: Pick<TableQueryParams, "$userId">
   ): Promise<Communication> {
-    return await this.provider.createCommunication(communication, attachments);
+    return await this.provider.createCommunication(communication, attachments, params);
   }
 
   /**
@@ -568,13 +600,15 @@ export class MPHelper {
    * Supports both simple JSON message and multipart form data with file attachments.
    * @param message Message information object
    * @param attachments Optional array of file attachments
+   * @param params Optional params (`$userId` for audit attribution)
    * @returns Promise with the created communication
    */
   public async sendMessage(
     message: MessageInfo,
-    attachments?: File[]
+    attachments?: File[],
+    params?: Pick<TableQueryParams, "$userId">
   ): Promise<Communication> {
-    return await this.provider.sendMessage(message, attachments);
+    return await this.provider.sendMessage(message, attachments, params);
   }
 
   // File Service Methods

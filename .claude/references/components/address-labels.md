@@ -57,7 +57,7 @@ Tool route: `src/app/(web)/tools/addresslabels/page.tsx` → `address-labels.tsx
 - **Address mode**: `household` (dedup by `Household_ID`, use `Household_Name`) or `individual` (use `Display_Name`).
 - **IMb**: USPS Intelligent Mail Barcode — 65 four-state bars (`T`/`D`/`A`/`F`), requires a 6- or 9-digit **USPS Mailer ID** + service type (`040` First-Class default).
 - **POSTNET**: Legacy 5/9/11-digit tall/short bar barcode (no Mailer ID needed).
-- **Skip reasons** (`SkipReason` in `src/lib/dto/address-label.dto.ts:15`): `no_address`, `no_postal_code`, `opted_out` (`Bulk_Mail_Opt_Out=true`), `no_barcode` (only when `includeMissingBarcodes=false`).
+- **Skip reasons** (`SkipReason` in `src/lib/dto/address-label.dto.ts:15`): `no_address`, `no_postal_code`, `opted_out` (`Bulk_Mail_Opt_Out=true`), `no_barcode` (only when `includeMissingBarcodes=false`), `no_household` (household mode only — contact lacks `Household_ID` so dedup cannot be guaranteed).
 - **Pre-encoded bar states**: `preEncodeBarcodes()` encodes once on the server into `LabelData.barStates` so the PDF/Word renderers are pure layout (see `../utils/barcodes.md`).
 - **Mail-merge tab**: uploads a `.docx` with `{Name}`, `{AddressLine1}`, `{AddressLine2}`, `{City}`, `{State}`, `{PostalCode}`, `{%Barcode}` tokens plus `{#addresses}…{/addresses}` loop and `{#isNotLast}<pagebreak>{/isNotLast}` conditional — barcodes become BMP images via `docxtemplater-image-module-free`.
 - **LocalStorage persistence**: last-used `LabelConfig` stored under key `address-labels-config` (`src/app/(web)/tools/addresslabels/address-labels.tsx:15`).
@@ -147,7 +147,7 @@ From `src/lib/dto/address-label.dto.ts`:
 ```ts
 type AddressMode = 'household' | 'individual';
 type BarcodeFormat = 'imb' | 'postnet' | 'none';
-type SkipReason = 'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode';
+type SkipReason = 'no_address' | 'no_postal_code' | 'opted_out' | 'no_barcode' | 'no_household';
 interface LabelConfig { stockId; addressMode; startPosition; includeMissingBarcodes; barcodeFormat; mailerId; serviceType; }
 interface LabelData { name; addressLine1; addressLine2?; city; state; postalCode; barCode?; deliveryPointCode?; barStates?; barType?: 'imb' | 'postnet'; }
 interface SkipRecord { name: string; contactId: number; reason: SkipReason; }

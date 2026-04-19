@@ -23,11 +23,13 @@ export class MinistryPlatformClient {
     private token: string = "";
     private expiresAt: Date = new Date(0);
     private httpClient: HttpClient;
+    private refreshPromise: Promise<void> | null = null;
 
     // Dev credential pipeline — used only by ProcedureService for api_dev_* procs
     private devToken: string = "";
     private devExpiresAt: Date = new Date(0);
     private devHttpClient: HttpClient;
+    private devRefreshPromise: Promise<void> | null = null;
 
     private baseUrl: string;
 
@@ -51,9 +53,15 @@ export class MinistryPlatformClient {
         logger.debug("Expires at:", this.expiresAt);
         logger.debug("Current time:", new Date());
 
-        if (this.expiresAt < new Date()) {
-            logger.debug("Token expired, refreshing...");
+        if (this.expiresAt >= new Date()) return;
 
+        // Dedup concurrent callers: the first caller to find the token expired
+        // starts the refresh; subsequent callers await the same in-flight promise.
+        if (this.refreshPromise) return this.refreshPromise;
+
+        logger.debug("Token expired, refreshing...");
+
+        this.refreshPromise = (async () => {
             try {
                 const creds = await getClientCredentialsToken();
                 this.token = creds.access_token;
@@ -63,8 +71,12 @@ export class MinistryPlatformClient {
             } catch (error) {
                 logger.error("Failed to refresh token:", error);
                 throw error;
+            } finally {
+                this.refreshPromise = null;
             }
-        }
+        })();
+
+        return this.refreshPromise;
     }
 
     /**
@@ -77,9 +89,14 @@ export class MinistryPlatformClient {
         logger.debug("Dev expires at:", this.devExpiresAt);
         logger.debug("Current time:", new Date());
 
-        if (this.devExpiresAt < new Date()) {
-            logger.debug("Dev token expired, refreshing...");
+        if (this.devExpiresAt >= new Date()) return;
 
+        // Dedup concurrent callers on the dev pipeline (symmetric with default pipeline).
+        if (this.devRefreshPromise) return this.devRefreshPromise;
+
+        logger.debug("Dev token expired, refreshing...");
+
+        this.devRefreshPromise = (async () => {
             try {
                 const creds = await getClientCredentialsToken('dev');
                 this.devToken = creds.access_token;
@@ -89,8 +106,12 @@ export class MinistryPlatformClient {
             } catch (error) {
                 logger.error("Failed to refresh dev token:", error);
                 throw error;
+            } finally {
+                this.devRefreshPromise = null;
             }
-        }
+        })();
+
+        return this.devRefreshPromise;
     }
 
     /**
