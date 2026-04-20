@@ -263,20 +263,15 @@ function initializeGroupOrder(fields: PageField[]): string[] {
 
   if (!hasGroups) return [FLAT_GROUP];
 
-  // Group names sorted by the minimum View_Order of their fields
-  const groupMinOrder = new Map<string, number>();
+  const groupNames = new Set<string>();
   for (const field of fields) {
-    const groupName = field.Group_Name ?? OTHER_FIELDS_GROUP;
-    const current = groupMinOrder.get(groupName);
-    if (current === undefined || field.View_Order < current) {
-      groupMinOrder.set(groupName, field.View_Order);
-    }
+    groupNames.add(field.Group_Name ?? OTHER_FIELDS_GROUP);
   }
 
-  const order = [...groupMinOrder.keys()].sort((a, b) => {
+  const order = [...groupNames].sort((a, b) => {
     if (a === OTHER_FIELDS_GROUP) return 1;
     if (b === OTHER_FIELDS_GROUP) return -1;
-    return groupMinOrder.get(a)! - groupMinOrder.get(b)!;
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
   });
 
   return order;
