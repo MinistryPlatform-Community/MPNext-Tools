@@ -99,7 +99,7 @@ Component -> Server Action -> Service (singleton) -> MPHelper -> Ministry Platfo
 
 ## Prerequisites
 
-- **Node.js**: v20 or higher (enforced via `engines` in `package.json` and the setup script). Required by Next.js 16, React 19, and TypeScript 6.0.
+- **Node.js**: **v24.15.0 or later on the 24.x line** (pinned via `engines.node` in `package.json`, `.nvmrc`, and the setup script). Node 24 is the current LTS and the version Vercel deploys; 20.x and 22.x are not supported. Use `nvm use` (or `fnm use`) to pick it up from `.nvmrc`.
 - **Package Manager**: npm
 - **Ministry Platform**: Active instance with API credentials and OAuth client configured
 - **Ministry Platform Database**: SQL install script applied (see [Database Setup](#database-setup) below)

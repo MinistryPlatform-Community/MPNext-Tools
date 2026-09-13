@@ -249,8 +249,17 @@ in-range updates, evaluates each major separately, sweeps OSV.dev for advisories
 its "Held back" section records what is already known to be blocked and the exact
 condition that clears it. Do not re-derive that analysis.
 
-- **Node**: `engines.node` is `^22.22.2 || ^24.15.0 || >=26.0.0`, mirroring the
-  strictest dev dependency (jsdom 30). Node 20 is EOL and unsupported.
+- **Node**: pinned to the **Node 24 LTS line** — `engines.node` is `^24.15.0`
+  (the `24.15` floor is jsdom 30's, the strictest dev dependency). `@types/node`
+  is pinned to the matching major (`^24.13.4`); do not let it drift ahead of the
+  runtime. `.nvmrc` holds `24` and CI reads it via `node-version-file`.
+  **Vercel** deploys the latest `24.x` for this range (it only offers majors:
+  24.x/22.x/20.x), so `engines.node` overrides whatever the project's
+  Build & Deployment setting says. Node 20 and 22 are no longer supported here.
+  **Hold this pin until Vercel's default Node version moves forward** — re-check
+  with <https://vercel.com/docs/functions/runtimes/node-js/node-js-versions>,
+  then bump `engines.node`, `.nvmrc`, `@types/node`, and `REQUIRED_NODE_MAJOR`
+  in `scripts/setup.ts` together.
 - **CI gates tests only** — `.github/workflows/test.yml` runs `npm run test:coverage`
   and never `npm run build`, so type errors do not fail CI. Type-check locally.
 - **Coverage path is load-bearing**: CI uploads `coverage/coverage-final.json` to
@@ -269,6 +278,7 @@ condition that clears it. Do not re-derive that analysis.
 | `typescript` 7 | No stable Compiler API until 7.1; `typescript-eslint` peers `typescript: >=4.8.4 <6.1.0` | `npm view typescript-eslint peerDependencies` |
 | `eslint` 10 | `eslint-plugin-react@7.37.5` (latest) peers `eslint ^9.7` and calls a removed context method | `npm view eslint-plugin-react peerDependencies` |
 | `grapesjs` 0.23 | `@grapesjs/react@2.0.0` (latest) peers `grapesjs ^0.22.5` | `npm view @grapesjs/react peerDependencies` |
+| `@types/node` 25+ | Runtime is pinned to Node 24 (`engines.node: ^24.15.0`) because 24.x is Vercel's current default/newest offering; types must not lead the runtime | Vercel's [supported Node versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions) |
 
 ## Reference Documents
 

@@ -74,7 +74,11 @@ const MODELS_PATH = path.join(
 );
 const NEXT_BUILD_PATH = path.join(PROJECT_ROOT, '.next');
 
-const REQUIRED_NODE_VERSION = 20;
+// Pinned to the Node 24 LTS line: `engines.node` is `^24.15.0` and Vercel only
+// offers major versions (24.x is its current default). Bump both together when
+// Vercel moves its default forward.
+const REQUIRED_NODE_MAJOR = 24;
+const REQUIRED_NODE_MINOR = 15;
 
 const SQL_INSTALL_PATH = path.join(PROJECT_ROOT, '_INSTALL', 'ministryplatform-install.sql');
 
@@ -341,9 +345,11 @@ async function execCommandStreaming(
   });
 }
 
-function getNodeVersion(): number | null {
-  const match = process.version.match(/^v(\d+)/);
-  return match ? parseInt(match[1], 10) : null;
+function getNodeVersion(): { major: number; minor: number } | null {
+  const match = process.version.match(/^v(\d+)\.(\d+)/);
+  return match
+    ? { major: parseInt(match[1], 10), minor: parseInt(match[2], 10) }
+    : null;
 }
 
 function countFilesInDir(dir: string): number {
@@ -555,17 +561,27 @@ function checkNodeVersion(): StepResult {
     };
   }
 
-  if (version < REQUIRED_NODE_VERSION) {
+  const required = `v${REQUIRED_NODE_MAJOR}.${REQUIRED_NODE_MINOR}.0`;
+
+  if (version.major !== REQUIRED_NODE_MAJOR) {
     return {
       success: false,
-      message: `Node.js v${version} is below minimum required v${REQUIRED_NODE_VERSION}`,
-      details: 'Please upgrade Node.js to v18 or later',
+      message: `Node.js ${process.version} is not on the pinned v${REQUIRED_NODE_MAJOR} line`,
+      details: `This project pins Node.js to ${REQUIRED_NODE_MAJOR}.x (see \`engines.node\` and \`.nvmrc\`). Install ${required} or later within v${REQUIRED_NODE_MAJOR}.`,
+    };
+  }
+
+  if (version.minor < REQUIRED_NODE_MINOR) {
+    return {
+      success: false,
+      message: `Node.js ${process.version} is below minimum required ${required}`,
+      details: `Please upgrade to ${required} or later within v${REQUIRED_NODE_MAJOR}.`,
     };
   }
 
   return {
     success: true,
-    message: `Node.js ${process.version} (meets v${REQUIRED_NODE_VERSION}+ requirement)`,
+    message: `Node.js ${process.version} (meets the pinned ${required}+ requirement)`,
   };
 }
 
