@@ -208,6 +208,9 @@ PublishScripts/
 **/[Pp]ackages/*
 # except build/, which is used as an MSBuild target.
 !**/[Pp]ackages/build/
+# ...and except .claude/packages/, which holds the dependency audit records
+# written by /update-deps. The NuGet rule above is unrelated to it.
+!.claude/packages/**
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files
