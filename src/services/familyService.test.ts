@@ -804,3 +804,151 @@ describe("FamilyService", () => {
     });
   });
 });
+
+/**
+ * Defence in depth at the point the `$filter` string is built.
+ *
+ * `saveFamily` parses the payload with `HouseholdSchema` before it gets here,
+ * so these values should never be malformed in practice. This layer exists
+ * because `resolveUniqueEnvelopeNo` interpolates them into a raw filter and
+ * `upsertDonor` uses `donorId` to target which `Donors` row gets written — a
+ * future caller that skips the action, or a schema change that loosens a
+ * field, must not silently reopen that.
+ *
+ * See `.claude/TODO/2026-09-13-unvalidated-envelope-donor-ids-in-filter.md`.
+ */
+describe("FamilyService envelope/donor filter hardening", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+     
+    (FamilyService as any).instance = undefined;
+    mockRequireSecurityRole.mockResolvedValue(42);
+    mockGetDomainInfo.mockResolvedValue({ TimeZoneName: "Eastern Standard Time" });
+  });
+
+  /** Bypass the compile-time type the way an unvalidated caller would. */
+  function donorMember(overrides: Record<string, unknown>) {
+    return {
+      contactId: 900,
+      firstName: "Ada",
+      middleName: "",
+      maidenName: "",
+      lastName: "Lovelace",
+      nickname: "",
+      prefixId: 0,
+      suffixId: 0,
+      birthDate: null,
+      genderId: 0,
+      maritalStatusId: 0,
+      mobilePhone: "",
+      emailAddress: "",
+      bulkEmailOpt: false,
+      envelopeNo: 1001,
+      contactStatusId: 1,
+      primaryLanguageId: null,
+      faithBackgroundId: null,
+      householdPositionId: 1,
+      participant: null,
+      donorId: null,
+      isDonor: true,
+      ...overrides,
+    };
+  }
+
+  function householdWith(overrides: Record<string, unknown>): Household {
+    return makeHousehold({
+      householdId: 601,
+      members: [donorMember(overrides)],
+       
+    } as any) as unknown as Household;
+  }
+
+  async function saveAndCatch(household: Household): Promise<Error> {
+    const service = await FamilyService.getInstance();
+    try {
+      await service.saveHousehold(household);
+    } catch (error) {
+      return error as Error;
+    }
+    throw new Error("expected saveHousehold to reject");
+  }
+
+  it.each([
+    ["a filter-injection string", "1 OR 1=1"],
+    ["a non-integer", 1.5],
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["NaN", Number.NaN],
+  ])("refuses to build a Donors filter from %s as envelopeNo", async (_label, envelopeNo) => {
+    const error = await saveAndCatch(householdWith({ envelopeNo }));
+
+    expect(error).toBeInstanceOf(PartialSaveError);
+
+    // The malformed value must never have reached an MP query.
+    const donorQueries = mockGetTableRecords.mock.calls.filter(
+      (call) => call[0]?.table === "Donors" && typeof call[0]?.filter === "string",
+    );
+    for (const [args] of donorQueries) {
+      expect(args.filter).not.toContain(String(envelopeNo));
+    }
+  });
+
+  it("refuses to build a Donors filter from an injection-shaped donorId", async () => {
+    const error = await saveAndCatch(
+      householdWith({ envelopeNo: 1001, donorId: "7 OR 1=1" }),
+    );
+
+    expect(error).toBeInstanceOf(PartialSaveError);
+    const donorQueries = mockGetTableRecords.mock.calls.filter(
+      (call) => call[0]?.table === "Donors",
+    );
+    for (const [args] of donorQueries) {
+      expect(String(args.filter ?? "")).not.toContain("OR 1=1");
+    }
+    expect(mockUpdateTableRecords).not.toHaveBeenCalledWith(
+      "Donors",
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it("still treats donorId 0 as 'no existing donor' rather than rejecting it", async () => {
+    // 0 is the historical "none" sentinel alongside null; validation must not
+    // turn it into an error.
+    mockGetTableRecords.mockResolvedValueOnce([]); // no envelope conflict
+    mockCreateTableRecords
+      .mockResolvedValueOnce([{ Address_ID: 501 }])
+      .mockResolvedValueOnce([{ Contact_ID: 900 }])
+      .mockResolvedValueOnce([{ Donor_ID: 901 }]);
+
+    const service = await FamilyService.getInstance();
+    const household = householdWith({ envelopeNo: 1001, donorId: 0, contactId: 900 });
+
+    await service.saveHousehold(household).catch(() => {
+      // Later stages of the save are not the subject here; what matters is
+      // that validation did not reject donorId: 0 up front.
+    });
+
+    const donorFilters = mockGetTableRecords.mock.calls
+      .filter((call) => call[0]?.table === "Donors")
+      .map((call) => call[0].filter as string);
+    expect(donorFilters.some((f) => f === "Envelope_No = 1001")).toBe(true);
+  });
+
+  it("builds the exact expected filter for well-formed values", async () => {
+    mockGetTableRecords.mockResolvedValueOnce([]);
+    mockCreateTableRecords
+      .mockResolvedValueOnce([{ Address_ID: 501 }])
+      .mockResolvedValueOnce([{ Contact_ID: 900 }]);
+    mockUpdateTableRecords.mockResolvedValue([{}]);
+
+    const service = await FamilyService.getInstance();
+    await service
+      .saveHousehold(householdWith({ envelopeNo: 1001, donorId: 77, contactId: 900 }))
+      .catch(() => {});
+
+    const donorFilters = mockGetTableRecords.mock.calls
+      .filter((call) => call[0]?.table === "Donors")
+      .map((call) => call[0].filter as string);
+    expect(donorFilters).toContain("Envelope_No = 1001 AND Donor_ID <> 77");
+  });
+});

@@ -133,10 +133,53 @@ describe("AddEditFamilyPage", () => {
     render(jsx);
 
     expect(screen.getByTestId("initial-contact-id").textContent).toBe("null");
-    expect(warnSpy).toHaveBeenCalledWith(
-      "Failed to resolve Contact_ID from page record:",
-      expect.any(Error),
+    // Identifiers and shape only — never the raw error, which can carry the
+    // interpolated $filter string (CLAUDE.md rule 14).
+    expect(warnSpy).toHaveBeenCalledWith("addeditfamily.resolve_contact_id_failed", {
+      table: "Households",
+      name: "Error",
+    });
+  });
+
+  it("never writes the raw error — or its message — to the log", async () => {
+    mockParseToolParams.mockResolvedValue({
+      recordID: 42,
+      pageData: {
+        Table_Name: "Households",
+        Primary_Key: "Household_ID",
+        Contact_ID_Field: "Contact_ID",
+      },
+    });
+    mockResolveContactIdFromPage.mockRejectedValue(
+      new Error("Invalid filter: Household_ID = 42 AND Secret = 'value'"),
     );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    render(await AddEditFamilyPage({ searchParams: searchParamsOf({ recordID: "42" }) }));
+
+    const logged = JSON.stringify(warnSpy.mock.calls);
+    expect(logged).not.toContain("Invalid filter");
+    expect(logged).not.toContain("Secret");
+  });
+
+  it("describes a non-Error throw by shape", async () => {
+    mockParseToolParams.mockResolvedValue({
+      recordID: 42,
+      pageData: {
+        Table_Name: "Households",
+        Primary_Key: "Household_ID",
+        Contact_ID_Field: "Contact_ID",
+      },
+    });
+    mockResolveContactIdFromPage.mockRejectedValue("a bare string");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    render(await AddEditFamilyPage({ searchParams: searchParamsOf({ recordID: "42" }) }));
+
+    expect(warnSpy).toHaveBeenCalledWith("addeditfamily.resolve_contact_id_failed", {
+      table: "Households",
+      name: "NonError",
+    });
   });
 
   it("passes params through to AddEditFamily", async () => {

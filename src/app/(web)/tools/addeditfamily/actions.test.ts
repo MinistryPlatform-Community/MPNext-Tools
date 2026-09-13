@@ -382,3 +382,135 @@ describe("addeditfamily actions", () => {
     });
   });
 });
+
+/**
+ * Runtime validation of the saveFamily payload.
+ *
+ * `saveFamily(household: Household)` is a server action — a public POST
+ * endpoint whose TypeScript annotation is erased at runtime. Downstream,
+ * `FamilyService` interpolates `envelopeNo` and `donorId` into MP `$filter`
+ * strings and uses `donorId` to target a `Donors` update, so the payload has
+ * to be parsed, not merely typed.
+ *
+ * See `.claude/TODO/2026-09-13-unvalidated-envelope-donor-ids-in-filter.md`.
+ */
+describe("saveFamily payload validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRequireSecurityRole.mockResolvedValue(42);
+  });
+
+  /** Bypass the compile-time type the way a hand-crafted POST body does. */
+  function malformed(household: Record<string, unknown>): Household {
+    return household as unknown as Household;
+  }
+
+  it("rejects a filter-injection-shaped envelopeNo before it reaches the service", async () => {
+    const household = makeHousehold();
+    const bad = malformed({
+      ...household,
+      members: [{ ...household.members[0], envelopeNo: "1 OR 1=1" }],
+    });
+
+    const result = await saveFamily(bad);
+
+    expect(result.success).toBe(false);
+    expect(mockSaveHousehold).not.toHaveBeenCalled();
+  });
+
+  it("rejects a filter-injection-shaped donorId before it reaches the service", async () => {
+    const household = makeHousehold();
+    const bad = malformed({
+      ...household,
+      members: [{ ...household.members[0], donorId: "5; DROP" }],
+    });
+
+    const result = await saveFamily(bad);
+
+    expect(result.success).toBe(false);
+    expect(mockSaveHousehold).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a non-integer envelopeNo", { envelopeNo: 1.5 }],
+    ["an array envelopeNo", { envelopeNo: [7] }],
+    ["an object donorId", { donorId: { id: 7 } }],
+    ["a boolean contactId", { contactId: true }],
+  ])("rejects %s", async (_label, patch) => {
+    const household = makeHousehold();
+    const bad = malformed({
+      ...household,
+      members: [{ ...household.members[0], ...patch }],
+    });
+
+    const result = await saveFamily(bad);
+
+    expect(result.success).toBe(false);
+    expect(mockSaveHousehold).not.toHaveBeenCalled();
+  });
+
+  it("rejects a household missing required top-level fields", async () => {
+    const result = await saveFamily(malformed({ householdId: 1 }));
+
+    expect(result.success).toBe(false);
+    expect(mockSaveHousehold).not.toHaveBeenCalled();
+  });
+
+  it("reports offending field paths so the user can fix the form", async () => {
+    const household = makeHousehold();
+    const bad = malformed({
+      ...household,
+      members: [{ ...household.members[0], envelopeNo: "1 OR 1=1" }],
+    });
+
+    const result = await saveFamily(bad);
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toMatch(/members\.0\.envelopeNo/);
+  });
+
+  it("never echoes the submitted value back in the error message", async () => {
+    // CLAUDE.md rule 14: error messages travel further than logs do. Paths
+    // are safe to report; the value that was rejected is not.
+    const household = makeHousehold();
+    const bad = malformed({
+      ...household,
+      members: [
+        { ...household.members[0], envelopeNo: "1 OR 1=1", emailAddress: "secret@example.com" },
+      ],
+    });
+
+    const result = await saveFamily(bad);
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).not.toContain("1 OR 1=1");
+    expect(result.error).not.toContain("secret@example.com");
+  });
+
+  it("still authorizes before validating, so an unauthorized caller learns nothing about the schema", async () => {
+    mockRequireSecurityRole.mockRejectedValueOnce(new Error("Forbidden"));
+
+    const result = await saveFamily(malformed({ householdId: 1 }));
+
+    expect(result).toEqual({ success: false, error: "Forbidden" });
+    expect(mockSaveHousehold).not.toHaveBeenCalled();
+  });
+
+  it("passes a well-formed household straight through to the service", async () => {
+    const household = makeHousehold();
+    const progress: SaveProgress = {
+      mainAddressId: 1,
+      altAddressId: null,
+      householdId: 1,
+      members: [],
+    };
+    mockSaveHousehold.mockResolvedValueOnce(progress);
+
+    const result = await saveFamily(household);
+
+    expect(result).toEqual({ success: true, progress });
+    expect(mockSaveHousehold).toHaveBeenCalledTimes(1);
+  });
+});

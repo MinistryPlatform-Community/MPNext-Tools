@@ -26,7 +26,13 @@ export default async function AddEditFamilyPage({ searchParams }: AddEditFamilyP
         params.pageData.Contact_ID_Field,
       );
     } catch (error) {
-      console.warn("Failed to resolve Contact_ID from page record:", error);
+      // Identifiers and shape only (CLAUDE.md rule 14). The raw error can
+      // carry the interpolated $filter string built inside
+      // resolveContactIdFromPage, and a $filter embeds record values.
+      console.warn("addeditfamily.resolve_contact_id_failed", {
+        table: params.pageData.Table_Name,
+        name: error instanceof Error ? error.name : "NonError",
+      });
     }
   }
 

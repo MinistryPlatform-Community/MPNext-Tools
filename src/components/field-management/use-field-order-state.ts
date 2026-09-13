@@ -120,15 +120,36 @@ export function useFieldOrderState(fields: PageField[]): FieldOrderState {
     [isFlat]
   );
 
-  const removeGroup = useCallback((name: string) => {
-    setGroupedFields((prev) => {
-      if ((prev[name] || []).length > 0) return prev;
-      const { [name]: _, ...rest } = prev;
-      return rest;
-    });
-    setGroupOrder((prev) => prev.filter((g) => g !== name));
-    setIsDirty(true);
-  }, []);
+  /**
+   * Remove an empty group.
+   *
+   * Both pieces of state must agree. `buildSavePayload()` iterates
+   * `groupOrder`, not `Object.keys(groupedFields)`, so dropping a name from
+   * the order while its fields remain in `groupedFields` silently omits those
+   * fields from the payload — they vanish from the Ministry Platform page's
+   * field list on the next save, with no error shown to the admin.
+   *
+   * The guard therefore lives on the shared decision, not inside one setter.
+   * A non-empty group is a no-op: the UI only renders the delete control for
+   * empty groups, but this is a plain callback with no such enforcement.
+   */
+  const removeGroup = useCallback(
+    (name: string) => {
+      // Decide once, up front, from the rendered state — NOT inside one of the
+      // setters. A flag set inside a `setGroupedFields` updater cannot drive
+      // the `setGroupOrder` call: React runs updaters during render, so the
+      // flag is still false when the second setter is reached.
+      if ((groupedFields[name] || []).length > 0) return;
+
+      setGroupedFields((prev) => {
+        const { [name]: _, ...rest } = prev;
+        return rest;
+      });
+      setGroupOrder((prev) => prev.filter((g) => g !== name));
+      setIsDirty(true);
+    },
+    [groupedFields],
+  );
 
   const moveHiddenToOther = useCallback(() => {
     setGroupedFields((prev) => {

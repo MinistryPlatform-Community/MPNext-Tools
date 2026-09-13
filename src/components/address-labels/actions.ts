@@ -141,6 +141,37 @@ export async function fetchAddressLabels(
   return { printable: [], skipped: [] };
 }
 
+/**
+ * Reduce a caught error to something safe to write to a log.
+ *
+ * CLAUDE.md rule 14: log identifiers and shape, never record content.
+ * `console.error('...', error)` serialises the whole object, and docxtemplater
+ * attaches the live merge scope to `err.properties.scope` on a scope-parser
+ * failure — in this feature that scope IS the household list, so the raw
+ * object carries every printable name and mailing address for the batch
+ * straight into server logs.
+ *
+ * docxtemplater's own `id` and `explanation` are useful for diagnosing which
+ * failure mode occurred and contain no caller data, so they are kept
+ * explicitly. Nothing else from `properties` is.
+ */
+function describeError(error: unknown): Record<string, string> {
+  if (!(error instanceof Error)) {
+    return { name: 'NonError', type: typeof error };
+  }
+
+  const described: Record<string, string> = { name: error.name, message: error.message };
+
+  const properties = (error as { properties?: unknown }).properties;
+  if (properties && typeof properties === 'object') {
+    const { id, explanation } = properties as { id?: unknown; explanation?: unknown };
+    if (typeof id === 'string') described.id = id;
+    if (typeof explanation === 'string') described.explanation = explanation;
+  }
+
+  return described;
+}
+
 export async function generateLabelPdf(
   labels: LabelData[],
   config: LabelConfig
@@ -186,7 +217,7 @@ export async function generateLabelPdf(
 
     return { success: true, data: base64 };
   } catch (error) {
-    console.error('generateLabelPdf error:', error);
+    console.error('generateLabelPdf error:', describeError(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : 'PDF generation failed',
@@ -229,7 +260,7 @@ export async function generateLabelDocx(
 
     return { success: true, data: base64 };
   } catch (error) {
-    console.error('generateLabelDocx error:', error);
+    console.error('generateLabelDocx error:', describeError(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Word generation failed',
@@ -325,7 +356,7 @@ export async function mergeTemplate(
 
     return { success: true, data: base64 };
   } catch (error) {
-    console.error('mergeTemplate error:', error);
+    console.error('mergeTemplate error:', describeError(error));
     const message = error instanceof Error ? error.message : 'Template merge failed';
     if (message.includes('tag')) {
       return { success: false, error: `Template error: ${message}. Check that merge tokens are correctly formatted.` };

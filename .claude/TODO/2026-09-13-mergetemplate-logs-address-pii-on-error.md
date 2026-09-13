@@ -6,7 +6,7 @@ area: components
 files: [src/components/address-labels/actions.ts]
 discovered: 2026-09-13
 discovered_by: coverage-agent-address-labels
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -56,3 +56,31 @@ scope parser causes every printable household's name and mailing address for
 that batch to be written to application/server logs (e.g. Vercel function
 logs), which are typically retained, more widely readable, and less access
 controlled than the MP database itself.
+
+---
+
+## Resolution (2026-09-13)
+Added a `describeError()` helper in `src/components/address-labels/actions.ts`
+and routed all three `console.error` calls through it —
+`generateLabelPdf`, `generateLabelDocx`, and `mergeTemplate`.
+
+It reduces a caught value to `{ name, message }`, plus docxtemplater's own
+`properties.id` and `properties.explanation` when present. Those two are
+genuinely useful for telling which failure mode occurred and contain no caller
+data. Everything else on `properties` — crucially `scope`, which in this
+feature IS the household list — is dropped. A non-`Error` throw is reported as
+`{ name: 'NonError', type: typeof error }` rather than by value, since a thrown
+string can itself be data-derived.
+
+The user-facing return value still carries `error.message`. That is the
+diagnostic the person fixing their template needs, and docxtemplater's messages
+reference tag names from the uploaded template, not merge data.
+
+### Tests
+`src/components/address-labels/actions.test.ts` — 5 cases driving a
+docxtemplater-shaped error whose `properties.scope` holds a real-looking name
+and address, asserting none of it reaches the log while the identifiers do.
+One asserts on the logged object's KEYS rather than substrings: the word
+"scope" legitimately appears inside the safe identifier
+`scopeparser_execution_failed`, so a naive `not.toContain('scope')` fails for
+the wrong reason.

@@ -6,7 +6,7 @@ area: components
 files: [src/app/(web)/tools/addeditfamily/page.tsx]
 discovered: 2026-09-13
 discovered_by: coverage-agent-addeditfamily
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -60,3 +60,29 @@ resolution has already failed, and only to server logs. But it is the second
 place after `tool-params.server.ts`'s example that this exact swallow-and-warn
 shape appears, and it is the one that gets it wrong; left uncorrected, it is
 an easy pattern to copy into the next new page.
+
+---
+
+## Resolution (2026-09-13)
+Fixed alongside the identical anti-pattern in
+`src/components/address-labels/actions.ts` — shipping a redaction fix for one
+file while leaving the same bug in the feature next door would have left the
+codebase with two standards.
+
+```ts
+console.warn("addeditfamily.resolve_contact_id_failed", {
+  table: params.pageData.Table_Name,
+  name: error instanceof Error ? error.name : "NonError",
+});
+```
+
+The table name is a configuration identifier, not record content, and rule 14
+explicitly allows "table, IDs, HTTP status". The error's `message` is dropped
+because `resolveContactIdFromPage` builds an MP `$filter` from the record id
+and column path, and MP surfaces that filter back inside its error text.
+
+### Tests
+`src/app/(web)/tools/addeditfamily/page.test.tsx` — the existing swallow test
+now asserts the redacted shape, plus two new cases: a rejection whose message
+contains a filter string never reaches the log, and a non-`Error` throw is
+described as `NonError` rather than by value.

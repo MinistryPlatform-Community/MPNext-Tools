@@ -6,7 +6,7 @@ area: testing
 files: [.github/workflows/test.yml, package.json]
 discovered: 2026-09-13
 discovered_by: coverage-review-orchestrator
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -83,3 +83,37 @@ The specific breakage is repaired, but the gap that allowed it is still open. A
 type error reaching `dev` breaks `npm run build` and therefore a Vercel
 production deploy, while CI stays green — so it is found at deploy time by
 whoever is shipping, not at PR time by whoever wrote it.
+
+---
+
+## Resolution (2026-09-13)
+Added `"typecheck": "tsc --noEmit"` to `package.json` and wired it into
+`.github/workflows/test.yml`, along with two other gaps found while in there.
+
+**Added as STEPS, not new jobs.** Branch protection on `dev` and `main`
+requires the status check named `test`. Lint and typecheck as separate jobs
+would have been green-but-unrequired until someone also edited the protection
+rules — a gate that does not gate. As steps in the existing `test` job they are
+covered by the rule already in place, with no admin change needed.
+
+Order is install -> lint -> typecheck -> test:coverage, so the cheap checks
+fail first. The Codecov step keeps `if: always()` and `fail_ci_if_error: false`,
+so an early failure that produces no coverage file does not itself fail the
+build.
+
+### Two other CI issues fixed in the same pass
+- **`npm install` -> `npm ci`.** `npm install` resolves fresh versions and
+  rewrites `package-lock.json` inside CI, so CI could be testing a different
+  dependency tree than any developer had. `npm ci` installs exactly what the
+  lockfile pins and fails outright if `package.json` and the lockfile disagree.
+  Verified with `npm ci --dry-run` before committing.
+- **No `concurrency` group.** Rapid pushes to a PR branch left superseded runs
+  burning minutes. Now cancels in-progress runs for the same ref, except on
+  `main` and `dev`, whose runs gate merges and releases and must not be killed.
+
+Also added `permissions: contents: read` — this workflow only reads the repo,
+and Codecov authenticates with its own token rather than `GITHUB_TOKEN`.
+
+`CLAUDE.md` previously documented "CI gates tests only ... Type-check locally"
+as the mitigation. That line should now be read alongside this change: the
+honour system has been replaced by a gate.

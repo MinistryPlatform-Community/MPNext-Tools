@@ -669,3 +669,144 @@ describe('generateLabelPdf error branches', () => {
     if (!result.success) expect(result.error).toBe('PDF generation failed');
   });
 });
+
+/**
+ * Error-logging redaction.
+ *
+ * docxtemplater attaches the live merge scope to `err.properties.scope` when
+ * its scope parser fails. In this feature that scope IS the household list, so
+ * `console.error('mergeTemplate error:', error)` wrote every printable name
+ * and mailing address for the batch into server logs — exactly what CLAUDE.md
+ * rule 14 forbids.
+ *
+ * See `.claude/TODO/2026-09-13-mergetemplate-logs-address-pii-on-error.md`.
+ */
+describe('address-label actions redact errors before logging', () => {
+  const config: LabelConfig = {
+    stockId: '5160',
+    addressMode: 'household',
+    startPosition: 1,
+    includeMissingBarcodes: true,
+    barcodeFormat: 'postnet',
+    mailerId: '',
+    serviceType: '040',
+  };
+
+  const labels: LabelData[] = [
+    {
+      name: 'Jane Householder',
+      addressLine1: '742 Evergreen Terrace',
+      city: 'Springfield',
+      state: 'IL',
+      postalCode: '62704',
+    },
+  ];
+
+  /** Mirrors the shape docxtemplater throws on a scope-parser failure. */
+  function scopeParserError(): Error {
+    const error = new Error('Scope parser execution failed') as Error & {
+      properties?: Record<string, unknown>;
+    };
+    error.properties = {
+      id: 'scopeparser_execution_failed',
+      explanation: 'The tag {Name} failed to parse',
+      scope: labels.map((l) => ({
+        Name: l.name,
+        AddressLine1: l.addressLine1,
+        City: l.city,
+        State: l.state,
+        PostalCode: l.postalCode,
+      })),
+    };
+    return error;
+  }
+
+  function loggedText(): string {
+    const spy = console.error as unknown as { mock: { calls: unknown[][] } };
+    return JSON.stringify(spy.mock.calls);
+  }
+
+  beforeEach(() => {
+    mockRequireSecurityRole.mockResolvedValue(42);
+    mockGetSession.mockResolvedValue({ user: { id: 'user-1' } });
+  });
+
+  it('never writes the merge scope — household names and addresses — to the log', async () => {
+    mockDocxtemplaterRender.mockImplementationOnce(() => {
+      throw scopeParserError();
+    });
+
+    await mergeTemplate(Buffer.from('x').toString('base64'), labels, config);
+
+    const logged = loggedText();
+    expect(logged).not.toContain('Jane Householder');
+    expect(logged).not.toContain('742 Evergreen Terrace');
+    expect(logged).not.toContain('Springfield');
+    expect(logged).not.toContain('62704');
+
+    // The word "scope" legitimately appears inside the safe identifiers
+    // ("scopeparser_execution_failed"), so assert on the KEY, not the text:
+    // no `scope` property may survive into the logged object.
+    const spy = console.error as unknown as { mock: { calls: unknown[][] } };
+    const payload = spy.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('scope');
+    expect(Object.keys(payload).sort()).toEqual(['explanation', 'id', 'message', 'name']);
+  });
+
+  it('still logs the identifiers needed to diagnose the failure', async () => {
+    mockDocxtemplaterRender.mockImplementationOnce(() => {
+      throw scopeParserError();
+    });
+
+    await mergeTemplate(Buffer.from('x').toString('base64'), labels, config);
+
+    expect(console.error).toHaveBeenCalledWith('mergeTemplate error:', {
+      name: 'Error',
+      message: 'Scope parser execution failed',
+      id: 'scopeparser_execution_failed',
+      explanation: 'The tag {Name} failed to parse',
+    });
+  });
+
+  it('describes a non-Error throw by shape rather than value', async () => {
+    mockDocxtemplaterRender.mockImplementationOnce(() => {
+      // A thrown string could itself be attacker- or data-derived.
+      throw 'Jane Householder, 742 Evergreen Terrace';
+    });
+
+    await mergeTemplate(Buffer.from('x').toString('base64'), labels, config);
+
+    expect(console.error).toHaveBeenCalledWith('mergeTemplate error:', {
+      name: 'NonError',
+      type: 'string',
+    });
+    expect(loggedText()).not.toContain('Evergreen');
+  });
+
+  it('omits properties that are absent rather than logging undefined keys', async () => {
+    mockDocxtemplaterRender.mockImplementationOnce(() => {
+      throw new Error('plain failure');
+    });
+
+    await mergeTemplate(Buffer.from('x').toString('base64'), labels, config);
+
+    expect(console.error).toHaveBeenCalledWith('mergeTemplate error:', {
+      name: 'Error',
+      message: 'plain failure',
+    });
+  });
+
+  it('applies the same redaction in generateLabelPdf', async () => {
+    mockToBlob.mockRejectedValueOnce(scopeParserError());
+
+    await generateLabelPdf(labels, config);
+
+    const logged = loggedText();
+    expect(logged).not.toContain('Jane Householder');
+    expect(logged).not.toContain('Evergreen');
+    expect(console.error).toHaveBeenCalledWith(
+      'generateLabelPdf error:',
+      expect.objectContaining({ id: 'scopeparser_execution_failed' }),
+    );
+  });
+});

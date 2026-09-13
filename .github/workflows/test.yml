@@ -6,7 +6,24 @@ on:
   pull_request:
     branches: [main, dev]
 
+# A new push to the same branch supersedes the run in flight. Pushes to the
+# protected trunks are never cancelled — their runs gate merges and releases.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev' }}
+
+# Least privilege: this workflow only reads the repo. The Codecov upload
+# authenticates with its own token, not the GITHUB_TOKEN.
+permissions:
+  contents: read
+
 jobs:
+  # Deliberately ONE job, not several.
+  #
+  # Branch protection on `dev` and `main` requires the status check named
+  # `test`. Adding lint/typecheck as separate jobs would leave them
+  # unrequired — green-but-ignored — until someone also updated the
+  # protection rules. As steps here they are covered by the existing rule.
   test:
     runs-on: ubuntu-latest
 
@@ -18,9 +35,27 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - run: npm install
+      # `npm ci`, not `npm install`: it installs exactly what the lockfile
+      # pins and fails if package.json and package-lock.json disagree, rather
+      # than silently resolving new versions and rewriting the lockfile in CI.
+      - run: npm ci
 
-      - run: npm run test:coverage
+      - name: Lint
+        run: npm run lint
+
+      # The gate this repo was missing.
+      #
+      # `tsconfig.json` includes `**/*.ts` and `**/*.tsx`, and `next.config.ts`
+      # sets no `ignoreBuildErrors` — so a type error in a TEST file breaks
+      # `npm run build`, and therefore a production deploy, while the suite
+      # itself stays green. That is not hypothetical: two committed test files
+      # sat on `dev` in exactly that state, caught only by a manual local run.
+      - name: Type check
+        run: npm run typecheck
+
+      # Enforces the coverage thresholds in vitest.config.mts.
+      - name: Test with coverage
+        run: npm run test:coverage
 
       - uses: codecov/codecov-action@v5
         if: always()

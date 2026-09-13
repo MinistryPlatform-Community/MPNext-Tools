@@ -6,7 +6,7 @@ area: services
 files: [src/services/familyService.ts, src/app/(web)/tools/addeditfamily/actions.ts, src/lib/dto/family.ts]
 discovered: 2026-09-13
 discovered_by: coverage-agent-services
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -75,3 +75,48 @@ not a plain positive integer. Depending on how the MP OData-style `$filter`
 parser handles the resulting string, this ranges from a confusing 400/500
 error to a filter-injection primitive against the `Donors` table — the same
 class of risk rule 11 exists to close off for string fields.
+
+---
+
+## Resolution (2026-09-13)
+Both layers of the proposed fix were applied.
+
+**1. Parse at the action boundary.** `saveFamily` now runs
+`HouseholdSchema.safeParse(household)` before the payload reaches
+`FamilyService`, and returns an `ActionError` on failure. The error reports the
+offending field PATHS only (`members.0.envelopeNo`), never the submitted
+values — rule 14 applies to returned error strings, which travel further than
+logs. Authorization still runs first, so an unauthorized caller learns nothing
+about the schema.
+
+**2. Validate where the filter is built.** `resolveUniqueEnvelopeNo` calls
+`validatePositiveInt` on `requested` and on `excludeDonorId`, and re-validates
+`candidate` on every loop iteration so a future change to
+`getNextEnvelopeNumber()` cannot reintroduce an unchecked value. `upsertDonor`
+validates `existingDonorId` before using it to target the `Donors` update.
+`null` and `0` are preserved as the "no donor to exclude" sentinels rather than
+being rejected.
+
+### Correction to the original severity assessment
+Re-reading this while fixing it: the classic injection string was already
+blocked, but incidentally rather than by design. `upsertDonor` guards with
+`envelopeNo > 0`, and JS coerces `"1 OR 1=1"` to `NaN`, making that comparison
+false — so the crafted string never reached the filter. What *did* get through
+were values that survive numeric coercion but are not positive integers:
+`1.5`, `Infinity`, `1e21` (which interpolates as the malformed `1e+21`), and
+numeric strings. Those produce malformed filters and confusing 400/500s, not a
+filter-injection primitive.
+
+So the practical severity was lower than "high" as originally filed. The fix is
+still correct and worth keeping: relying on an incidental coercion side effect
+to block injection is fragile, and a schema change or a new call path that
+drops the `> 0` guard would turn it into the real thing with nothing to catch
+it. Recorded here so the next reader is not misled by the original framing.
+
+### Tests
+- `src/app/(web)/tools/addeditfamily/actions.test.ts` — 11 cases: injection-shaped
+  `envelopeNo`/`donorId`, non-integer/array/object/boolean fields, missing
+  top-level fields, path reporting, no value echoed back, authorize-before-validate.
+- `src/services/familyService.test.ts` — 7 cases asserting no malformed value
+  ever reaches an MP query, that `donorId: 0` is still accepted as "none", and
+  that well-formed input produces the exact expected filter string.

@@ -6,7 +6,7 @@ area: components
 files: [src/components/field-management/use-field-order-state.ts]
 discovered: 2026-09-13
 discovered_by: coverage-agent-field-management
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -87,3 +87,43 @@ surfaced to the admin performing the edit. This directly corrupts live
 Ministry Platform page field configuration (view order, group assignment,
 required/hidden/filter settings all lost for the affected fields) until
 someone notices fields missing from the page and manually re-adds them.
+
+---
+
+## Resolution (2026-09-13)
+Applied option 1 from the proposed fix: `groupOrder` is now guarded the same
+way `groupedFields` was, so a non-empty group is a complete no-op.
+
+The guard moved OUT of the `setGroupedFields` updater and up to the top of the
+callback, reading the rendered `groupedFields` (added to the dependency array,
+matching how `addGroup` already reads `isFlat`):
+
+```ts
+const removeGroup = useCallback(
+  (name: string) => {
+    if ((groupedFields[name] || []).length > 0) return;
+    setGroupedFields((prev) => { const { [name]: _, ...rest } = prev; return rest; });
+    setGroupOrder((prev) => prev.filter((g) => g !== name));
+    setIsDirty(true);
+  },
+  [groupedFields],
+);
+```
+
+### A wrong first attempt, recorded so it is not retried
+The obvious fix — set a `let removed = false` flag inside the
+`setGroupedFields` updater and check it before calling `setGroupOrder` — does
+not work. React runs state updaters during the render phase, not synchronously
+at call time, so the flag is still `false` when the second setter is reached.
+It would have looked correct, passed a casual read, and silently kept the bug.
+The decision has to be made once, up front, from state both setters agree on.
+
+`isDirty` is no longer set when the removal is refused: nothing changed, so
+there is nothing to save.
+
+### Tests
+`src/components/field-management/use-field-order-state.test.ts` — the test that
+documented the broken behaviour was replaced with four that pin the fix: both
+halves of state left intact, fields still present in `buildSavePayload()`,
+`isDirty` untouched on refusal, and a group still removable once emptied (with
+its field surviving).

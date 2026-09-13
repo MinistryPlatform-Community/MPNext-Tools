@@ -7,6 +7,7 @@ This guide provides essential information for AI assistants (like Claude) workin
 - **Dev**: `npm run dev` (Next.js dev server)
 - **Build**: `npm run build` (builds SQL install script, then production build with Turbopack + type checking)
 - **Lint**: `npm run lint` (ESLint CLI — `next lint` was removed in Next.js 16)
+- **Type check**: `npm run typecheck` (`tsc --noEmit`; enforced in CI)
 - **Generate MP Types**: `npm run mp:generate:models` (generates TypeScript types + Zod schemas from Ministry Platform API, cleans output directory first)
 - **Generate MP Stored Procs**: `npm run mp:generate:storedprocs` (generates stored procedure reference from Ministry Platform API)
 - **Build MP SQL Install**: `npm run mp:build:install` (combines SQL files from `db/` into unified `_INSTALL/ministryplatform-install.sql`, skips if unchanged)
@@ -239,7 +240,7 @@ await mp.createTableRecords('Contact_Log', records, {
 - **MPHelper mock**: Use mock class (`MPHelper: class { method = mockFn; }`), not `vi.fn().mockImplementation()`
 - **Singleton reset**: Reset `(ServiceClass as any).instance = undefined` in `beforeEach` to prevent state leakage
 - **Server action tests**: Mock `@/lib/auth` (`auth.api.getSession`), `next/headers` (`headers()`), and service singletons
-- **Type-check locally before pushing**: CI does not run `tsc`, and `tsconfig.json` includes `**/*.ts`/`**/*.tsx`, so a type error in a *test* file breaks `npm run build` while CI stays green. This has happened — see `.claude/TODO/2026-09-13-testing-no-typecheck-gate-in-ci.md`.
+- **CI type-checks**: `npm run typecheck` (`tsc --noEmit`) runs as a required step in the `test` job, alongside `npm run lint`. `tsconfig.json` includes `**/*.ts`/`**/*.tsx`, so a type error in a *test* file breaks `npm run build` — that used to reach `dev` unnoticed because CI ran tests only.
 - See **[Testing Reference](.claude/references/testing/README.md)** for all mock patterns, coverage data, and test inventory
 
 ## Dependencies
@@ -263,8 +264,16 @@ condition that clears it. Do not re-derive that analysis.
   with <https://vercel.com/docs/functions/runtimes/node-js/node-js-versions>,
   then bump `engines.node`, `.nvmrc`, `@types/node`, and `REQUIRED_NODE_MAJOR`
   in `scripts/setup.ts` together.
-- **CI gates tests only** — `.github/workflows/test.yml` runs `npm run test:coverage`
-  and never `npm run build`, so type errors do not fail CI. Type-check locally.
+- **CI gates lint, types and tests** — `.github/workflows/test.yml` runs
+  `npm run lint`, `npm run typecheck` and `npm run test:coverage`, in that
+  order, as steps of the single `test` job. They are steps rather than separate
+  jobs on purpose: branch protection requires the check named `test`, so extra
+  jobs would be green-but-unrequired until someone also edited the protection
+  rules. CI still does not run `npm run build`, but `typecheck` now covers the
+  part of it that used to break.
+- **CI installs with `npm ci`**, not `npm install` — it installs exactly what
+  `package-lock.json` pins and fails if the lockfile and `package.json`
+  disagree, instead of silently resolving new versions inside CI.
 - **Coverage path is load-bearing**: CI uploads `coverage/coverage-final.json` to
   Codecov. Verify that exact path still exists after any Vitest major.
 

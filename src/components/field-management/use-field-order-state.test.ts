@@ -383,7 +383,48 @@ describe('useFieldOrderState > removeGroup', () => {
     expect(result.current.isDirty).toBe(true);
   });
 
-  it('is a no-op on groupedFields when the group still has fields, but still removes it from groupOrder', () => {
+  /**
+   * Regression: removing a non-empty group used to strip its name from
+   * `groupOrder` while leaving its fields in `groupedFields`. Because
+   * `buildSavePayload()` iterates `groupOrder`, those fields silently
+   * disappeared from the payload — live Ministry Platform page configuration
+   * lost with no error shown.
+   * See `.claude/TODO/2026-09-13-removegroup-order-guard-mismatch.md`.
+   */
+  it('is a complete no-op when the group still has fields', () => {
+    const fields: PageField[] = [
+      makeField({ Page_Field_ID: 1, Field_Name: 'A', Group_Name: '1 - First', View_Order: 1 }),
+    ];
+    const { result } = renderHook(() => useFieldOrderState(fields));
+    const orderBefore = result.current.groupOrder;
+
+    act(() => {
+      result.current.removeGroup('1 - First');
+    });
+
+    // Both halves of the state stay intact, not just groupedFields.
+    expect(result.current.groupedFields['1 - First']).toEqual([1]);
+    expect(result.current.groupOrder).toEqual(orderBefore);
+    expect(result.current.groupOrder).toContain('1 - First');
+  });
+
+  it("keeps a non-empty group's fields in the save payload after a refused removal", () => {
+    const fields: PageField[] = [
+      makeField({ Page_Field_ID: 1, Field_Name: 'A', Group_Name: '1 - First', View_Order: 1 }),
+      makeField({ Page_Field_ID: 2, Field_Name: 'B', Group_Name: '1 - First', View_Order: 2 }),
+    ];
+    const { result } = renderHook(() => useFieldOrderState(fields));
+
+    act(() => {
+      result.current.removeGroup('1 - First');
+    });
+
+    const payload = result.current.buildSavePayload();
+    expect(payload.map((p) => p.Field_Name).sort()).toEqual(['A', 'B']);
+  });
+
+  it('does not mark the form dirty when the removal was refused', () => {
+    // A refused removal changed nothing, so there is nothing to save.
     const fields: PageField[] = [
       makeField({ Page_Field_ID: 1, Field_Name: 'A', Group_Name: '1 - First', View_Order: 1 }),
     ];
@@ -393,17 +434,38 @@ describe('useFieldOrderState > removeGroup', () => {
       result.current.removeGroup('1 - First');
     });
 
-    // Documented actual behavior: groupedFields keeps the non-empty group (guard
-    // in removeGroup refuses to drop its fields), but groupOrder unconditionally
-    // filters the name out regardless of that guard — see filed TODO
-    // 2026-09-13-removegroup-order-guard-mismatch.md.
-    expect(result.current.groupedFields['1 - First']).toEqual([1]);
-    expect(result.current.groupOrder).not.toContain('1 - First');
+    expect(result.current.isDirty).toBe(false);
+  });
 
-    // Consequence: buildSavePayload iterates groupOrder, so field 1 is silently
-    // dropped from the save payload even though it still exists in groupedFields.
-    const payload = result.current.buildSavePayload();
-    expect(payload.find((p) => p.Field_Name === 'A')).toBeUndefined();
+  it('still removes a group once its fields have been moved out', () => {
+    const fields: PageField[] = [
+      makeField({ Page_Field_ID: 1, Field_Name: 'A', Group_Name: '1 - First', View_Order: 1 }),
+    ];
+    const { result } = renderHook(() => useFieldOrderState(fields));
+
+    act(() => {
+      result.current.removeGroup('1 - First');
+    });
+    expect(result.current.groupOrder).toContain('1 - First');
+
+    // Empty it the way the UI does (drag the field elsewhere), then retry.
+    act(() => {
+      result.current.moveHiddenToOther();
+    });
+    act(() => {
+      result.current.updateField(1, { Hidden: true });
+    });
+    act(() => {
+      result.current.moveHiddenToOther();
+    });
+    act(() => {
+      result.current.removeGroup('1 - First');
+    });
+
+    expect(result.current.groupOrder).not.toContain('1 - First');
+    expect(result.current.groupedFields['1 - First']).toBeUndefined();
+    // The field itself survived the group's removal.
+    expect(result.current.buildSavePayload().map((p) => p.Field_Name)).toContain('A');
   });
 
   it('is a no-op when the group name does not exist in groupedFields at all', () => {

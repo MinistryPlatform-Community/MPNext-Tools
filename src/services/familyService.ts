@@ -688,8 +688,26 @@ export class FamilyService {
     requested: number,
     excludeDonorId: number | null,
   ): Promise<{ envelopeNo: number; bumped: boolean }> {
+    // Both values land in a raw $filter string below. They originate from a
+    // client-supplied Household, and a server action is a public POST endpoint
+    // whose TypeScript types are erased at runtime — so `number` here proves
+    // nothing. The action parses with HouseholdSchema; this is the second
+    // layer, at the point where the string is actually built.
+    validatePositiveInt(requested);
+    // 0 and null both mean "no donor to exclude" and are handled by the
+    // ternary below, so only a value that will actually be interpolated is
+    // required to be a positive integer.
+    if (excludeDonorId !== null && excludeDonorId !== 0) {
+      validatePositiveInt(excludeDonorId);
+    }
+
     let candidate = requested;
     for (let attempt = 0; attempt < 5; attempt++) {
+      // `candidate` is either `requested` (validated above) or the result of
+      // getNextEnvelopeNumber(), which is derived server-side — but validate
+      // each iteration anyway so no future change to that method can quietly
+      // reintroduce an unchecked value here.
+      validatePositiveInt(candidate);
       const filter =
         excludeDonorId && excludeDonorId > 0
           ? `Envelope_No = ${candidate} AND Donor_ID <> ${excludeDonorId}`
@@ -726,6 +744,8 @@ export class FamilyService {
     }
 
     if (existingDonorId && existingDonorId > 0) {
+      // Client-supplied, and it selects which Donors row gets written.
+      validatePositiveInt(existingDonorId);
       await this.mp!.updateTableRecords(
         "Donors",
         [{ Donor_ID: existingDonorId, Envelope_No: finalEnvelopeNo }],

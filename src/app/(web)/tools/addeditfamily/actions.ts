@@ -3,6 +3,7 @@
 import { FamilyService, PartialSaveError } from "@/services/familyService";
 import { AuthorizationService } from "@/services/authorizationService";
 import { GooglePlacesService } from "@/services/googlePlacesService";
+import { HouseholdSchema } from "@/lib/dto/family";
 import type {
   ContactSearchResult,
   FamilyDefaults,
@@ -139,8 +140,36 @@ export async function saveFamily(
 ): Promise<{ success: true; progress: SaveProgress } | ActionError> {
   try {
     await requireAccess("Households", "update");
+
+    /**
+     * Parse before the payload reaches the service.
+     *
+     * `household: Household` is a compile-time annotation only — this is a
+     * server action, i.e. a public POST endpoint, and the types are erased at
+     * runtime. Fields from this object are interpolated into MP `$filter`
+     * strings and used to target `Donors`/`Contacts` updates downstream, so
+     * "it is typed `number`" is not a runtime guarantee of anything.
+     *
+     * The error deliberately reports field PATHS only, never the submitted
+     * values (CLAUDE.md rule 14: error messages travel further than logs).
+     */
+    const parsed = HouseholdSchema.safeParse(household);
+    if (!parsed.success) {
+      const paths = [
+        ...new Set(
+          parsed.error.issues.map((issue) =>
+            issue.path.length > 0 ? issue.path.join(".") : "(root)",
+          ),
+        ),
+      ];
+      return {
+        success: false,
+        error: `Invalid family data. Check these fields: ${paths.join(", ")}`,
+      };
+    }
+
     const service = await FamilyService.getInstance();
-    const progress = await service.saveHousehold(household);
+    const progress = await service.saveHousehold(parsed.data);
     return { success: true, progress };
   } catch (error) {
     if (error instanceof PartialSaveError) {

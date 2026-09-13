@@ -10,6 +10,7 @@
     "build": "tsx src/lib/providers/ministry-platform/scripts/build-sql-install.ts && next build",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",

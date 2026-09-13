@@ -22,14 +22,19 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **9 open TODOs**.
+Total: **4 open TODOs**.
 
 > **2026-09-13 — unit-test coverage push.** Statement coverage over authored
 > code went from 49.67% to 98.84% (3,610/3,652), lines to 99.70%, across 1,535
 > tests in 116 files. Most of the items below were opened during that work,
 > found by reading code while writing tests for it. A follow-up pass cleaned
-> the runner output from 1,507 lines to 17 with zero warnings. Details in each
-> file.
+> the runner output from 1,507 lines to 17 with zero warnings.
+>
+> **2026-09-13 (later) — remediation.** All three high-severity items and the
+> CI gap are fixed and closed; see each file's Resolution section. CI now runs
+> lint and `tsc --noEmit` as required steps, and installs with `npm ci`.
+> Everything still open is `medium` or below, and all of it sits in
+> `src/components`.
 
 ---
 
@@ -38,18 +43,12 @@ Total: **9 open TODOs**.
 ### Critical (0)
 _none open_
 
-### High (3)
-| Area | Tags | Title | File |
-|---|---|---|---|
-| services | security, bug | Unvalidated client-supplied numeric fields interpolated into MP `$filter` strings in FamilyService | [→](2026-09-13-unvalidated-envelope-donor-ids-in-filter.md) |
-| components | bug | `removeGroup` drops a non-empty group's fields from the save payload | [→](2026-09-13-removegroup-order-guard-mismatch.md) |
-| components | security, bug | `mergeTemplate` console.errors the raw docxtemplater error, which can carry household addresses | [→](2026-09-13-mergetemplate-logs-address-pii-on-error.md) |
+### High (0)
+_none open_
 
-### Medium (4)
+### Medium (2)
 | Area | Tags | Title | File |
 |---|---|---|---|
-| testing | bug, testing, drift | Add a type-check gate to CI (stale fixtures had silently broken `npm run build`) | [→](2026-09-13-testing-no-typecheck-gate-in-ci.md) |
-| components | security, drift | `AddEditFamilyPage` logs the raw error object instead of an identifier | [→](2026-09-13-page-logs-raw-error-object.md) |
 | components | bug, drift | Template editor ignores pageID/recordID (no MP persistence) | [→](2026-04-17-components-template-editor-no-mp-persistence.md) |
 | components | bug, refactor | Merge tokens `{{Field_Name}}` have no resolver anywhere | [→](2026-04-17-components-template-editor-merge-token-resolver.md) |
 
@@ -63,23 +62,15 @@ _none open_
 
 ## By tag
 
-### security (3)
-- unvalidated-envelope-donor-ids-in-filter — high
-- mergetemplate-logs-address-pii-on-error — high
-- page-logs-raw-error-object — medium
+### security (0)
+_none open_
 
-### bug (6)
-- unvalidated-envelope-donor-ids-in-filter — high
-- removegroup-order-guard-mismatch — high
-- mergetemplate-logs-address-pii-on-error — high
-- testing-no-typecheck-gate-in-ci — medium
+### bug (3)
 - components-template-editor-no-mp-persistence — medium
 - components-template-editor-merge-token-resolver — medium
 - search-empty-state-never-renders — low
 
-### drift (3)
-- testing-no-typecheck-gate-in-ci — medium
-- page-logs-raw-error-object — medium
+### drift (1)
 - components-template-editor-no-mp-persistence — medium
 
 ### missing-test (1)
@@ -89,8 +80,8 @@ _none open_
 - components-template-editor-merge-token-resolver — medium
 - dead-empty-fields-branch-handlenext — low
 
-### testing (1)
-- testing-no-typecheck-gate-in-ci — medium
+### testing (0)
+_none open_
 
 ### doc (0)
 _none open_
@@ -104,9 +95,9 @@ _none open_
 
 | Area | Count |
 |---|---|
-| components | 6 |
-| testing | 1 |
-| services | 1 |
+| components | 4 |
+| testing | 0 |
+| services | 0 |
 | auth | 0 |
 | mp-provider | 0 |
 | utils | 0 |
@@ -126,6 +117,11 @@ _none open_
 | 2026-09-13 | No tests for `src/components/template-editor/` | [→](2026-04-17-components-template-editor-missing-tests.md) |
 | 2026-09-13 | `vitest.config.ts` loaded as CommonJS (renamed to `.mts`) | [→](2026-09-13-testing-vitest-config-loaded-as-cjs.md) |
 | 2026-09-13 | Radix Select fields switched uncontrolled -> controlled | [→](2026-09-13-components-select-uncontrolled-to-controlled.md) |
+| 2026-09-13 | Unvalidated numeric fields reaching MP `$filter` strings | [→](2026-09-13-unvalidated-envelope-donor-ids-in-filter.md) |
+| 2026-09-13 | `removeGroup` dropped a non-empty group's fields from the save payload | [→](2026-09-13-removegroup-order-guard-mismatch.md) |
+| 2026-09-13 | Raw docxtemplater error logged household addresses | [→](2026-09-13-mergetemplate-logs-address-pii-on-error.md) |
+| 2026-09-13 | `AddEditFamilyPage` logged the raw error object | [→](2026-09-13-page-logs-raw-error-object.md) |
+| 2026-09-13 | No type-check gate in CI (also `npm ci`, lint, concurrency) | [→](2026-09-13-testing-no-typecheck-gate-in-ci.md) |
 
 ---
 
