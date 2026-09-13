@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parseAdditionalUserInput } from 'better-auth/db';
 import {
+  auth,
   userAdditionalFields,
   disabledAuthPaths,
   syntheticEmailForSub,
@@ -274,6 +275,76 @@ describe('Auth - disabled endpoints', () => {
     ]) {
       expect(disabledAuthPaths).toContain(path);
     }
+  });
+});
+
+/**
+ * F-UPDATE-USER, enforcement half — the paths must 404 at the Better Auth
+ * ROUTER, not merely appear in an exported array.
+ *
+ * The `disabledAuthPaths` assertions above check a constant. They pass even if
+ * `disabledPaths: disabledAuthPaths` is deleted from the `betterAuth()` options,
+ * because nothing ties the array to the running router — verified by removing
+ * that line and watching the whole suite stay green. That is the exact failure
+ * mode this advisory's root cause describes: a protection silently stops being
+ * applied and no test notices.
+ *
+ * `src/app/api/auth/[...all]/route.test.ts` does not cover this either. It mocks
+ * `@/lib/auth` to `{}` and mocks `toNextJsHandler`, so it exercises the allowlist
+ * WRAPPER against a stub — correct for what it tests, but it never reaches real
+ * Better Auth.
+ *
+ * So these drive `auth.handler` directly with real `Request`s, deliberately
+ * BYPASSING Next.js routing and the allowlist. The allowlist is the primary
+ * control and sits in front of this; `disabledPaths` is the defence in depth
+ * behind it, and this is the only place that proves the latter is wired in.
+ * Both must hold independently — the advisory is explicit that the allowlist is
+ * an addition, not a replacement.
+ *
+ * Matched in the router's `onRequest`, these 404 before rate limiting, plugins
+ * and `sessionMiddleware` — so no session is needed to prove the refusal.
+ */
+describe('Auth - disabled endpoints 404 at the router', () => {
+  const url = (path: string) => `http://localhost:3000/api/auth${path}`;
+
+  it('404s POST /update-user, the session-identity takeover vector', async () => {
+    const res = await auth.handler(
+      new Request(url('/update-user'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // The exact payload from the advisory: a well-formed foreign User_GUID.
+        // It must be refused on the PATH, before any body parsing — `userGuid`
+        // is necessarily `input: true`, so a validator could never tell this
+        // from `mapProfileToUser`.
+        body: JSON.stringify({ userGuid: 'ab12cd34-ef56-7890-abcd-ef1234567890' }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  it.each(disabledAuthPaths.filter((p) => p !== '/update-user'))(
+    '404s the other identity-mutating endpoint %s',
+    async (path) => {
+      const res = await auth.handler(new Request(url(path), { method: 'POST' }));
+
+      expect(res.status).toBe(404);
+    },
+  );
+
+  /**
+   * CONTROL — without this the block above could pass vacuously: a handler that
+   * 404s EVERYTHING (a bad base path, a broken instance) would satisfy every
+   * assertion above while proving nothing.
+   *
+   * `/get-session` is not in `disabledAuthPaths`, so it must reach the router.
+   * Asserting only "not 404" keeps this about routing rather than about what an
+   * unauthenticated session read happens to return.
+   */
+  it('CONTROL: a non-disabled path still routes', async () => {
+    const res = await auth.handler(new Request(url('/get-session')));
+
+    expect(res.status).not.toBe(404);
   });
 });
 
