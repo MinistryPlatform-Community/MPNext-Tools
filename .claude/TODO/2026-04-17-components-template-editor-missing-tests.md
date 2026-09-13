@@ -16,7 +16,7 @@ files:
   - src/components/template-editor/actions.ts
 discovered: 2026-04-17
 discovered_by: components-template-editor
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -39,3 +39,40 @@ Add at minimum:
 - Regressions in `compileMjml`'s auth gate or size cap can ship unnoticed (security/DoS risk).
 - Merge-field category changes or taxonomy refactors will not surface breakage.
 - Phase 2 of the template editor (adding MP persistence, token resolution) will be harder to land safely without a baseline.
+
+---
+
+## Resolution (2026-09-13)
+Closed by the coverage push. Every file in `src/components/template-editor/`
+now has a co-located test, plus the two route files:
+
+| File | Tests | Statements | Lines |
+|---|---|---|---|
+| `merge-fields.ts` | 5 | 100% | 100% |
+| `grapes-config.ts` | 6 | 100% | 100% |
+| `actions.ts` | 7 | 100% | 100% |
+| `merge-field-picker.tsx` | 7 | 100% | 100% |
+| `editor-import-dialog.tsx` | 8 | 95.65% | 100% |
+| `editor-code-dialog.tsx` | 11 | 97.67% | 100% |
+| `editor-export-dialog.tsx` | 11 | 98.08% | 100% |
+| `editor-toolbar.tsx` | 21 | 100% | 100% |
+| `editor-canvas.tsx` | 7 | 100% | 100% |
+| `template-editor-form.tsx` | 3 | 100% | 100% |
+| `templateeditor/template-editor.tsx` | 6 | 100% | 100% |
+| `templateeditor/page.tsx` | 1 | 100% | 100% |
+
+Directory aggregate: 98.8% statements, 100% lines, across 90 tests.
+
+Two mocking notes worth keeping, both learned the hard way:
+- `useEditor()` must be mocked with a **stable object reference** built once via
+  `vi.hoisted()`. Several components run `useEffect`s keyed on the editor
+  object's identity, so a `useEditor: () => ({...})` factory returns a new
+  object on every render and spins an infinite render loop that hangs the runner.
+- `editor-canvas.tsx` imports real `.css`, which this repo's Vite/PostCSS
+  config cannot process under test — both stylesheet imports are mocked to
+  empty modules.
+
+The two sibling template-editor TODOs (`-no-mp-persistence`,
+`-merge-token-resolver`) were re-verified against the code during this work and
+remain **accurate and open**. The new tests document current behaviour; they do
+not paper over either defect.

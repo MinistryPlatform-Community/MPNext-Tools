@@ -5,11 +5,33 @@ type: reference
 applies_to: [src/**/*.test.ts, src/**/*.test.tsx]
 symbols: []
 related: [setup.md, cookbook.md]
-last_verified: 2026-04-17
+last_verified: 2026-09-13
 ---
 
 ## Purpose
-All 37 test files grouped by area. Totals from facts snapshot: **37 files / 507 test cases** (`vitest run` at SHA `971c40b1`).
+Test files grouped by area. Totals from the current facts snapshot:
+**116 files / 1,535 test cases** (`vitest run`, see
+`../_meta/facts/2026-09-13.md`).
+
+> The per-file tables below were written at 37 files and have NOT been expanded
+> to all 116. They remain accurate for the files they list. For anything not
+> listed, the co-location rule is reliable: a source file `foo.ts` is tested by
+> `foo.test.ts` beside it. Counts by area:
+>
+> | Area | Files |
+> |---|---|
+> | `src/app/**` | 23 |
+> | `src/components/group-wizard` | 12 |
+> | `src/lib/providers/ministry-platform` | 12 |
+> | `src/lib/**` (excl. MP provider) | 12 |
+> | `src/components/dev-panel` | 11 |
+> | `src/components/address-labels` | 10 |
+> | `src/components/template-editor` | 10 |
+> | `src/services` | 9 |
+> | `src/components/field-management` | 7 |
+> | `src/components/*` (layout, shared-actions, tool, user-menu) | 6 |
+> | `src/contexts` | 2 |
+> | `src/` (proxy, auth) | 2 |
 
 ## Ministry Platform provider (12 files)
 
@@ -78,7 +100,7 @@ All 37 test files grouped by area. Totals from facts snapshot: **37 files / 507 
 
 ## Known uncovered surfaces
 - `src/lib/providers/ministry-platform/scripts/` (`build-sql-install.ts`, `generate-types.ts`, `generate-storedprocs.ts`) — CLI build scripts exercised via `npm run mp:build:install` / `npm run mp:generate:models`
-- Auto-generated model files under `src/lib/providers/ministry-platform/models/` — excluded from coverage via `vitest.config.ts`
+- Auto-generated model files under `src/lib/providers/ministry-platform/models/` — excluded from coverage via `vitest.config.mts`
 
 ## Related docs
 - `setup.md` — runner config

@@ -1165,7 +1165,7 @@ interface LookupSelectProps {
 function LookupSelect({ value, options, onChange, allowClear }: LookupSelectProps) {
   return (
     <Select
-      value={value > 0 ? String(value) : undefined}
+      value={value > 0 ? String(value) : ""}
       onValueChange={(v) => onChange(v === "__none__" ? 0 : Number(v))}
     >
       <SelectTrigger className="w-full">

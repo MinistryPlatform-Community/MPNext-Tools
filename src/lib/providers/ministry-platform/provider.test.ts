@@ -102,6 +102,12 @@ vi.mock('./services', () => ({
 }));
 
 import { MinistryPlatformProvider } from './provider';
+import type {
+  CommunicationInfo,
+  FileUpdateParams,
+  FileUploadParams,
+  MessageInfo,
+} from './types/provider.types';
 
 describe('MinistryPlatformProvider', () => {
   beforeEach(() => {
@@ -375,14 +381,17 @@ describe('MinistryPlatformProvider', () => {
 
   describe('Communication operations', () => {
     it('should delegate createCommunication to CommunicationService', async () => {
-      const comm = {
-        Author_User_ID: 1,
+      const comm: CommunicationInfo = {
+        AuthorUserId: 1,
         Subject: 'Hi',
         Body: '<p>x</p>',
-        Start_Date: '2026-01-01',
-        From_Contact: 1,
-        Reply_to_Contact: 1,
-        To_Contact_List: '2',
+        StartDate: '2026-01-01',
+        FromContactId: 1,
+        ReplyToContactId: 1,
+        CommunicationType: 'Email',
+        Contacts: [2],
+        IsBulkEmail: false,
+        SendToContactParents: false,
       };
       const created = { Communication_ID: 10, ...comm };
       mockCreateCommunication.mockResolvedValueOnce(created);
@@ -416,9 +425,9 @@ describe('MinistryPlatformProvider', () => {
     });
 
     it('should delegate sendMessage to CommunicationService', async () => {
-      const message = {
-        From: 'a@example.com',
-        To: 'b@example.com',
+      const message: MessageInfo = {
+        FromAddress: { Address: 'a@example.com', DisplayName: 'A' },
+        ToAddresses: [{ Address: 'b@example.com', DisplayName: 'B' }],
         Subject: 'Test',
         Body: '<p>Hi</p>',
       };
@@ -467,9 +476,10 @@ describe('MinistryPlatformProvider', () => {
       mockUploadFiles.mockResolvedValueOnce(uploaded);
 
       const provider = MinistryPlatformProvider.getInstance();
-      const result = await provider.uploadFiles('Contacts', 1, [file], { IsDefault: true });
+      const uploadParams: FileUploadParams = { isDefaultImage: true };
+      const result = await provider.uploadFiles('Contacts', 1, [file], uploadParams);
 
-      expect(mockUploadFiles).toHaveBeenCalledWith('Contacts', 1, [file], { IsDefault: true });
+      expect(mockUploadFiles).toHaveBeenCalledWith('Contacts', 1, [file], uploadParams);
       expect(result).toEqual(uploaded);
     });
 
@@ -479,9 +489,10 @@ describe('MinistryPlatformProvider', () => {
       mockUpdateFile.mockResolvedValueOnce(updated);
 
       const provider = MinistryPlatformProvider.getInstance();
-      const result = await provider.updateFile(1, file, { Description: 'desc' });
+      const updateParams: FileUpdateParams = { description: 'desc' };
+      const result = await provider.updateFile(1, file, updateParams);
 
-      expect(mockUpdateFile).toHaveBeenCalledWith(1, file, { Description: 'desc' });
+      expect(mockUpdateFile).toHaveBeenCalledWith(1, file, updateParams);
       expect(result).toEqual(updated);
     });
 

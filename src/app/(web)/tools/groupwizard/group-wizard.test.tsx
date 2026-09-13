@@ -86,9 +86,13 @@ vi.mock('@/components/group-wizard', async () => {
     StepOrganization: ({
       contactDisplayMap,
       groupDisplayMap,
+      onContactSelect,
+      onGroupSelect,
     }: {
       contactDisplayMap: Map<number, string>;
       groupDisplayMap: Map<number, string>;
+      onContactSelect: (id: number, name: string) => void;
+      onGroupSelect: (field: string, id: number | null, name: string) => void;
     }) => (
       <div data-testid="step-organization">
         <span data-testid="contact-map-size">{contactDisplayMap.size}</span>
@@ -103,6 +107,20 @@ vi.mock('@/components/group-wizard', async () => {
             {name}
           </span>
         ))}
+        <button
+          type="button"
+          data-testid="select-contact"
+          onClick={() => onContactSelect(99, 'Selected Contact')}
+        >
+          Select Contact
+        </button>
+        <button
+          type="button"
+          data-testid="select-group"
+          onClick={() => onGroupSelect('Parent_Group', 55, 'Selected Group')}
+        >
+          Select Group
+        </button>
       </div>
     ),
     StepMeeting: () => <div data-testid="step-meeting" />,
@@ -441,5 +459,210 @@ describe('GroupWizard shell', () => {
     expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
     // Back button is hidden on step 0
     expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the thrown-Error message when fetchGroupWizardLookups rejects', async () => {
+    mockFetchGroupWizardLookups.mockRejectedValueOnce(new Error('Lookup service down'));
+    const params: ToolParams = { recordID: -1 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Lookup service down')).toBeInTheDocument();
+    });
+  });
+
+  it('falls back to a generic message when fetchGroupWizardLookups rejects with a non-Error', async () => {
+    mockFetchGroupWizardLookups.mockRejectedValueOnce('boom');
+    const params: ToolParams = { recordID: -1 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load lookup data')).toBeInTheDocument();
+    });
+  });
+
+  it('sets loadError and stops the record-loading spinner when fetchGroupRecord rejects (network failure)', async () => {
+    mockFetchGroupRecord.mockRejectedValueOnce(new Error('Network down'));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const params: ToolParams = { recordID: 100 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Network down')).toBeInTheDocument();
+    });
+    expect(consoleErrorSpy).toHaveBeenCalled();
+  });
+
+  it('shows the ActionError message and stays on the review step when createGroup fails', async () => {
+    mockCreateGroup.mockResolvedValueOnce({ success: false, error: 'Duplicate group name' });
+
+    const params: ToolParams = { recordID: -1 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fill-valid'));
+    });
+    for (let i = 0; i < 5; i++) {
+      const nextBtn = screen.getByRole('button', { name: /next/i });
+      await act(async () => {
+        fireEvent.click(nextBtn);
+      });
+    }
+    await waitFor(() => expect(screen.getByTestId('step-review')).toBeInTheDocument());
+
+    const createBtn = screen.getByRole('button', { name: /create group/i });
+    await act(async () => {
+      fireEvent.click(createBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Duplicate group name')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('step-review-success')).not.toBeInTheDocument();
+  });
+
+  it('shows the ActionError message when updateGroup fails in edit mode', async () => {
+    mockFetchGroupRecord.mockResolvedValueOnce({
+      success: true,
+      data: BASE_FORM,
+      displayNames: { contacts: {}, groups: {} },
+    });
+    mockUpdateGroup.mockResolvedValueOnce({ success: false, error: 'Stale record' });
+
+    const params: ToolParams = { recordID: 100 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+
+    for (let i = 0; i < 5; i++) {
+      const nextBtn = screen.getByRole('button', { name: /next/i });
+      await act(async () => {
+        fireEvent.click(nextBtn);
+      });
+    }
+    await waitFor(() => expect(screen.getByTestId('step-review')).toBeInTheDocument());
+
+    const saveBtn = screen.getByRole('button', { name: /save changes/i });
+    await act(async () => {
+      fireEvent.click(saveBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Stale record')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('step-review-success')).not.toBeInTheDocument();
+  });
+
+  it('handleContactSelect seeds the contact display map from Step Organization', async () => {
+    const params: ToolParams = { recordID: -1 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    });
+    // Step 0 validation fails on empty fields, so use fill-valid + Next again
+    // is unnecessary here — Step Organization is only reachable once Step 1
+    // validates. Fill valid first, then advance.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fill-valid'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    });
+    await waitFor(() => expect(screen.getByTestId('step-organization')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('select-contact'));
+    });
+
+    expect(screen.getByTestId('contact-map-size').textContent).toBe('1');
+    expect(screen.getByTestId('contact-name-99').textContent).toBe('Selected Contact');
+  });
+
+  it('handleGroupSelect seeds the group display map when an id is selected', async () => {
+    const params: ToolParams = { recordID: -1 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fill-valid'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    });
+    await waitFor(() => expect(screen.getByTestId('step-organization')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('select-group'));
+    });
+
+    expect(screen.getByTestId('group-map-size').textContent).toBe('1');
+    expect(screen.getByTestId('group-name-55').textContent).toBe('Selected Group');
+  });
+
+  it('handleBack returns to the previous step', async () => {
+    const params: ToolParams = { recordID: -1 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fill-valid'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    });
+    await waitFor(() => expect(screen.getByTestId('step-organization')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /back/i }));
+    });
+
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+  });
+
+  it('clicking a completed step in the real WizardStepper jumps back to it (handleStepClick)', async () => {
+    const params: ToolParams = { recordID: -1 };
+    render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fill-valid'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    });
+    await waitFor(() => expect(screen.getByTestId('step-organization')).toBeInTheDocument());
+
+    // Step 0 ("Identity") is now completed, so its real WizardStepper button
+    // is clickable — jump back to it directly (not via the Back button).
+    const identityStepBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('Identity') && !b.textContent?.includes('Next'));
+    expect(identityStepBtn).toBeDefined();
+    await act(async () => {
+      fireEvent.click(identityStepBtn!);
+    });
+
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+  });
+
+  it('the form element swallows native submit via preventDefault without navigating away', async () => {
+    const params: ToolParams = { recordID: -1 };
+    const { container } = render(<GroupWizard params={params} mpTimezone="America/New_York" />);
+    await waitFor(() => expect(screen.getByTestId('step-identity')).toBeInTheDocument());
+
+    const formEl = container.querySelector('form');
+    expect(formEl).toBeTruthy();
+    await act(async () => {
+      fireEvent.submit(formEl!);
+    });
+
+    // Still on step 0 — no crash, no create/update call triggered by the
+    // native submit event.
+    expect(screen.getByTestId('step-identity')).toBeInTheDocument();
+    expect(mockCreateGroup).not.toHaveBeenCalled();
+    expect(mockUpdateGroup).not.toHaveBeenCalled();
   });
 });

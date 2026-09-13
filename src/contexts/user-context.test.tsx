@@ -143,3 +143,93 @@ describe('UserContext', () => {
     });
   });
 });
+
+/**
+ * Branches the mount effect alone cannot reach.
+ *
+ * The effect only calls `loadUserProfile()` when a `userGuid` exists, so the
+ * guard clause inside that callback is reachable only through an explicit
+ * `refreshUserProfile()` — which is exactly what happens if a component
+ * refreshes while the session is still resolving or has gone stale.
+ */
+describe('UserProvider edge branches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('clears the profile without calling the server when refreshed with no userGuid', async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: 'internal-id' } },
+      isPending: false,
+    });
+
+    const { result } = renderHook(() => useUser(), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await result.current.refreshUserProfile();
+    });
+
+    expect(mockGetCurrentUserProfile).not.toHaveBeenCalled();
+    expect(result.current.userProfile).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('stays in the loading state while the session is pending', () => {
+    mockUseSession.mockReturnValue({ data: undefined, isPending: true });
+
+    const { result } = renderHook(() => useUser(), { wrapper: createWrapper() });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(mockGetCurrentUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('wraps a non-Error rejection in a real Error', async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: 'internal-id', userGuid: 'guid-123' } },
+      isPending: false,
+    });
+    mockGetCurrentUserProfile.mockRejectedValueOnce('a bare string');
+
+    const { result } = renderHook(() => useUser(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.message).toBe('Failed to load user profile');
+    expect(result.current.userProfile).toBeNull();
+  });
+
+  it('treats an undefined profile result as no profile', async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: 'internal-id', userGuid: 'guid-123' } },
+      isPending: false,
+    });
+    mockGetCurrentUserProfile.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useUser(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.userProfile).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('clears a previous error on a successful refresh', async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: 'internal-id', userGuid: 'guid-123' } },
+      isPending: false,
+    });
+    mockGetCurrentUserProfile.mockRejectedValueOnce(new Error('transient'));
+
+    const { result } = renderHook(() => useUser(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    mockGetCurrentUserProfile.mockResolvedValueOnce({ Contact_ID: 7 });
+    await act(async () => {
+      await result.current.refreshUserProfile();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.userProfile).toEqual({ Contact_ID: 7 });
+  });
+});

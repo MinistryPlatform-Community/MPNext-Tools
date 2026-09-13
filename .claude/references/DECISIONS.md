@@ -350,7 +350,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** The project needs a TypeScript-first test runner that supports `import.meta`, runs fast against ESM without a transform step, and shares the `@/` alias configuration with Vite/Turbopack.
-**Decision:** Vitest 4.x with `@vitejs/plugin-react` (`vitest.config.ts`). `globals: true` so tests use bare `describe` / `it` / `expect`. The `@/` alias is resolved via `path.resolve(__dirname, './src')`.
+**Decision:** Vitest 5.x with `@vitejs/plugin-react` (`vitest.config.mts`). `globals: true` so tests use bare `describe` / `it` / `expect`. The `@/` alias is resolved via `path.resolve(import.meta.dirname, './src')` — the config is ESM (`.mts`), so `__dirname` is not available.
 **Consequences:** All mock patterns assume `vi.mock()` hoisting (`vi.hoisted()` is required for any variable referenced inside a mock factory). No Jest-specific matchers — only `@testing-library/jest-dom` matchers. Shared resolver config with the bundler.
 **Alternatives considered:**
 - **Jest with `ts-jest` / `@swc/jest`** — transform overhead and a second resolver config to maintain.
@@ -360,7 +360,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** React component tests need a DOM that supports `localStorage`, `window.location`, `Headers`, and the full `@testing-library` API surface.
-**Decision:** `environment: 'jsdom'` in `vitest.config.ts` with `jsdom@^28.1.0`.
+**Decision:** `environment: 'jsdom'` in `vitest.config.mts` with `jsdom@^30.0.1`.
 **Consequences:** Slightly slower than happy-dom on pure-DOM tests, but compatibility is higher for edge APIs (`Headers`, `Storage`, `fetch` mocks).
 **Alternatives considered:**
 - **happy-dom** — faster, but historically has gaps around `Headers`, `fetch`, and `Storage` mocks that affect MP client tests.

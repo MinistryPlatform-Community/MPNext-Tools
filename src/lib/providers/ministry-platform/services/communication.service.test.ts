@@ -4,6 +4,18 @@ import type { MinistryPlatformClient } from '@/lib/providers/ministry-platform/c
 import type { HttpClient } from '@/lib/providers/ministry-platform/utils/http-client';
 import type { CommunicationInfo, MessageInfo } from '@/lib/providers/ministry-platform/types';
 
+/**
+ * These tests deliberately drive failure paths, and the code under test logs
+ * them on purpose. Silence the channel so a real, unexpected error still
+ * stands out in the runner output instead of drowning in expected noise.
+ * `mockImplementation` keeps the spy recording, so assertions on what was
+ * logged still work.
+ */
+beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
 describe('CommunicationService', () => {
   let service: CommunicationService;
   let mockClient: MinistryPlatformClient;

@@ -228,8 +228,10 @@ await mp.createTableRecords('Contact_Log', records, {
 
 ## Testing
 
-- **Framework**: Vitest with jsdom environment, `@testing-library/react` for hooks/components, v8 coverage
+- **Framework**: Vitest with jsdom environment, `@testing-library/react` + `@testing-library/user-event` for hooks/components, v8 coverage
 - **Counts**: test/file totals live in `.claude/references/_meta/facts/` (bit-rots quickly — trust `vitest run` output over any doc claim)
+- **Coverage is enforced**: `vitest.config.mts` sets `thresholds: { statements: 97, lines: 98 }`, checked by the existing `test:coverage` CI job. Branches/functions are deliberately unenforced. Raise the thresholds as coverage rises; never lower them to green a red build.
+- **`coverage.include` is load-bearing**: without `include: ['src/**/*.{ts,tsx}']` the v8 provider reports only files a test imported, so untested files vanish instead of counting as 0%. Two traps: `coverage.all` was **removed in Vitest 5** (setting it is a type error and does nothing), and directory exclusions must end in `**` — a bare `'src/components/ui/'` matches nothing.
 - **Config**: `vitest.config.ts` (runner), `src/test-setup.ts` (env vars + jest-dom)
 - **jest-dom import**: `src/test-setup.ts` must import `@testing-library/jest-dom/vitest`, **not** the bare `@testing-library/jest-dom`. Since jest-dom v7 only the `/vitest` entry augments Vitest's `expect` types; the bare import registers matchers at runtime, so tests pass while `next build` fails with `Property 'toBeInTheDocument' does not exist`.
 - **Co-location**: Test files live next to source — `foo.ts` → `foo.test.ts`
@@ -237,6 +239,7 @@ await mp.createTableRecords('Contact_Log', records, {
 - **MPHelper mock**: Use mock class (`MPHelper: class { method = mockFn; }`), not `vi.fn().mockImplementation()`
 - **Singleton reset**: Reset `(ServiceClass as any).instance = undefined` in `beforeEach` to prevent state leakage
 - **Server action tests**: Mock `@/lib/auth` (`auth.api.getSession`), `next/headers` (`headers()`), and service singletons
+- **Type-check locally before pushing**: CI does not run `tsc`, and `tsconfig.json` includes `**/*.ts`/`**/*.tsx`, so a type error in a *test* file breaks `npm run build` while CI stays green. This has happened — see `.claude/TODO/2026-09-13-testing-no-typecheck-gate-in-ci.md`.
 - See **[Testing Reference](.claude/references/testing/README.md)** for all mock patterns, coverage data, and test inventory
 
 ## Dependencies

@@ -58,6 +58,18 @@ function createMockRequest(pathname: string, baseUrl = 'http://localhost:3000') 
   } as unknown as NextRequest;
 }
 
+/**
+ * These tests deliberately drive failure paths, and the code under test logs
+ * them on purpose. Silence the channel so a real, unexpected error still
+ * stands out in the runner output instead of drowning in expected noise.
+ * `mockImplementation` keeps the spy recording, so assertions on what was
+ * logged still work.
+ */
+beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
 describe('proxy', () => {
   beforeEach(() => {
     vi.clearAllMocks();

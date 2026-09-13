@@ -59,7 +59,7 @@ describe('buildWordDocument', () => {
       ...baseLabel,
       barType: 'postnet',
       barStates: JSON.stringify(
-        Array.from({ length: 32 }, (_, i) => (i % 2 ? 'tall' : 'short') as const)
+        Array.from({ length: 32 }, (_, i) => (i % 2 ? 'tall' : 'short'))
       ),
     };
     const doc = buildWordDocument([label], stock, 1);

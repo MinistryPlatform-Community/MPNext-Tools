@@ -152,3 +152,52 @@ describe('DomainTimezoneService', () => {
     });
   });
 });
+
+/**
+ * Remaining guard clauses.
+ *
+ * These are the fail-fast paths that keep a bad time zone or an unparseable MP
+ * datetime from silently drifting to the server's local zone — the exact class
+ * of bug CLAUDE.md rule 16 exists to prevent, so they are pinned explicitly.
+ */
+describe('DomainTimezoneService guard clauses', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('rejects a whitespace-only time zone identifier', () => {
+    expect(() => resolveIanaTimezone('   ')).toThrow('Time zone identifier is required');
+  });
+
+  it('rejects an unparseable MP datetime rather than returning Invalid Date', async () => {
+    const service = freshService();
+
+    await expect(service.parseMpDatetime('not-a-date')).rejects.toThrow(
+      /unable to parse "not-a-date"/,
+    );
+  });
+
+  it('parses a non-wall-clock but valid datetime through the Date fallback', async () => {
+    const service = freshService();
+
+    const parsed = await service.parseMpDatetime('2026-03-14T12:00:00Z');
+
+    expect(parsed.toISOString()).toBe('2026-03-14T12:00:00.000Z');
+  });
+
+  it('clearCache forces the next lookup to refetch domain info', async () => {
+    mockGetDomainInfo.mockResolvedValue({ TimeZoneName: 'Eastern Standard Time' });
+    const service = freshService();
+
+    await service.getMpTimezone();
+    expect(mockGetDomainInfo).toHaveBeenCalledTimes(1);
+
+    // Without clearCache the second call is served from cache.
+    await service.getMpTimezone();
+    expect(mockGetDomainInfo).toHaveBeenCalledTimes(1);
+
+    service.clearCache();
+    await service.getMpTimezone();
+    expect(mockGetDomainInfo).toHaveBeenCalledTimes(2);
+  });
+});

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, act } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ToolParams } from "@/lib/tool-params";
 
 // Mock all sub-panels — DevPanel tests should not depend on server actions.
@@ -13,10 +14,18 @@ vi.mock("./panels/contact-records-panel", () => ({
   ContactRecordsPanel: () => <div data-testid="contact-records-panel" />,
 }));
 vi.mock("./panels/user-tools-panel", () => ({
-  UserToolsPanel: () => <div data-testid="user-tools-panel" />,
+  UserToolsPanel: ({ refreshKey }: { refreshKey?: number }) => (
+    <div data-testid="user-tools-panel">{refreshKey}</div>
+  ),
 }));
 vi.mock("./panels/deploy-tool-panel", () => ({
-  DeployToolPanel: () => <div data-testid="deploy-tool-panel" />,
+  DeployToolPanel: ({ onDeployed }: { onDeployed?: () => void }) => (
+    <div data-testid="deploy-tool-panel">
+      <button type="button" onClick={onDeployed}>
+        simulate deploy
+      </button>
+    </div>
+  ),
 }));
 
 import { DevPanel } from "./dev-panel";
@@ -96,5 +105,43 @@ describe("DevPanel", () => {
     await act(async () => {});
     expect(screen.getByTestId("dev-panel")).toBeInTheDocument();
     expect(screen.queryByTestId("dev-panel-body")).not.toBeInTheDocument();
+  });
+
+  it("swallows localStorage write errors when toggled", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota exceeded");
+    });
+    render(<DevPanel params={params} />);
+    await act(async () => {});
+    const button = screen.getByRole("button", { name: /expand dev panel/i });
+    await user.click(button);
+    expect(screen.getByTestId("dev-panel-body")).toBeInTheDocument();
+  });
+
+  it("summarizes selection and record params", async () => {
+    render(<DevPanel params={{ pageID: 292, s: 5, recordID: 10 }} />);
+    await act(async () => {});
+    expect(screen.getByText("page 292 · selection 5 · record 10")).toBeInTheDocument();
+  });
+
+  it("shows a placeholder summary when no params are set", async () => {
+    render(<DevPanel params={{}} />);
+    await act(async () => {});
+    expect(screen.getByText("no params")).toBeInTheDocument();
+  });
+
+  it("bumps the user-tools refresh key when DeployToolPanel reports a deploy", async () => {
+    const user = userEvent.setup();
+    render(<DevPanel params={params} />);
+    await act(async () => {});
+    // Open the panel body so the child panels render.
+    await user.click(screen.getByRole("button", { name: /expand dev panel/i }));
+
+    expect(screen.getByTestId("user-tools-panel")).toHaveTextContent("0");
+
+    await user.click(screen.getByRole("button", { name: /simulate deploy/i }));
+
+    expect(screen.getByTestId("user-tools-panel")).toHaveTextContent("1");
   });
 });

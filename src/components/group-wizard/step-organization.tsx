@@ -56,7 +56,7 @@ export function StepOrganization({
               <FormLabel>Congregation *</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(Number(val))}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -84,7 +84,7 @@ export function StepOrganization({
               <FormLabel>Ministry *</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(Number(val))}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -159,7 +159,7 @@ export function StepOrganization({
               <FormLabel>Priority</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">

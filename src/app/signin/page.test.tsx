@@ -47,6 +47,18 @@ function setSearchParams(params: Record<string, string>) {
   mockUseSearchParams.mockReturnValue(sp);
 }
 
+/**
+ * These tests deliberately drive failure paths, and the code under test logs
+ * them on purpose. Silence the channel so a real, unexpected error still
+ * stands out in the runner output instead of drowning in expected noise.
+ * `mockImplementation` keeps the spy recording, so assertions on what was
+ * logged still work.
+ */
+beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
 describe('SignIn page', () => {
   let originalLocation: Location;
   let locationHref: string;
@@ -278,5 +290,142 @@ describe('SignIn route rendering mode', () => {
       'utf-8',
     );
     expect(source).toMatch(/^["']use client["']/m);
+  });
+});
+
+/**
+ * Error-code classification.
+ *
+ * `describeOAuthError` is not exported, so it is exercised through the rendered
+ * error card. Each branch maps a provider error code to the guidance the user
+ * actually reads — getting this wrong tells people to retry something that
+ * will never succeed, or to contact support for a cancelled sign-in.
+ */
+describe('SignIn OAuth error classification', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetSession.mockResolvedValue(null);
+  });
+
+  it.each([
+    'invalid_request',
+    'invalid_client',
+    'invalid_grant',
+    'unauthorized_client',
+    'unsupported_response_type',
+    'invalid_scope',
+  ])('describes %s as a request rejected by the provider', async (code) => {
+    setSearchParams({ error: code });
+
+    render(<SignIn />);
+
+    expect(
+      await screen.findByText(/sign-in request was rejected by the provider/i),
+    ).toBeInTheDocument();
+    expect(mockSignInSocial).not.toHaveBeenCalled();
+  });
+
+  it.each(['server_error', 'temporarily_unavailable'])(
+    'describes %s as a temporary provider outage',
+    async (code) => {
+      setSearchParams({ error: code });
+
+      render(<SignIn />);
+
+      expect(
+        await screen.findByText(/temporarily unavailable\. please retry in a moment/i),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it('falls back to a generic message that names an unrecognised code', async () => {
+    setSearchParams({ error: 'some_unmapped_code' });
+
+    render(<SignIn />);
+
+    expect(await screen.findByText(/sign-in failed \(some_unmapped_code\)/i)).toBeInTheDocument();
+  });
+
+  it('describes access_denied as a cancellation the user can retry', async () => {
+    setSearchParams({ error: 'access_denied' });
+
+    render(<SignIn />);
+
+    expect(await screen.findByText(/sign-in was cancelled/i)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Failure to even START the OAuth handshake.
+ *
+ * `signIn.social()` can fail two ways: it can throw synchronously, or it can
+ * return a promise that rejects. Both must clear the redirect timeout, release
+ * the once-only guard, and surface a retryable error — otherwise the user is
+ * left on a spinner with no way forward.
+ */
+describe('SignIn when signIn.social fails to start', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetSession.mockResolvedValue(null);
+    setSearchParams({});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('surfaces a retryable error when signIn.social throws synchronously', async () => {
+    mockSignInSocial.mockImplementation(() => {
+      throw new Error('provider exploded');
+    });
+
+    render(<SignIn />);
+
+    expect(await screen.findByText(/failed to start sign-in/i)).toBeInTheDocument();
+  });
+
+  it('surfaces a retryable error when the returned promise rejects', async () => {
+    mockSignInSocial.mockRejectedValue(new Error('network down'));
+
+    render(<SignIn />);
+
+    expect(await screen.findByText(/failed to start sign-in/i)).toBeInTheDocument();
+  });
+
+  it('allows a retry after a start failure, re-invoking signIn.social', async () => {
+    mockSignInSocial.mockRejectedValueOnce(new Error('network down'));
+
+    render(<SignIn />);
+    await screen.findByText(/failed to start sign-in/i);
+
+    const callsBeforeRetry = mockSignInSocial.mock.calls.length;
+    mockSignInSocial.mockResolvedValueOnce(undefined);
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+    await waitFor(() =>
+      expect(mockSignInSocial.mock.calls.length).toBeGreaterThan(callsBeforeRetry),
+    );
+  });
+
+  it('tolerates a non-thenable return value without throwing', async () => {
+    // The source guards on `typeof result.catch === "function"`; a void return
+    // must not crash the effect.
+    mockSignInSocial.mockReturnValue(undefined);
+
+    render(<SignIn />);
+
+    await waitFor(() => expect(mockSignInSocial).toHaveBeenCalled());
+    expect(screen.queryByText(/failed to start sign-in/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('SignInFallback', () => {
+  it('renders a loading state for the Suspense boundary', async () => {
+    const { SignInFallback } = await import('./sign-in-content');
+
+    render(<SignInFallback />);
+
+    expect(screen.getByRole('heading', { name: /loading/i })).toBeInTheDocument();
   });
 });

@@ -67,7 +67,7 @@ export function StepAttributes({ lookups }: StepAttributesProps) {
               <FormLabel>Life Stage</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -95,7 +95,7 @@ export function StepAttributes({ lookups }: StepAttributesProps) {
               <FormLabel>Group Focus</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -123,7 +123,7 @@ export function StepAttributes({ lookups }: StepAttributesProps) {
               <FormLabel>Required Book</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -151,7 +151,7 @@ export function StepAttributes({ lookups }: StepAttributesProps) {
               <FormLabel>SMS Number</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">

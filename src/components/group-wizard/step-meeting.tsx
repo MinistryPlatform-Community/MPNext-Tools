@@ -46,7 +46,7 @@ export function StepMeeting({ lookups }: StepMeetingProps) {
               <FormLabel>Meeting Day</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -92,7 +92,7 @@ export function StepMeeting({ lookups }: StepMeetingProps) {
               <FormLabel>Meeting Frequency</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -120,7 +120,7 @@ export function StepMeeting({ lookups }: StepMeetingProps) {
               <FormLabel>Meeting Duration</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -148,7 +148,7 @@ export function StepMeeting({ lookups }: StepMeetingProps) {
               <FormLabel>Default Meeting Room</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">

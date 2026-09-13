@@ -7,6 +7,7 @@ const mockGetAddressForContact = vi.hoisted(() => vi.fn());
 const mockToBlob = vi.hoisted(() => vi.fn());
 const mockDocxtemplaterRender = vi.hoisted(() => vi.fn());
 const mockDocxtemplaterGetZip = vi.hoisted(() => vi.fn());
+const mockImageModuleCtor = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth', () => ({
   auth: {
@@ -91,7 +92,11 @@ vi.mock('pizzip', () => ({
 }));
 
 vi.mock('docxtemplater-image', () => ({
-  default: class {},
+  default: class {
+    constructor(...args: unknown[]) {
+      mockImageModuleCtor(...args);
+    }
+  },
 }));
 
 vi.mock('@/lib/barcode-helpers', () => ({
@@ -108,6 +113,18 @@ vi.mock('@/lib/barcode-image', () => ({
 import { fetchAddressLabels, generateLabelPdf, mergeTemplate } from './actions';
 import type { LabelConfig, LabelData } from '@/lib/dto';
 import type { ToolParams } from '@/lib/tool-params';
+
+/**
+ * These tests deliberately drive failure paths, and the code under test logs
+ * them on purpose. Silence the channel so a real, unexpected error still
+ * stands out in the runner output instead of drowning in expected noise.
+ * `mockImplementation` keeps the spy recording, so assertions on what was
+ * logged still work.
+ */
+beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
 
 describe('fetchAddressLabels', () => {
   const defaultConfig: LabelConfig = {
@@ -292,6 +309,51 @@ describe('fetchAddressLabels', () => {
     expect(result.skipped).toHaveLength(1);
     expect(result.skipped[0].reason).toBe('no_barcode');
   });
+
+  it('returns empty results when neither selection nor recordID params are provided', async () => {
+    const params: ToolParams = {};
+    const result = await fetchAddressLabels(params, defaultConfig);
+    expect(result).toEqual({ printable: [], skipped: [] });
+  });
+
+  it('returns empty results in selection mode when the selection has no records', async () => {
+    mockGetSelectionRecordIds.mockResolvedValue([]);
+    const params: ToolParams = { pageID: 292, s: 1, sc: 0 };
+    const result = await fetchAddressLabels(params, defaultConfig);
+    expect(result).toEqual({ printable: [], skipped: [] });
+    expect(mockGetAddressesForContacts).not.toHaveBeenCalled();
+  });
+
+  it('returns empty results in recordID mode when the contact address lookup finds nothing', async () => {
+    mockGetAddressForContact.mockResolvedValue(undefined);
+    const params: ToolParams = { recordID: 7 };
+    const result = await fetchAddressLabels(params, defaultConfig);
+    expect(result).toEqual({ printable: [], skipped: [] });
+  });
+
+  it('sorts multiple printable results by postal code', async () => {
+    mockGetSelectionRecordIds.mockResolvedValue([1, 2]);
+    mockGetAddressesForContacts.mockResolvedValue([
+      {
+        Contact_ID: 1, Display_Name: 'Zeta Person', Household_ID: null,
+        Household_Name: null, Bulk_Mail_Opt_Out: false,
+        Address_Line_1: '1 Z St', City: 'Zeta', 'State/Region': 'TX',
+        Postal_Code: '99999', Bar_Code: '01234567094987654321',
+      },
+      {
+        Contact_ID: 2, Display_Name: 'Alpha Person', Household_ID: null,
+        Household_Name: null, Bulk_Mail_Opt_Out: false,
+        Address_Line_1: '1 A St', City: 'Alpha', 'State/Region': 'TX',
+        Postal_Code: '10000', Bar_Code: '01234567094987654321',
+      },
+    ]);
+
+    const params: ToolParams = { pageID: 292, s: 1, sc: 2 };
+    const config: LabelConfig = { ...defaultConfig, addressMode: 'individual' };
+    const result = await fetchAddressLabels(params, config);
+
+    expect(result.printable.map((p) => p.postalCode)).toEqual(['10000', '99999']);
+  });
 });
 
 describe('generateLabelPdf', () => {
@@ -347,6 +409,14 @@ describe('generateLabelPdf', () => {
     if (!result.success) {
       expect(result.error).toContain('No labels to print');
     }
+  });
+
+  it('returns a validation error and skips PDF rendering for an invalid IMb mailerId', async () => {
+    const labels: LabelData[] = [{ name: 'Test', addressLine1: '123 Main', city: 'Test', state: 'TX', postalCode: '75001' }];
+    const result = await generateLabelPdf(labels, { ...pdfConfig, barcodeFormat: 'imb', mailerId: '123' });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain('Mailer ID must be exactly 6 or 9 digits');
+    expect(mockToBlob).not.toHaveBeenCalled();
   });
 });
 
@@ -455,6 +525,47 @@ describe('mergeTemplate', () => {
     const result = await mergeTemplate(Buffer.from('x').toString('base64'), labels, mergeConfig);
     expect(result.success).toBe(true);
   });
+
+  it('returns a validation error and never renders when the IMb mailerId is invalid', async () => {
+    const labels: LabelData[] = [{ name: 'T', addressLine1: 'A', city: 'C', state: 'S', postalCode: '12345' }];
+    const invalidImbConfig: LabelConfig = { ...mergeConfig, barcodeFormat: 'imb', mailerId: '123' };
+
+    const result = await mergeTemplate(Buffer.from('x').toString('base64'), labels, invalidImbConfig);
+
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain('Mailer ID must be exactly 6 or 9 digits');
+    expect(mockDocxtemplaterRender).not.toHaveBeenCalled();
+  });
+
+  it('accepts a valid 9-digit IMb mailerId and proceeds to render', async () => {
+    const labels: LabelData[] = [{ name: 'T', addressLine1: 'A', city: 'C', state: 'S', postalCode: '12345' }];
+    const validImbConfig: LabelConfig = { ...mergeConfig, barcodeFormat: 'imb', mailerId: '123456789' };
+
+    const result = await mergeTemplate(Buffer.from('x').toString('base64'), labels, validImbConfig);
+
+    expect(result.success).toBe(true);
+    expect(mockDocxtemplaterRender).toHaveBeenCalled();
+  });
+
+  it('resolves the getImage/getSize callbacks passed to the image module', async () => {
+    mockImageModuleCtor.mockClear();
+    const labels: LabelData[] = [{ name: 'NoKey', addressLine1: '1 A', city: 'C', state: 'S', postalCode: '12345' }];
+    const result = await mergeTemplate(Buffer.from('x').toString('base64'), labels, mergeConfig);
+    expect(result.success).toBe(true);
+
+    expect(mockImageModuleCtor).toHaveBeenCalled();
+    const [options] = mockImageModuleCtor.mock.calls[0] as [{
+      getImage: (tagValue: unknown) => Buffer;
+      getSize: (img: Buffer | string, tagValue: unknown, tagName: string) => [number, number];
+    }];
+
+    // getImage falls back to an empty buffer for a key with no matching barcode
+    expect(options.getImage('not-a-real-key')).toEqual(Buffer.alloc(0));
+    // getSize returns the Barcode-specific size for the Barcode tag...
+    expect(options.getSize(Buffer.alloc(0), 'barcode_0', 'Barcode')).toEqual([200, 25]);
+    // ...and a generic fallback size for any other tag
+    expect(options.getSize(Buffer.alloc(0), 'x', 'SomeOtherTag')).toEqual([100, 100]);
+  });
 });
 
 describe('generateLabelDocx', () => {
@@ -499,6 +610,29 @@ describe('generateLabelDocx', () => {
     const result = await generateLabelDocx([], docxConfig);
     expect(result.success).toBe(false);
     if (!result.success) expect(result.error).toContain('No labels to export');
+  });
+
+  it('returns a validation error and skips docx rendering for an invalid IMb mailerId', async () => {
+    const { generateLabelDocx } = await import('./actions');
+    const labels: LabelData[] = [{ name: 'Docx', addressLine1: '1 Docx Rd', city: 'Town', state: 'TX', postalCode: '75001' }];
+    const result = await generateLabelDocx(labels, { ...docxConfig, barcodeFormat: 'imb', mailerId: '1234' });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain('Mailer ID must be exactly 6 or 9 digits');
+  });
+
+  it('returns a generic error when building the docx throws', async () => {
+    const { generateLabelDocx } = await import('./actions');
+    const labels: LabelData[] = [{ name: 'Docx', addressLine1: '1 Docx Rd', city: 'Town', state: 'TX', postalCode: '75001' }];
+    const { preEncodeBarcodes } = await import('@/lib/barcode-helpers');
+    (preEncodeBarcodes as unknown as { mockImplementationOnce: (fn: unknown) => void }).mockImplementationOnce(
+      () => {
+        throw new Error('encode failure');
+      }
+    );
+
+    const result = await generateLabelDocx(labels, docxConfig);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toBe('encode failure');
   });
 });
 

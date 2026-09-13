@@ -61,7 +61,7 @@ export function StepIdentity({ lookups }: StepIdentityProps) {
               <FormLabel>Group Type *</FormLabel>
               <Select
                 onValueChange={(val) => field.onChange(Number(val))}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ""}
               >
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -125,7 +125,7 @@ export function StepIdentity({ lookups }: StepIdentityProps) {
                 <FormLabel>Reason Ended</FormLabel>
                 <Select
                   onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                  value={field.value ? String(field.value) : undefined}
+                  value={field.value ? String(field.value) : ""}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">

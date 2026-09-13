@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { z } from 'zod';
 import { MPHelper, MPValidationError } from '@/lib/providers/ministry-platform/helper';
+import type {
+  CommunicationInfo,
+  FileUpdateParams,
+  FileUploadParams,
+  MessageInfo,
+} from '@/lib/providers/ministry-platform/types/provider.types';
 
 /**
  * MPHelper Tests
@@ -744,14 +750,17 @@ describe('MPHelper', () => {
 
   describe('Communication Service Methods', () => {
     it('should create communication without attachments', async () => {
-      const communicationInfo = {
-        Author_User_ID: 1,
+      const communicationInfo: CommunicationInfo = {
+        AuthorUserId: 1,
         Subject: 'Test Subject',
         Body: '<p>Test body</p>',
-        Start_Date: '2024-01-01',
-        From_Contact: 123,
-        Reply_to_Contact: 123,
-        To_Contact_List: '456,789',
+        StartDate: '2024-01-01',
+        FromContactId: 123,
+        ReplyToContactId: 123,
+        CommunicationType: 'Email',
+        Contacts: [456, 789],
+        IsBulkEmail: false,
+        SendToContactParents: false,
       };
       const createdCommunication = {
         Communication_ID: 1,
@@ -766,14 +775,17 @@ describe('MPHelper', () => {
     });
 
     it('should create communication with attachments', async () => {
-      const communicationInfo = {
-        Author_User_ID: 1,
+      const communicationInfo: CommunicationInfo = {
+        AuthorUserId: 1,
         Subject: 'Test with Attachment',
         Body: '<p>See attached</p>',
-        Start_Date: '2024-01-01',
-        From_Contact: 123,
-        Reply_to_Contact: 123,
-        To_Contact_List: '456',
+        StartDate: '2024-01-01',
+        FromContactId: 123,
+        ReplyToContactId: 123,
+        CommunicationType: 'Email',
+        Contacts: [456],
+        IsBulkEmail: false,
+        SendToContactParents: false,
       };
       const mockFile = new File(['test content'], 'test.pdf', { type: 'application/pdf' });
       const createdCommunication = { Communication_ID: 1, ...communicationInfo };
@@ -810,9 +822,9 @@ describe('MPHelper', () => {
     });
 
     it('should send message without attachments', async () => {
-      const messageInfo = {
-        From: 'sender@example.com',
-        To: 'recipient@example.com',
+      const messageInfo: MessageInfo = {
+        FromAddress: { Address: 'sender@example.com', DisplayName: 'Sender' },
+        ToAddresses: [{ Address: 'recipient@example.com', DisplayName: 'Recipient' }],
         Subject: 'Test Message',
         Body: '<p>Hello</p>',
       };
@@ -826,9 +838,9 @@ describe('MPHelper', () => {
     });
 
     it('should send message with attachments', async () => {
-      const messageInfo = {
-        From: 'sender@example.com',
-        To: 'recipient@example.com',
+      const messageInfo: MessageInfo = {
+        FromAddress: { Address: 'sender@example.com', DisplayName: 'Sender' },
+        ToAddresses: [{ Address: 'recipient@example.com', DisplayName: 'Recipient' }],
         Subject: 'Test with Attachment',
         Body: '<p>Please see attached</p>',
       };
@@ -912,7 +924,7 @@ describe('MPHelper', () => {
 
       it('should upload files with upload parameters', async () => {
         const mockFile = new File(['data'], 'doc.pdf', { type: 'application/pdf' });
-        const uploadParams = { IsDefault: true, Description: 'Main document' };
+        const uploadParams: FileUploadParams = { isDefaultImage: true, description: 'Main document' };
         const uploadedFiles = [{ File_ID: 2, File_Name: 'doc.pdf' }];
         mockUploadFiles.mockResolvedValueOnce(uploadedFiles);
 
@@ -930,7 +942,7 @@ describe('MPHelper', () => {
 
     describe('updateFile', () => {
       it('should update file metadata only', async () => {
-        const updateParams = { Description: 'Updated description' };
+        const updateParams: FileUpdateParams = { description: 'Updated description' };
         const updatedFile = { File_ID: 1, File_Name: 'photo.jpg', Description: 'Updated description' };
         mockUpdateFile.mockResolvedValueOnce(updatedFile);
 
@@ -945,7 +957,7 @@ describe('MPHelper', () => {
 
       it('should update file content and metadata', async () => {
         const mockFile = new File(['new content'], 'updated.jpg', { type: 'image/jpeg' });
-        const updateParams = { Description: 'New photo' };
+        const updateParams: FileUpdateParams = { description: 'New photo' };
         const updatedFile = { File_ID: 1, File_Name: 'updated.jpg' };
         mockUpdateFile.mockResolvedValueOnce(updatedFile);
 
