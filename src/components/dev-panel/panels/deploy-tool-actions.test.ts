@@ -5,13 +5,11 @@ const {
   mockListPages,
   mockListRoles,
   mockDeployTool,
-  mockGetUserIdByGuid,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockListPages: vi.fn(),
   mockListRoles: vi.fn(),
   mockDeployTool: vi.fn(),
-  mockGetUserIdByGuid: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({
@@ -32,14 +30,6 @@ vi.mock('@/services/toolService', () => ({
       listPages: mockListPages,
       listRoles: mockListRoles,
       deployTool: mockDeployTool,
-    }),
-  },
-}));
-
-vi.mock('@/services/userService', () => ({
-  UserService: {
-    getInstance: vi.fn().mockResolvedValue({
-      getUserIdByGuid: mockGetUserIdByGuid,
     }),
   },
 }));
@@ -92,8 +82,6 @@ describe('deploy-tool-actions', () => {
     mockListPages.mockReset();
     mockListRoles.mockReset();
     mockDeployTool.mockReset();
-    mockGetUserIdByGuid.mockReset();
-    mockGetUserIdByGuid.mockResolvedValue(42);
     vi.stubEnv('NODE_ENV', 'development');
   });
 

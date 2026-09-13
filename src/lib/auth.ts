@@ -126,7 +126,7 @@ export const userAdditionalFields = {
  * Extracts a usable MP `User_GUID` from an OIDC userinfo payload, or `null`.
  *
  * Exported for testing. Validates the shape because `sub` is the value every
- * downstream MP lookup keys on — `UserService.getUserIdByGuid` already runs it
+ * downstream MP lookup keys on — `UserService.getUserProfile` already runs it
  * through `validateGuid`, so an unparseable `sub` would otherwise surface as a
  * mystery failure on the first MP call instead of a clean refusal at sign-in.
  */

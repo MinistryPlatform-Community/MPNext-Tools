@@ -116,44 +116,4 @@ describe('UserService', () => {
       await expect(service.getUserProfile('b0000000-0000-0000-0000-000000000000')).rejects.toThrow('API error');
     });
   });
-
-  describe('getUserIdByGuid', () => {
-    it('should return User_ID for valid GUID', async () => {
-      mockGetTableRecords.mockResolvedValueOnce([{ User_ID: 42 }]);
-
-      const service = await UserService.getInstance();
-      const result = await service.getUserIdByGuid('550e8400-e29b-41d4-a716-446655440000');
-
-      expect(result).toBe(42);
-      expect(mockGetTableRecords).toHaveBeenCalledWith({
-        table: 'dp_Users',
-        select: 'User_ID',
-        filter: "User_GUID = '550e8400-e29b-41d4-a716-446655440000'",
-        top: 1,
-      });
-    });
-
-    it('should throw when user not found (empty array)', async () => {
-      mockGetTableRecords.mockResolvedValueOnce([]);
-
-      const service = await UserService.getInstance();
-      await expect(
-        service.getUserIdByGuid('550e8400-e29b-41d4-a716-446655440000')
-      ).rejects.toThrow('User not found');
-    });
-
-    it('should throw when result is null', async () => {
-      mockGetTableRecords.mockResolvedValueOnce(null as unknown as []);
-
-      const service = await UserService.getInstance();
-      await expect(
-        service.getUserIdByGuid('550e8400-e29b-41d4-a716-446655440000')
-      ).rejects.toThrow('User not found');
-    });
-
-    it('should throw for malformed GUID (via validateGuid)', async () => {
-      const service = await UserService.getInstance();
-      await expect(service.getUserIdByGuid('not-a-guid')).rejects.toThrow('Invalid GUID format');
-    });
-  });
 });

@@ -1,6 +1,7 @@
 'use server';
 
 import { Document, Paragraph, TextRun, Packer, PageBreak } from 'docx';
+import { AuthorizationService } from '@/services/authorizationService';
 
 /**
  * Generates a sample .docx template with merge tokens pre-placed
@@ -12,6 +13,17 @@ import { Document, Paragraph, TextRun, Packer, PageBreak } from 'docx';
  * Returns base64-encoded .docx content.
  */
 export async function generateSampleTemplate(): Promise<string> {
+  // Authorize, don't just authenticate (CLAUDE.md rule 12). This action reads no
+  // MP data — it builds a static .docx from constants — so it leaks nothing by
+  // itself. It is gated anyway rather than documented as a carve-out: it is a
+  // capability of the address-label tool, so it takes that tool's gate, and the
+  // carve-out list stays at four entries instead of growing a fifth that a
+  // reader would have to re-reason about later.
+  await AuthorizationService.getInstance().requireSecurityRole({
+    table: 'Contacts',
+    operation: 'read',
+  });
+
   const doc = new Document({
     sections: [{
       properties: {

@@ -7,8 +7,6 @@ const {
   mockGetTableMetadata,
   mockUpdatePageFieldOrder,
   mockGetInstance,
-  mockGetUserIdByGuid,
-  mockUserGetInstance,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetPages: vi.fn(),
@@ -16,8 +14,6 @@ const {
   mockGetTableMetadata: vi.fn(),
   mockUpdatePageFieldOrder: vi.fn(),
   mockGetInstance: vi.fn(),
-  mockGetUserIdByGuid: vi.fn(),
-  mockUserGetInstance: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({
@@ -70,10 +66,6 @@ vi.mock('@/services/fieldManagementService', () => ({
   },
 }));
 
-vi.mock('@/services/userService', () => ({
-  UserService: { getInstance: mockUserGetInstance },
-}));
-
 import { fetchPages, fetchPageFieldData, savePageFieldOrder } from './actions';
 
 const authedSession = {
@@ -94,10 +86,6 @@ describe('field-management actions', () => {
       getTableMetadata: mockGetTableMetadata,
       updatePageFieldOrder: mockUpdatePageFieldOrder,
     });
-    mockUserGetInstance.mockResolvedValue({
-      getUserIdByGuid: mockGetUserIdByGuid,
-    });
-    mockGetUserIdByGuid.mockResolvedValue(42);
   });
 
   describe('fetchPages', () => {

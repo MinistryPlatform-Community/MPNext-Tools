@@ -5,7 +5,6 @@ const mockGetSelectionRecordIds = vi.hoisted(() => vi.fn());
 const mockGetAddressesForContacts = vi.hoisted(() => vi.fn());
 const mockGetAddressForContact = vi.hoisted(() => vi.fn());
 const mockToBlob = vi.hoisted(() => vi.fn());
-const mockGetUserIdByGuid = vi.hoisted(() => vi.fn());
 const mockDocxtemplaterRender = vi.hoisted(() => vi.fn());
 const mockDocxtemplaterGetZip = vi.hoisted(() => vi.fn());
 
@@ -52,14 +51,6 @@ vi.mock('@/services/toolService', () => ({
   ToolService: {
     getInstance: vi.fn().mockResolvedValue({
       getSelectionRecordIds: mockGetSelectionRecordIds,
-    }),
-  },
-}));
-
-vi.mock('@/services/userService', () => ({
-  UserService: {
-    getInstance: vi.fn().mockResolvedValue({
-      getUserIdByGuid: mockGetUserIdByGuid,
     }),
   },
 }));

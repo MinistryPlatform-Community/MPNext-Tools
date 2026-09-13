@@ -8,9 +8,7 @@ const {
   mockGetGroup,
   mockCreateGroup,
   mockUpdateGroup,
-  mockGetUserIdByGuid,
   mockGroupGetInstance,
-  mockUserGetInstance,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockFetchAllLookups: vi.fn(),
@@ -19,9 +17,7 @@ const {
   mockGetGroup: vi.fn(),
   mockCreateGroup: vi.fn(),
   mockUpdateGroup: vi.fn(),
-  mockGetUserIdByGuid: vi.fn(),
   mockGroupGetInstance: vi.fn(),
-  mockUserGetInstance: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({
@@ -70,10 +66,6 @@ vi.mock('@/services/authorizationService', () => ({
 
 vi.mock('@/services/groupService', () => ({
   GroupService: { getInstance: mockGroupGetInstance },
-}));
-
-vi.mock('@/services/userService', () => ({
-  UserService: { getInstance: mockUserGetInstance },
 }));
 
 import {
@@ -143,9 +135,6 @@ mockRequireSecurityRole.mockImplementation(async () => {
     getGroup: mockGetGroup,
     createGroup: mockCreateGroup,
     updateGroup: mockUpdateGroup,
-  });
-  mockUserGetInstance.mockResolvedValue({
-    getUserIdByGuid: mockGetUserIdByGuid,
   });
 });
 
@@ -318,7 +307,6 @@ describe('createGroup', () => {
     mockGetSession.mockResolvedValueOnce({
       user: { id: 'user-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
     });
-    mockGetUserIdByGuid.mockResolvedValueOnce(42);
     mockCreateGroup.mockResolvedValueOnce({ Group_ID: 200, Group_Name: 'Test Group' });
 
     const result = await createGroup(BASE_FORM);
@@ -331,7 +319,6 @@ describe('createGroup', () => {
     mockGetSession.mockResolvedValueOnce({
       user: { id: 'user-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
     });
-    mockGetUserIdByGuid.mockResolvedValueOnce(42);
     mockCreateGroup.mockRejectedValueOnce(new Error('MP create failed'));
 
     const result = await createGroup(BASE_FORM);
@@ -343,7 +330,6 @@ describe('createGroup', () => {
     mockGetSession.mockResolvedValueOnce({
       user: { id: 'user-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
     });
-    mockGetUserIdByGuid.mockResolvedValueOnce(42);
     mockCreateGroup.mockRejectedValueOnce('boom');
 
     const result = await createGroup(BASE_FORM);
@@ -381,7 +367,6 @@ describe('updateGroup', () => {
     mockGetSession.mockResolvedValueOnce({
       user: { id: 'user-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
     });
-    mockGetUserIdByGuid.mockResolvedValueOnce(42);
     mockUpdateGroup.mockResolvedValueOnce({ Group_ID: 100, Group_Name: 'Updated' });
 
     const result = await updateGroup(100, BASE_FORM);
@@ -394,7 +379,6 @@ describe('updateGroup', () => {
     mockGetSession.mockResolvedValueOnce({
       user: { id: 'user-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
     });
-    mockGetUserIdByGuid.mockResolvedValueOnce(42);
     mockUpdateGroup.mockRejectedValueOnce(new Error('MP update failed'));
 
     const result = await updateGroup(100, BASE_FORM);
@@ -406,7 +390,6 @@ describe('updateGroup', () => {
     mockGetSession.mockResolvedValueOnce({
       user: { id: 'user-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
     });
-    mockGetUserIdByGuid.mockResolvedValueOnce(42);
     mockUpdateGroup.mockRejectedValueOnce('boom');
 
     const result = await updateGroup(100, BASE_FORM);
