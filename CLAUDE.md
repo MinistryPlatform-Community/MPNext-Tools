@@ -19,6 +19,33 @@ This guide provides essential information for AI assistants (like Claude) workin
 - The `mp:generate:models` script uses `--clean` flag to remove old files before regenerating
 - Manual generation with options: `tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --help`
 
+## Branching & Release
+
+This repo uses a two-trunk flow. **`dev` is the default branch** — branch from it, PR back into it.
+
+```
+feature/fix branch  --(squash PR)-->  dev  --(merge PR + tag)-->  main
+                                    staging              production
+```
+
+- **`dev`** — integration + staging verification. Default base for every new branch and PR.
+- **`main`** — production. Only ever receives `dev` via a release PR. Never branch features off `main`.
+
+### Rules
+
+1. **Always branch from `dev`**, not `main`: `git switch dev && git pull && git switch -c feat/my-thing`
+2. **PRs target `dev`** by default (`gh pr create` picks this up automatically — `dev` is the repo default branch). Only a release PR uses `--base main`.
+3. **Feature → `dev` is squash-merged** — one clean commit per change. Merged branches auto-delete.
+4. **`dev` → `main` is a merge commit, never a squash** — squashing would permanently diverge `dev` from `main`.
+5. **Both `dev` and `main` are protected**: no direct pushes, no force-pushes, no deletion, and the `test` CI job must pass. Work through PRs.
+6. **Releases**: use `/release`, which promotes `dev` → `main` and tags the resulting commit on `main` (calver `vYYYY.MM.DD.HHmm`).
+
+### Hotfixes
+
+Production-urgent fixes still go through `dev` — branch off `dev`, PR into `dev`, then run `/release` immediately.
+Only if `dev` contains unreleasable work should you branch off `main`, PR into `main`, then merge `main` back down into `dev`
+to keep them from diverging.
+
 ## Architecture
 
 - **Framework**: Next.js 16 (App Router, Turbopack) with React 19, TypeScript strict mode

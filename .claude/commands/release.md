@@ -4,18 +4,28 @@ Create a GitHub release with auto-generated release notes from merged pull reque
 
 ## Instructions
 
-1. **Gather context:**
+1. **Promote `dev` → `main`:**
+   - A release is the promotion of verified `dev` into `main`. Do this first — the tag must point at the merge commit on `main`.
+   - Confirm `dev` is green and staged-verified with the user before promoting.
+   - Check whether `main` is already up to date: `git rev-list --count origin/main..origin/dev`
+     - If `0`, `main` already has everything — skip to step 2 and tag the existing `main`.
+   - Otherwise open a release PR: `gh pr create --base main --head dev --title "release: <tag>" --body "<summary>"`
+   - **Merge it with a merge commit, never a squash**: `gh pr merge --merge` — squashing `dev` into `main` would rewrite history and make `dev` permanently diverge from `main`.
+   - After merge, run `git fetch origin` and re-confirm `git rev-list --count origin/main..origin/dev` is `0`.
+
+2. **Gather context:**
    - Run `gh release list --limit 5` to find the most recent release (if any)
    - Run `git tag --sort=-version:refname | head -5` to see existing tags
    - If a previous release exists, identify its tag to scope the changelog
    - Run `git log --oneline` (from last release tag to HEAD, or recent commits if first release) to understand what's new
 
-2. **Identify PRs to include:**
+3. **Identify PRs to include:**
    - If this is the first release, run `gh pr list --state merged --limit 20 --json number,title,mergedAt,body,labels` to get recent merged PRs
    - If a previous release exists, find PRs merged since that release using `gh pr list --state merged --search "merged:>YYYY-MM-DD" --json number,title,mergedAt,body,labels`
    - Present the list of PRs to the user and ask which to include (default: all)
+   - Exclude the `dev` → `main` release PR itself — it is a promotion, not a change
 
-3. **Determine version:**
+4. **Determine version:**
    - Auto-compute the version tag using calver format: `v{YYYY}.{MM}.{DD}.{HHmm}` based on the current date and time
    - Generate it with: `date -u +v%Y.%m.%d.%H%M` (UTC time)
    - Example: `v2026.02.20.1735` means 2026-02-20 at 17:35 UTC
@@ -23,7 +33,7 @@ Create a GitHub release with auto-generated release notes from merged pull reque
    - If `--tag` argument was provided, use that instead of auto-computing
    - If the computed tag already exists, append a `.1` suffix (e.g., `v2026.02.20.1735.1`)
 
-4. **Generate release notes:**
+5. **Generate release notes:**
    - Categorize included PRs by type using PR title prefixes and content:
      - `⚠️ Breaking Changes` — any PR with breaking changes (migration steps, renamed APIs, changed URLs, removed features)
      - `🚀 Features` — PRs with `feat:` prefix or feature work
@@ -35,17 +45,17 @@ Create a GitHub release with auto-generated release notes from merged pull reque
    - Only include categories that have PRs in them
    - Ask the user if there are any breaking changes or additional notes to add
 
-5. **Review with user:**
+6. **Review with user:**
    - Show the complete draft release notes to the user
    - Ask if any edits are needed before publishing
    - Apply any requested changes
 
-6. **Create the release:**
+7. **Create the release:**
    - Run `gh release create <tag> --target main --title "<tag>" --notes "<notes>"`
    - Use a HEREDOC for the notes body to handle multiline content
    - Run `git fetch --tags` to sync the new tag locally
 
-7. **Post-creation:**
+8. **Post-creation:**
    - Display the release URL
    - Confirm tag is synced locally
    - Show summary of what was released
@@ -131,7 +141,8 @@ git fetch --tags
 
 - Always use HEREDOC for release notes to handle multiline content and special characters
 - Include the Full Changelog comparison link at the bottom when a previous release exists
-- Default target branch is `main` — confirm with user if the repo uses a different default
+- `main` is the production branch and is ALWAYS the release target — pass `--target main` explicitly, since the
+  repo's default branch is `dev` and `gh release create` would otherwise tag `dev`
 - Sync tags locally after creating the release so `git describe` and local tooling work correctly
 - When categorizing PRs, prefer using the PR title prefix (feat:, fix:, docs:, chore:) but fall back to analyzing the PR body content
 - Ask about breaking changes explicitly — they're easy to miss but critical for users upgrading
