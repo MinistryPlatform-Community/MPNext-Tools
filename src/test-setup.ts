@@ -1,4 +1,7 @@
-import '@testing-library/jest-dom';
+// jest-dom v7 moved the Vitest `expect` type augmentation to this entry point.
+// The bare '@testing-library/jest-dom' import registers the matchers at runtime
+// but only augments Jest's types, so `toBeInTheDocument` etc. fail type checking.
+import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
 if (typeof globalThis.ResizeObserver === 'undefined') {
