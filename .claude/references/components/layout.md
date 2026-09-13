@@ -15,14 +15,14 @@ related:
   - ../routing/README.md
   - ../services/README.md
   - tool-framework.md
-last_verified: 2026-04-17
+last_verified: 2026-09-13
 ---
 
 ## Purpose
 `AuthWrapper` is the server-side session gate used at the app-shell level; it redirects unauthenticated requests to `/signin` while preserving the original path+query as `callbackUrl`. `shared-actions/` holds server actions used across multiple features (currently just `getCurrentUserProfile`).
 
 ## Files
-- `src/components/layout/auth-wrapper.tsx` — server component, 20 lines
+- `src/components/layout/auth-wrapper.tsx` — server component, 31 lines
 - `src/components/layout/auth-wrapper.test.tsx` — redirect + callback preservation tests
 - `src/components/layout/index.ts` — barrel: `AuthWrapper`
 - `src/components/shared-actions/user.ts` — `getCurrentUserProfile` server action
@@ -36,6 +36,8 @@ last_verified: 2026-04-17
 - The `x-pathname` header is set upstream by the proxy (`src/proxy.ts`) so the server component can see the original requested URL; it falls back to `/` when absent.
 - `shared-actions/user.ts` is marked `'use server'` at the top of the file — all exports are server actions.
 - Shared actions re-validate auth inside each action (`auth.api.getSession(...)`) — they do not trust the caller.
+- `getCurrentUserProfile` takes **no parameters**. The MP `User_GUID` is derived from the session inside the action. A caller-supplied GUID would be a live IDOR: server actions are caller-shaped POST endpoints, so any authenticated MP user could have read another user's contact details, roles, and user groups.
+- The guard keys on a non-empty-string `session.user.userGuid` (declared `required: true` in `src/lib/auth.ts`), not `session.user.id` — the latter is Better Auth's internal ID and its presence does not prove an MP identity exists.
 
 ## API / Interface
 
@@ -65,19 +67,28 @@ export async function AuthWrapper({ children }: { children: React.ReactNode }) {
     redirect(`${signinUrl.pathname}${signinUrl.search}`);
   }
 
+  // A session without a userGuid is unusable: every MP lookup keys off userGuid,
+  // and without it the header avatar/menu never renders — which leaves the user
+  // with no way to even sign out (the trap behind the better-auth 1.6 regression).
+  // Route these broken sessions to a recovery page that CAN sign them out,
+  // rather than rendering a dead app. /session-error lives outside the (web)
+  // route group, so it is not wrapped by AuthWrapper and cannot redirect-loop.
+  const userGuid = (session.user as { userGuid?: string | null }).userGuid;
+  if (!userGuid) {
+    redirect("/session-error");
+  }
+
   return <>{children}</>;
 }
 ```
 
 ### `getCurrentUserProfile`
-Source: `src/components/shared-actions/user.ts:8`
+Source: `src/components/shared-actions/user.ts:25`
 ```typescript
-export async function getCurrentUserProfile(
-  id: string
-): Promise<MPUserProfile | undefined>
+export async function getCurrentUserProfile(): Promise<MPUserProfile | undefined>
 ```
 
-Implementation:
+Implementation (docstring elided — see source for the IDOR rationale):
 ```typescript
 'use server';
 
@@ -86,13 +97,13 @@ import { MPUserProfile } from "@/lib/providers/ministry-platform/types";
 import { UserService } from '@/services/userService';
 import { headers } from 'next/headers';
 
-export async function getCurrentUserProfile(id: string): Promise<MPUserProfile | undefined> {
+export async function getCurrentUserProfile(): Promise<MPUserProfile | undefined> {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.id) throw new Error('Unauthorized');
+  const userGuid = (session?.user as Record<string, unknown> | undefined)?.userGuid;
+  if (typeof userGuid !== 'string' || userGuid.length === 0) throw new Error('Unauthorized');
 
   const userService = await UserService.getInstance();
-  const userProfile = await userService.getUserProfile(id);
-  return userProfile;
+  return userService.getUserProfile(userGuid);
 }
 ```
 
@@ -101,30 +112,36 @@ export async function getCurrentUserProfile(id: string): Promise<MPUserProfile |
   1. `await headers()` (Next.js 16 async dynamic API)
   2. `auth.api.getSession({ headers })` — Better Auth reads the JWT cookie, returns `null` if invalid/missing
   3. On `null`, read `x-pathname` (set by `src/proxy.ts`), build `/signin?callbackUrl=<originalPath>`, call `next/navigation` `redirect()` (which throws internally to abort rendering)
-  4. On valid session, render `<>{children}</>`
+  4. On a session with no `userGuid`, `redirect("/session-error")` — that route sits outside the `(web)` group, so it is not itself wrapped and cannot loop
+  5. On valid session, render `<>{children}</>`
 
 - **`getCurrentUserProfile` flow**
-  1. Re-validate session via `auth.api.getSession()` — if no `session.user.id`, throw `Unauthorized`
+  1. Re-validate session via `auth.api.getSession()` — if `session.user.userGuid` is not a non-empty string, throw `Unauthorized`
   2. Await `UserService.getInstance()` (async singleton)
-  3. Delegate to `userService.getUserProfile(id)` and return the `MPUserProfile` (or `undefined`)
+  3. Delegate to `userService.getUserProfile(userGuid)` and return the `MPUserProfile` (or `undefined`)
 
 ## Shared Actions catalog
 | Export | File | Purpose |
 |---|---|---|
-| `getCurrentUserProfile(id)` | `src/components/shared-actions/user.ts:8` | Fetch the current user's MP profile (`MPUserProfile`) by `User_GUID`; throws `Unauthorized` if no session. Backed by `UserService.getUserProfile`. |
+| `getCurrentUserProfile()` | `src/components/shared-actions/user.ts:25` | Fetch the **calling** user's MP profile (`MPUserProfile`); `User_GUID` comes from the session, never from a parameter. Throws `Unauthorized` if the session has no `userGuid`. Backed by `UserService.getUserProfile`. |
 
 Guidelines (verbatim from `src/components/shared-actions/README.md`):
 - Place actions here when they are **used by multiple components across different features**, provide **shared utility**, or handle **cross-cutting concerns**.
 - Keep actions **co-located** when they are feature-specific or tightly coupled to a single feature's logic.
 
 ## Tests
-- `src/components/layout/auth-wrapper.test.tsx` — 4 cases:
+- `src/components/layout/auth-wrapper.test.tsx` — 6 cases:
   - redirects with `callbackUrl` from `x-pathname`
   - falls back to `/` when `x-pathname` is missing
   - preserves URL-encoded query params through the redirect
+  - redirects to `/session-error` when `userGuid` is absent
+  - redirects to `/session-error` when `userGuid` is `null`
   - returns children when authenticated
-- `src/components/shared-actions/user.test.ts` — 3 cases:
-  - passes `id` through to `UserService.getUserProfile` and returns the profile
+- `src/components/shared-actions/user.test.ts` — 6 cases:
+  - looks the profile up with the session's `userGuid` and returns it
+  - ignores a caller-forged argument (cast through `unknown`) and still uses the session GUID
+  - throws `Unauthorized` when the session has no `userGuid`
+  - throws `Unauthorized` when `userGuid` is an empty string
   - throws `Unauthorized` when `auth.api.getSession()` returns `null`
   - propagates service-layer errors
 
@@ -135,6 +152,7 @@ Both test files use `vi.hoisted()` to share mock references (required pattern �
 - **`redirect()` throws.** `next/navigation` `redirect()` aborts rendering by throwing a magic error. Do not wrap in try/catch; do not add code after the redirect call expecting it to run on the unauthenticated branch.
 - **`callbackUrl` relies on `x-pathname`.** If a route bypasses the proxy (or a future proxy matcher excludes it), `x-pathname` will be missing and unauthenticated users land on `/` after sign-in. Verify proxy matcher coverage in `src/proxy.ts` when adding new protected routes.
 - **Shared actions must re-validate auth.** `getCurrentUserProfile` calls `auth.api.getSession()` itself rather than trusting caller context. Any new action added here must do the same (see `../auth/README.md` for session access patterns).
+- **Never re-add an identity parameter.** `getCurrentUserProfile` is a CLAUDE.md rule-12 carve-out from the `AuthorizationService` gate on the grounds that it returns only the caller's own profile. That justification holds only because there is no GUID argument to forge; adding one re-opens the IDOR.
 
 ## Related docs
 - `../auth/README.md` — Better Auth session shape, `session.user.userGuid` vs `session.user.id`

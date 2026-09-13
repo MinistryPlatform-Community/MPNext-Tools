@@ -119,7 +119,8 @@ mapProfileToUser: (profile) => {
    e. Creates account (accountId=sub, tokens) — storeAccountCookie: true
    f. Creates session → sets JWT cookie (cookieCache)
 8. Browser lands on callbackURL (app page)
-9. Client-side UserProvider reads session.user.userGuid → getCurrentUserProfile(userGuid)
+9. Client-side UserProvider reads session.user.userGuid (to decide whether to load)
+   → getCurrentUserProfile()  [server action re-derives the GUID from the session]
 ```
 
 ## Sign-in entry (verbatim from `src/app/signin/page.tsx`)

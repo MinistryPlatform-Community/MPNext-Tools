@@ -123,12 +123,13 @@ const userGuid = (session?.user as { userGuid?: string } | undefined)?.userGuid;
 
 ```typescript
 // src/contexts/user-context.tsx:29-49 (excerpt)
+// userGuid gates whether the load fires; it is NOT passed to the action.
 const userGuid = (session?.user as { userGuid?: string } | undefined)?.userGuid;
 
 const loadUserProfile = useCallback(async () => {
   if (!userGuid) { /* ... */ return; }
   // ...
-  const profile = await getCurrentUserProfile(userGuid);
+  const profile = await getCurrentUserProfile(); // no argument: the action re-derives the GUID server-side
   setUserProfile(profile ?? null);
 }, [userGuid]);
 ```

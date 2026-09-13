@@ -81,8 +81,14 @@ plugin. Better Auth generates its own internal `user.id`; the MP `User_GUID` (th
 OAuth `sub`) is carried on the session as a **custom user `additionalField`**
 named `userGuid`, populated server-side from the OAuth profile via
 `mapProfileToUser`. **Everything MP-related keys off `userGuid`** — the client
-`UserProvider` calls `getCurrentUserProfile(userGuid)` to load the profile
+`UserProvider` calls `getCurrentUserProfile()` to load the profile
 (avatar, name). No `userGuid` → no profile → dead avatar/menu.
+
+> If your fork still declares that action as `getCurrentUserProfile(userGuid)`,
+> fix it separately: a server action is a caller-shaped POST endpoint, so the
+> parameter is an IDOR — any authenticated MP user can read another user's
+> profile. Derive the GUID from the session inside the action. Unrelated to the
+> 1.6 upgrade, but you will be looking right at the code.
 
 **The breaking change:** As of Better Auth **1.6**, the function that pulls
 additional fields off an OAuth provider profile stopped letting a field declared
@@ -643,7 +649,7 @@ unusual route-group layout — stop and ask the user before improvising.
   because `genericOAuth`'s `additionalFields` aren't inferred — e.g.
   `(session?.user as { userGuid?: string })?.userGuid`.
 - **The avatar/menu chain end-to-end:** `useSession()` → `session.user.userGuid`
-  → `UserProvider` → `getCurrentUserProfile(userGuid)` → `MPUserProfile`
+  → `UserProvider` → `getCurrentUserProfile()` → `MPUserProfile`
   (`Image_GUID`, names) → `Header` renders the photo + `UserMenu`. Any break in
   `userGuid` collapses the whole chain to a non-interactive fallback
   (a generic `UserCircleIcon`, not text initials).

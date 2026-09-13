@@ -613,7 +613,7 @@ Alert, Alert Dialog, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Command,
 - **template-editor/** — 12 components for visual template editing with GrapesJS
 - **user-menu/** — User dropdown with profile display and OIDC sign-out action
 - **dev-panel/** — Unified developer overlay (localhost-only) showing parsed URL params, MP selection data, contact records, and authorized tools
-- **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile`)
+- **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile()` — returns the *calling* user's MP profile; the `User_GUID` comes from the session, never from a parameter)
 
 All components use kebab-case file naming, PascalCase component names, and named exports with barrel index files.
 
@@ -670,7 +670,7 @@ npm run test:coverage # With coverage report
 | User Service | `userService.test.ts` | Profile with roles/groups, parallel queries |
 | User Tools Panel | `user-tools-actions.test.ts` | Authorization checks, session validation |
 | User Menu | `actions.test.ts` | Sign-out action, OIDC logout redirect |
-| Shared Actions | `user.test.ts` | getCurrentUserProfile delegation |
+| Shared Actions | `user.test.ts` | getCurrentUserProfile session-derived GUID, unauthorized paths, IDOR regression |
 | Session Context | `session-context.test.tsx` | useAppSession hook wrapper |
 | IMb Encoder | `imb-encoder.test.ts` | USPS Intelligent Mail barcode encoding |
 | POSTNET Encoder | `postnet-encoder.test.ts` | POSTNET barcode encoding |

@@ -51,7 +51,7 @@ All 37 test files grouped by area. Totals from facts snapshot: **37 files / 507 
 | `src/components/dev-panel/panels/user-tools-actions.test.ts` | Authorization checks, session validation |
 | `src/components/layout/auth-wrapper.test.tsx` | `AuthWrapper` render gating based on session |
 | `src/components/user-menu/actions.test.ts` | Sign-out action, OIDC logout redirect |
-| `src/components/shared-actions/user.test.ts` | `getCurrentUserProfile` delegation |
+| `src/components/shared-actions/user.test.ts` | `getCurrentUserProfile` session-derived GUID lookup, `Unauthorized` on missing/empty `userGuid`, IDOR regression (caller-forged argument ignored), error propagation |
 
 ## Core lib (8 files)
 

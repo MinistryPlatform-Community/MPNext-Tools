@@ -18,7 +18,7 @@ Keep actions with their component folder when:
 ## Examples
 
 **Shared Actions (place here):**
-- `user.ts` - User profile operations used by contexts and components
+- `user.ts` - Current-user profile lookup used by contexts and components
 - `auth.ts` - Authentication actions used across the app
 - `analytics.ts` - Analytics tracking used by multiple features
 - `notifications.ts` - Notification system used app-wide
@@ -31,6 +31,11 @@ Keep actions with their component folder when:
 ```typescript
 // Importing shared actions
 import { getCurrentUserProfile } from '@/components/shared-actions/user';
+
+// Returns the CALLING user's profile. It takes no arguments by design: a server
+// action is a caller-shaped POST endpoint, so a user-id/GUID parameter would let
+// any authenticated MP user read anyone else's profile (IDOR). Do not re-add one.
+const profile = await getCurrentUserProfile();
 
 // Importing feature-specific actions
 import { myAction } from './actions'; // Within same folder

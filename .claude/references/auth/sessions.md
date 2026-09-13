@@ -50,7 +50,7 @@ user: {
 ## `customSession` (verbatim)
 
 ```typescript
-// src/lib/auth.ts:97-112
+// src/lib/auth.ts:398-413
 customSession(
   async ({ user, session }) => {
     // No API calls here — profile loading is handled by UserProvider

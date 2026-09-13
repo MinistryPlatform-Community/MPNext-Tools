@@ -160,12 +160,12 @@ last_verified: 2026-04-17
 2. `src/contexts/user-context.tsx:22` — `authClient.useSession()` (reactive subscription to JWT cookie cache).
 3. `src/contexts/user-context.tsx:29` — derive `userGuid = (session?.user as { userGuid?: string } | undefined)?.userGuid`.
 4. `src/contexts/user-context.tsx:51-58` — `useEffect` fires when `!isPending && userGuid`: calls `loadUserProfile()` (line 53).
-5. `src/contexts/user-context.tsx:31-49` — `loadUserProfile` sets `isLoading=true`, calls `getCurrentUserProfile(userGuid)` (line 41).
-6. `src/components/shared-actions/user.ts:8` — server action `getCurrentUserProfile(id)`.
-7. `src/components/shared-actions/user.ts:9-10` — `auth.api.getSession({ headers: await headers() })`; throws `'Unauthorized'` if no `session.user.id`.
-8. `src/components/shared-actions/user.ts:12-13` — `UserService.getInstance()` → `userService.getUserProfile(id)`.
+5. `src/contexts/user-context.tsx:31-49` — `loadUserProfile` sets `isLoading=true`, calls `getCurrentUserProfile()` (line 41) with no arguments.
+6. `src/components/shared-actions/user.ts:25` — server action `getCurrentUserProfile()`; takes no parameters, so a caller cannot name another user (IDOR).
+7. `src/components/shared-actions/user.ts:26-28` — `auth.api.getSession({ headers: await headers() })`, then derive `userGuid` from `session.user`; throws `'Unauthorized'` unless it is a non-empty string.
+8. `src/components/shared-actions/user.ts:30-31` — `UserService.getInstance()` → `userService.getUserProfile(userGuid)`.
 9. `src/services/userService.ts:81-110` — runs 3 MP queries:
-   - `mp.getTableRecords('dp_Users', { filter: "User_GUID = '<guid>'", select: "User_ID, User_GUID, Contact_ID_TABLE.First_Name, ..., Contact_ID_TABLE.dp_fileUniqueId AS Image_GUID", top: 1 })` at lines 82-87.
+   - `mp.getTableRecords('dp_Users', { filter: "User_GUID = '<guid>'", select: "User_ID, User_GUID, Contact_ID_TABLE.First_Name, ..., Contact_ID_TABLE.dp_fileUniqueId AS Image_GUID", top: 1 })` at lines 86-91.
    - `Promise.all([dp_User_Roles fetch, dp_User_User_Groups fetch])` at lines 92-103, keyed by the numeric `User_ID` from the first query.
 10. `src/services/userService.ts:105-109` — returns `{ ...profile, roles: string[], userGroups: string[] }`.
 11. `src/contexts/user-context.tsx:42` — `setUserProfile(profile ?? null)`.
@@ -176,7 +176,7 @@ last_verified: 2026-04-17
 
 **Error paths:**
 - Server action throws → caught at `src/contexts/user-context.tsx:43-46` → sets `error` state, `userProfile = null`.
-- No `session.user.id` → `Error('Unauthorized')` at `src/components/shared-actions/user.ts:10`.
+- Session `userGuid` missing or empty → `Error('Unauthorized')` at `src/components/shared-actions/user.ts:28`. (Not keyed on `session.user.id` — that is Better Auth's internal ID and does not prove an MP identity.)
 - Profile row missing → `userProfile = undefined` returned at `src/services/userService.ts:90`; normalized to `null` in context (line 42).
 
 **Return shape:** `MPUserProfile | null` in context state (with `roles: string[]`, `userGroups: string[]`).

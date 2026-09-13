@@ -82,7 +82,8 @@ data. Each documents why **in-file**. Adding a fifth needs the same
 justification, in the file, in writing.
 
 - `components/layout/auth-wrapper.tsx` — it *is* the session gate
-- `components/shared-actions/user.ts` — the user's own profile
+- `components/shared-actions/user.ts` — the user's own profile; enforced by the
+  signature (no parameter to forge), not just asserted
 - `components/shared-actions/domain.ts` — the domain-wide time zone (one string)
 - `components/dev-panel/panels/require-dev-session.ts` — dev-only
   (`NODE_ENV !== "production"`), and the services it calls gate anyway
