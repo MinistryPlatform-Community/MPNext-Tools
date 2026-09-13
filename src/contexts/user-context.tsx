@@ -38,7 +38,7 @@ export function UserProvider({ children }: UserProviderProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const profile = await getCurrentUserProfile(userGuid);
+      const profile = await getCurrentUserProfile();
       setUserProfile(profile ?? null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to load user profile"));

@@ -66,7 +66,7 @@ describe('UserContext', () => {
 
       expect(result.current.userProfile).toEqual(mockProfile);
       expect(result.current.error).toBeNull();
-      expect(mockGetCurrentUserProfile).toHaveBeenCalledWith('guid-123');
+      expect(mockGetCurrentUserProfile).toHaveBeenCalledWith();
     });
 
     it('should set null profile when no session', async () => {
