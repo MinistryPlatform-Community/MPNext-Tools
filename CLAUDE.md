@@ -231,12 +231,44 @@ await mp.createTableRecords('Contact_Log', records, {
 - **Framework**: Vitest with jsdom environment, `@testing-library/react` for hooks/components, v8 coverage
 - **Counts**: test/file totals live in `.claude/references/_meta/facts/` (bit-rots quickly — trust `vitest run` output over any doc claim)
 - **Config**: `vitest.config.ts` (runner), `src/test-setup.ts` (env vars + jest-dom)
+- **jest-dom import**: `src/test-setup.ts` must import `@testing-library/jest-dom/vitest`, **not** the bare `@testing-library/jest-dom`. Since jest-dom v7 only the `/vitest` entry augments Vitest's `expect` types; the bare import registers matchers at runtime, so tests pass while `next build` fails with `Property 'toBeInTheDocument' does not exist`.
 - **Co-location**: Test files live next to source — `foo.ts` → `foo.test.ts`
 - **Critical**: Use `vi.hoisted()` for any mock variables referenced inside `vi.mock()` factories (hoisting causes `ReferenceError` otherwise)
 - **MPHelper mock**: Use mock class (`MPHelper: class { method = mockFn; }`), not `vi.fn().mockImplementation()`
 - **Singleton reset**: Reset `(ServiceClass as any).instance = undefined` in `beforeEach` to prevent state leakage
 - **Server action tests**: Mock `@/lib/auth` (`auth.api.getSession`), `next/headers` (`headers()`), and service singletons
 - See **[Testing Reference](.claude/references/testing/README.md)** for all mock patterns, coverage data, and test inventory
+
+## Dependencies
+
+Run an audit with **`/update-deps`** (`.claude/commands/update-deps.md`). It applies
+in-range updates, evaluates each major separately, sweeps OSV.dev for advisories
+`npm audit` does not carry, and writes a record to `.claude/packages/`.
+
+**Before upgrading anything, read the newest file in [`.claude/packages/`](.claude/packages/)** —
+its "Held back" section records what is already known to be blocked and the exact
+condition that clears it. Do not re-derive that analysis.
+
+- **Node**: `engines.node` is `^22.22.2 || ^24.15.0 || >=26.0.0`, mirroring the
+  strictest dev dependency (jsdom 30). Node 20 is EOL and unsupported.
+- **CI gates tests only** — `.github/workflows/test.yml` runs `npm run test:coverage`
+  and never `npm run build`, so type errors do not fail CI. Type-check locally.
+- **Coverage path is load-bearing**: CI uploads `coverage/coverage-final.json` to
+  Codecov. Verify that exact path still exists after any Vitest major.
+
+### Dependency Audit History
+
+| Date | Advisories | Highlights | Record |
+|---|---|---|---|
+| 2026-09-13 | 14 → **0** | `next` 16.2.10 → 16.3.5 (**critical** RCE on Windows hosts, proxy bypass, SSRF). Adopted Vitest 5, jsdom 30, jest-dom 7, chalk 6. Dropped 5 unreferenced deps. Held TS 7, ESLint 10, GrapesJS 0.23. | [2026-09-13](.claude/packages/2026-09-13.md) |
+
+### Current holds
+
+| Package | Blocked by | Re-check with |
+|---|---|---|
+| `typescript` 7 | No stable Compiler API until 7.1; `typescript-eslint` peers `typescript: >=4.8.4 <6.1.0` | `npm view typescript-eslint peerDependencies` |
+| `eslint` 10 | `eslint-plugin-react@7.37.5` (latest) peers `eslint ^9.7` and calls a removed context method | `npm view eslint-plugin-react peerDependencies` |
+| `grapesjs` 0.23 | `@grapesjs/react@2.0.0` (latest) peers `grapesjs ^0.22.5` | `npm view @grapesjs/react peerDependencies` |
 
 ## Reference Documents
 
