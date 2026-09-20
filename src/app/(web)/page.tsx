@@ -54,6 +54,20 @@ export default function Home() {
 
         <Card className="flex flex-col">
           <CardHeader>
+            <CardTitle>Text Messaging</CardTitle>
+            <CardDescription>
+              Send a text (SMS or MMS) to a selection, a record, an audience, or a publication through Ministry Platform
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Link href="/tools/textmessaging">
+              <Button className="w-full">Open Tool</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col">
+          <CardHeader>
             <CardTitle>Group Wizard</CardTitle>
             <CardDescription>
               Group Wizard tool for Ministry Platform

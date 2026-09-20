@@ -116,3 +116,58 @@ export const MESSAGING_COLLISION_MAX_RESULTS = 10;
  * the remaining communications report overlap as unknown rather than stall the form.
  */
 export const MESSAGING_COLLISION_MAX_OVERLAP_READS = 40;
+
+// =====================================================================
+// Text Messaging tool
+// =====================================================================
+
+/**
+ * Contacts per `sendTextChunk` call. Each chunk is one Contacts read (batched by
+ * `MP_FETCH_BATCH_SIZE`) plus one `dp_Communication_Messages` POST, so it stays
+ * well under `MP_MAX_PAGE_SIZE`.
+ */
+export const TEXT_SEND_CHUNK_SIZE = 200;
+
+/** Hard cap Twilio enforces on total MMS media size. */
+export const TEXT_MMS_MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Carriers commonly downscale or drop MMS media above this size, so the tool
+ * warns (but does not block) between this and the hard cap.
+ */
+export const TEXT_MMS_RECOMMENDED_ATTACHMENT_BYTES = 1024 * 1024;
+
+/** Images attached to a text are resized client-side so their width is at most this. */
+export const TEXT_IMAGE_MAX_WIDTH = Number.parseInt(
+  process.env.NEXT_PUBLIC_TEXT_IMAGE_MAX_WIDTH ?? '1200',
+  10
+);
+
+/**
+ * Width offered as a one-click "shrink" when an attachment is still over the
+ * recommended MMS size. Wide enough to stay sharp on a phone screen (most are 360 to
+ * 430 CSS pixels across), small enough to drop a photo well under 1 MB.
+ */
+export const TEXT_IMAGE_COMPACT_WIDTH = Number.parseInt(
+  process.env.NEXT_PUBLIC_TEXT_IMAGE_COMPACT_WIDTH ?? '640',
+  10
+);
+
+/**
+ * `dp_Communication_Action_Statuses` ID for a message the platform should still send.
+ * MP ships Ready to Send = 2. Override per instance with the env var if it differs.
+ */
+export const TEXT_MESSAGE_ACTION_STATUS_READY_ID = Number.parseInt(
+  process.env.MP_MESSAGE_ACTION_STATUS_READY_ID ?? '2',
+  10
+);
+
+/**
+ * `dp_Communication_Types` ID for text messages, used only when the type cannot be
+ * resolved by name from the (readable) `dp_Communication_Types` table. MP ships
+ * Email = 1, Text Message = 2.
+ */
+export const TEXT_COMMUNICATION_TYPE_FALLBACK_ID = Number.parseInt(
+  process.env.MP_COMMUNICATION_TYPE_TEXT_ID ?? '2',
+  10
+);
