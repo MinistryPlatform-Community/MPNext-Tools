@@ -34,3 +34,10 @@ export {
   emptyMember,
   emptyHousehold,
 } from './family';
+
+export type {
+  MessagingChannel,
+  MessagingCollisionInput,
+  MessagingCollision,
+  MessagingCollisionResult,
+} from './messaging-collision';

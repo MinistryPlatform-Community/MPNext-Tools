@@ -29,6 +29,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 ### Services
 - [ADR-013: Async-`getInstance()` singleton pattern for app services](#adr-013-async-getinstance-singleton-pattern-for-app-services)
 - [ADR-014: Server actions call service singletons, not `MPHelper` directly](#adr-014-server-actions-call-service-singletons-not-mphelper-directly)
+- [ADR-027: Tool settings live in `dp_Configuration_Settings` and resolve MP row, then env, then default](#adr-027-tool-settings-live-in-dp_configuration_settings-and-resolve-mp-row-then-env-then-default)
 
 ### Contexts / DTOs
 - [ADR-015: Separate session context from user context](#adr-015-separate-session-context-from-user-context)
@@ -364,3 +365,17 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Consequences:** Slightly slower than happy-dom on pure-DOM tests, but compatibility is higher for edge APIs (`Headers`, `Storage`, `fetch` mocks).
 **Alternatives considered:**
 - **happy-dom** — faster, but historically has gaps around `Headers`, `fetch`, and `Storage` mocks that affect MP client tests.
+
+---
+
+### ADR-027: Tool settings live in `dp_Configuration_Settings` and resolve MP row, then env, then default
+
+**Date:** 2026-09-20
+**Status:** Accepted
+**Context:** Messaging tools carry tunables a church wants to change without a redeploy: SMS and MMS prices, the messaging worker's throughput, and the collision check's thresholds and windows. Environment variables need a hosting-provider change and a restart; constants need a release. MP already has a place administrators know for this: Administration > Configuration Settings (`dp_Configuration_Settings`), which the app's service account can read and write.
+**Decision:** `ConfigurationSettingsService` reads every row for an application code in one call, caches the map for five minutes, and resolves each setting in this order: the MP row (when it parses as a positive number), the matching environment variable, then the built-in default from `src/lib/constants.ts`. Tool settings use `Application_Code = 'MPNEXT'` so they group together in the MP UI. A catalogue (`MESSAGING_SETTING_SOURCES` in `messagingSettings.ts`) is the single source for key names, env vars, defaults, and descriptions; the SQL seed `mpnext_configuration_settings.sql` repeats them and a test fails if they drift. The first read in a process seeds any missing row with the value currently in effect, so a fresh install shows every setting in MP after the first tool launch; the seed write goes through `AuthorizationService` like every other MP write, and a refused or failed write only logs.
+**Consequences:** Admins tune the tools in MP; changes take effect within the cache window without a restart. A typo in MP degrades to the next source instead of breaking a tool. Env vars remain a fallback for installs whose API user cannot write the table. Rows are never overwritten by code, so changing a default in a release does not change an installed church's value.
+**Alternatives considered:**
+- **Environment variables only** — every price or threshold change is a deploy, and non-technical admins cannot make it.
+- **A custom MP table** — needs a schema install and MP page setup for what is one key/value row per setting; `dp_Configuration_Settings` already exists and already has a UI.
+- **Seed only from the SQL install script** — churches that skip the script would never see the settings; self-seeding makes the script optional.
