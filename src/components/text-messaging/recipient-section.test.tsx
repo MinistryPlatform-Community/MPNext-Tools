@@ -37,6 +37,7 @@ function makeSummary(overrides: Partial<TextRecipientSummary> = {}): TextRecipie
     excludedByCongregation: 0,
     excludedNoMobile: 0,
     excludedOptedOut: 0,
+    requiresDoubleOptIn: false,
     excludedDuplicateNumber: 0,
     recipientContactIds: [1, 2, 3, 4],
     sampleRecipient: null,
@@ -296,7 +297,21 @@ describe('RecipientSection: recipient count', () => {
       '3 of 10 contacts will receive this text.'
     );
     expect(screen.getByText(/Not included/)).toHaveTextContent(
-      'Not included: 3 at other campuses, 2 with no mobile number, 1 opted out of texting, 1 sharing a number with someone already included.'
+      'Not included: 3 at other campuses, 2 with no mobile number, 1 not opted in to texting, 1 sharing a number with someone already included.'
+    );
+  });
+
+  it('explains the double opt-in exclusion when the sending number requires it', () => {
+    renderSection({
+      summary: makeSummary({
+        totalContacts: 5,
+        recipientContactIds: [1, 2],
+        excludedOptedOut: 3,
+        requiresDoubleOptIn: true,
+      }),
+    });
+    expect(screen.getByText(/Not included/)).toHaveTextContent(
+      'Not included: 3 without double opt-in (required by this number).'
     );
   });
 

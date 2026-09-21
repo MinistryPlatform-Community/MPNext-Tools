@@ -59,6 +59,30 @@ export const TEXT_COMMUNICATION_STATUS_SENT_ID = Number.parseInt(
   process.env.MP_COMMUNICATION_STATUS_SENT_ID ?? '4',
   10
 );
+
+
+/**
+ * `Texting_Opt_In_Types` IDs on `Contacts.Texting_Opt_In_Type_ID` (stock MP). This
+ * replaces the deprecated `Contacts.Do_Not_Text` flag: a contact is textable only when
+ * their opt-in level satisfies the sending number's compliance level.
+ */
+export const TEXTING_OPT_IN_TYPE = {
+  OPTED_OUT: 1,
+  NO_RESPONSE: 2,
+  SINGLE_OPT_IN: 3,
+  DOUBLE_OPT_IN: 4,
+} as const;
+
+/**
+ * `Texting_Compliance_Levels` IDs on `dp_SMS_Numbers.Texting_Compliance_Level` (stock
+ * MP). None and Single Opt-in both accept single- or double-opted-in contacts; Double
+ * Opt-in accepts only double-opted-in contacts.
+ */
+export const TEXTING_COMPLIANCE_LEVEL = {
+  NONE: 1,
+  SINGLE_OPT_IN: 2,
+  DOUBLE_OPT_IN: 3,
+} as const;
 // =====================================================================
 // Messaging collision check (shared by messaging tools)
 // =====================================================================

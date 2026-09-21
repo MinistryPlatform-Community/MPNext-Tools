@@ -256,15 +256,17 @@ describe('TextMessageService', () => {
     it('keeps ungrouped numbers and those in the user groups, default first', async () => {
       mockGetTableRecords
         .mockResolvedValueOnce([
-          { SMS_Number_ID: 1, Number_Title: 'Zeta Line', SMS_Number: '+1600', Default: false, User_Group_ID: null, Congregation_ID: null, Cost_Per_Segment: 0.0079, Sender_Label: null },
-          { SMS_Number_ID: 2, Number_Title: 'Main', SMS_Number: '+1601', Default: true, User_Group_ID: 9, Congregation_ID: 3, Cost_Per_Segment: null, Sender_Label: 'Dream City' },
-          { SMS_Number_ID: 3, Number_Title: 'Private', SMS_Number: '+1602', Default: false, User_Group_ID: 77, Congregation_ID: null, Cost_Per_Segment: null, Sender_Label: null },
+          { SMS_Number_ID: 1, Number_Title: 'Zeta Line', SMS_Number: '+1600', Default: false, User_Group_ID: null, Congregation_ID: null, Cost_Per_Segment: 0.0079, Sender_Label: null, Texting_Compliance_Level: 3 },
+          { SMS_Number_ID: 2, Number_Title: 'Main', SMS_Number: '+1601', Default: true, User_Group_ID: 9, Congregation_ID: 3, Cost_Per_Segment: null, Sender_Label: 'Dream City', Texting_Compliance_Level: 1 },
+          { SMS_Number_ID: 3, Number_Title: 'Private', SMS_Number: '+1602', Default: false, User_Group_ID: 77, Congregation_ID: null, Cost_Per_Segment: null, Sender_Label: null, Texting_Compliance_Level: null },
         ])
         .mockResolvedValueOnce([{ User_Group_ID: 9 }]);
       const service = await TextMessageService.getInstance();
       const numbers = await service.listSmsNumbersForUser();
       expect(numbers.map((n) => n.id)).toEqual([2, 1]);
-      expect(numbers[0]).toMatchObject({ isDefault: true, senderLabel: 'Dream City', congregationId: 3, costPerSegment: null });
+      expect(numbers[0]).toMatchObject({ isDefault: true, senderLabel: 'Dream City', congregationId: 3, costPerSegment: null, complianceLevelId: 1 });
+      expect(numbers[1].complianceLevelId).toBe(3);
+      expect(mockGetTableRecords.mock.calls[0][0].select).toContain('Texting_Compliance_Level');
       expect(numbers[1].costPerSegment).toBe(0.0079);
     });
   });
@@ -437,7 +439,8 @@ describe('TextMessageService', () => {
       expect(mockGetTableRecords).toHaveBeenCalledTimes(2);
       const firstFilter = mockGetTableRecords.mock.calls[0][0].filter as string;
       expect(firstFilter.startsWith('Contacts.Contact_ID IN (1,2,3')).toBe(true);
-      expect(mockGetTableRecords.mock.calls[0][0].select).toContain('Contacts.Do_Not_Text');
+      expect(mockGetTableRecords.mock.calls[0][0].select).toContain('Contacts.Texting_Opt_In_Type_ID');
+      expect(mockGetTableRecords.mock.calls[0][0].select).not.toContain('Do_Not_Text');
     });
   });
 
@@ -523,9 +526,9 @@ describe('TextMessageService', () => {
 
   describe('pickers and recipient sources', () => {
     it('getSmsNumber returns the active number or null', async () => {
-      mockGetTableRecords.mockResolvedValueOnce([{ SMS_Number_ID: 5, Number_Title: 'Main', SMS_Number: '+16025550100', Default: true, User_Group_ID: null, Congregation_ID: 3, Cost_Per_Segment: null, Sender_Label: 'Church' }]);
+      mockGetTableRecords.mockResolvedValueOnce([{ SMS_Number_ID: 5, Number_Title: 'Main', SMS_Number: '+16025550100', Default: true, User_Group_ID: null, Congregation_ID: 3, Cost_Per_Segment: null, Sender_Label: 'Church', Texting_Compliance_Level: 2 }]);
       const service = await TextMessageService.getInstance();
-      expect(await service.getSmsNumber(5)).toEqual({ id: 5, label: 'Main', number: '+16025550100', senderLabel: 'Church', congregationId: 3, costPerSegment: null, isDefault: true });
+      expect(await service.getSmsNumber(5)).toEqual({ id: 5, label: 'Main', number: '+16025550100', senderLabel: 'Church', congregationId: 3, costPerSegment: null, isDefault: true, complianceLevelId: 2 });
       expect(mockGetTableRecords).toHaveBeenCalledWith(expect.objectContaining({ table: 'dp_SMS_Numbers', filter: 'SMS_Number_ID = 5 AND Active = 1' }));
       mockGetTableRecords.mockResolvedValueOnce([]);
       expect(await service.getSmsNumber(6)).toBeNull();

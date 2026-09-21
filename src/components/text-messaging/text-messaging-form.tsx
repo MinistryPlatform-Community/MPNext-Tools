@@ -173,7 +173,8 @@ function TextComposer({ params, config, onNewMessage }: TextComposerProps) {
     const result = await resolveTextRecipients(
       params,
       { ...target, congregationIds: activeCongregationIds },
-      placeholderTokens
+      placeholderTokens,
+      fromSmsNumberId
     );
     if (requestId !== resolveRequestRef.current) return;
     if (result.success) {
@@ -183,9 +184,10 @@ function TextComposer({ params, config, onNewMessage }: TextComposerProps) {
     }
     setResolving(false);
     // congregationKey and pageTokenKey capture the parts of the filter and draft that
-    // change what resolves; params is stable.
+    // change what resolves; params is stable. The sending number decides which opt-in
+    // levels qualify, so switching it re-resolves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, targetReady, congregationKey, campusPickIncomplete, pageTokenKey]);
+  }, [target, targetReady, congregationKey, campusPickIncomplete, pageTokenKey, fromSmsNumberId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

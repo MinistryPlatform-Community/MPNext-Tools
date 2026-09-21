@@ -66,8 +66,13 @@ export interface TextRecipientSummary {
   excludedByCongregation: number;
   /** Contacts with no mobile number on file. */
   excludedNoMobile: number;
-  /** Contacts with Do_Not_Text set. */
+  /**
+   * Contacts whose `Texting_Opt_In_Type_ID` does not satisfy the sending number's
+   * `Texting_Compliance_Level` (opted out, no response, or single when double is required).
+   */
   excludedOptedOut: number;
+  /** True when the sending number is configured for Double Opt-in, so single opt-ins were excluded. */
+  requiresDoubleOptIn: boolean;
   /** Contacts dropped because another recipient already has the same mobile number. */
   excludedDuplicateNumber: number;
   /** Deduped Contact_IDs that each get a message row. */
@@ -93,6 +98,11 @@ export interface SmsNumberOption {
   /** USD per SMS segment; null falls back to the tool default. */
   costPerSegment: number | null;
   isDefault: boolean;
+  /**
+   * `Texting_Compliance_Levels` ID (stock MP: 1 None, 2 Single Opt-in, 3 Double Opt-in).
+   * Null when the row has no level; treated as the single opt-in rule.
+   */
+  complianceLevelId: number | null;
 }
 
 /** A placeholder the sender can insert, e.g. `[First_Name]`. */

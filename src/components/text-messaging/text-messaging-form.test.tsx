@@ -76,6 +76,7 @@ function makeConfig(overrides: Partial<TextToolConfig> = {}): TextToolConfig {
         congregationId: null,
         costPerSegment: 0.01,
         isDefault: true,
+        complianceLevelId: null,
       },
       {
         id: 2,
@@ -85,6 +86,7 @@ function makeConfig(overrides: Partial<TextToolConfig> = {}): TextToolConfig {
         congregationId: null,
         costPerSegment: null,
         isDefault: false,
+        complianceLevelId: null,
       },
     ],
     audiences: [
@@ -120,6 +122,7 @@ function makeSummary(count: number, overrides: Partial<TextRecipientSummary> = {
     excludedByCongregation: 0,
     excludedNoMobile: 0,
     excludedOptedOut: 0,
+    requiresDoubleOptIn: false,
     excludedDuplicateNumber: 0,
     recipientContactIds: Array.from({ length: count }, (_, i) => i + 1),
     sampleRecipient:
@@ -281,7 +284,8 @@ describe('TextMessagingForm: resolving recipients', () => {
     expect(mocks.resolveTextRecipients).toHaveBeenCalledWith(
       SELECTION_PARAMS,
       { mode: 'selection', congregationIds: [] },
-      []
+      [],
+      1
     );
     expect(await screen.findByText(/will receive this text/)).toHaveTextContent(
       '3 contacts will receive this text.'
@@ -294,7 +298,8 @@ describe('TextMessagingForm: resolving recipients', () => {
       expect(mocks.resolveTextRecipients).toHaveBeenCalledWith(
         expect.anything(),
         { mode: 'record', congregationIds: [] },
-        []
+        [],
+        1
       )
     );
   });
@@ -315,7 +320,8 @@ describe('TextMessagingForm: resolving recipients', () => {
       expect(mocks.resolveTextRecipients).toHaveBeenLastCalledWith(
         expect.anything(),
         { mode: 'selection', congregationIds: [2] },
-        []
+        [],
+        1
       )
     );
 
@@ -324,7 +330,8 @@ describe('TextMessagingForm: resolving recipients', () => {
       expect(mocks.resolveTextRecipients).toHaveBeenLastCalledWith(
         expect.anything(),
         { mode: 'selection', congregationIds: [] },
-        []
+        [],
+        1
       )
     );
   });
@@ -342,7 +349,8 @@ describe('TextMessagingForm: resolving recipients', () => {
       expect(mocks.resolveTextRecipients).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), [
         'Nickname',
         'Event_Title',
-      ])
+      ],
+      1)
     );
   });
 
@@ -404,7 +412,8 @@ describe('TextMessagingForm: what blocks a send', () => {
       expect(mocks.resolveTextRecipients).toHaveBeenCalledWith(
         expect.anything(),
         { mode: 'selection', messagingViewId: 5, congregationIds: [] },
-        []
+        [],
+        1
       )
     );
   });

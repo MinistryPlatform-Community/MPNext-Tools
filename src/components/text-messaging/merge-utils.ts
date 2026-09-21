@@ -31,7 +31,7 @@ export const STANDARD_MERGE_CONTACT_SELECT = [
   'Contacts.Nickname',
   'Contacts.Mobile_Phone',
   'Contacts.Email_Address',
-  'Contacts.Do_Not_Text',
+  'Contacts.Texting_Opt_In_Type_ID',
   'Household_ID_TABLE.Congregation_ID',
   'Household_ID_TABLE_Congregation_ID_TABLE.Congregation_Name',
 ].join(', ');

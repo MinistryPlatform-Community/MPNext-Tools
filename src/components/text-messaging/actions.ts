@@ -45,6 +45,7 @@ import {
   normalizePhoneForDedupe,
 } from './merge-utils';
 import { SMS_MAX_BODY_LENGTH, analyzeSms, normalizeLookalikes, toGsmSafe } from './sms-utils';
+import { meetsTextingCompliance, requiresDoubleOptIn } from './opt-in-utils';
 
 type ActionResult<T> = ({ success: true } & T) | { success: false; error: string };
 
@@ -360,21 +361,33 @@ function effectiveCongregationScope(requested: Set<number>, allowed: number[]): 
   return scoped;
 }
 
+/**
+ * Resolves who will receive the text and why others were left out. Consent is checked
+ * against the sending number: a Double Opt-in number only reaches double-opted-in
+ * contacts, any other level reaches single- or double-opted-in contacts. Without a
+ * number the single opt-in rule applies; the send re-checks against the real number.
+ */
 export async function resolveTextRecipients(
   params: ToolParams,
   target: TextRecipientTarget,
   /** Placeholder tokens in the draft, so the sample recipient can preview page tags. */
-  placeholderTokens: string[] = []
+  placeholderTokens: string[] = [],
+  /** `dp_SMS_Numbers` ID the message will be sent from, for the opt-in compliance rule. */
+  fromSmsNumberId?: number
 ): Promise<ActionResult<{ summary: TextRecipientSummary }>> {
   try {
     await requireAccess('Contacts', 'read');
     const service = await TextMessageService.getInstance();
 
     const pageTokens = placeholderTokens.filter((t) => !STANDARD_TOKENS.has(t.toLowerCase()));
-    const [source, allowedCongregationIds] = await Promise.all([
+    const smsNumberId = fromSmsNumberId ? Math.trunc(fromSmsNumberId) : 0;
+    const [source, allowedCongregationIds, smsNumber] = await Promise.all([
       resolveSourceContacts(params, target, service, pageTokens),
       service.getUserGlobalFilterCongregationIds(),
+      smsNumberId > 0 ? service.getSmsNumber(smsNumberId) : Promise.resolve(null),
     ]);
+    if (smsNumberId > 0 && !smsNumber) throw new Error('The sending number is no longer active.');
+    const complianceLevelId = smsNumber?.complianceLevelId ?? null;
     const congregationScope = effectiveCongregationScope(
       cleanCongregationIds(target.congregationIds),
       allowedCongregationIds
@@ -399,7 +412,7 @@ export async function resolveTextRecipients(
         excludedNoMobile += 1;
         continue;
       }
-      if (row.Do_Not_Text) {
+      if (!meetsTextingCompliance(row.Texting_Opt_In_Type_ID, complianceLevelId)) {
         excludedOptedOut += 1;
         continue;
       }
@@ -428,6 +441,7 @@ export async function resolveTextRecipients(
         excludedByCongregation,
         excludedNoMobile,
         excludedOptedOut,
+        requiresDoubleOptIn: requiresDoubleOptIn(complianceLevelId),
         excludedDuplicateNumber,
         recipientContactIds,
         sampleRecipient,
@@ -545,8 +559,8 @@ export async function createTextCommunication(
 
 /**
  * Inserts one dp_Communication_Messages row per eligible contact in the chunk, with
- * placeholders merged per recipient. Re-checks eligibility so a contact who opted out
- * after the preview is skipped rather than texted.
+ * placeholders merged per recipient. Re-checks eligibility against the sending number's
+ * compliance level so a contact who opted out after the preview is skipped rather than texted.
  */
 export async function sendTextChunk(input: SendTextChunkInput): Promise<ActionResult<SendTextChunkResult>> {
   try {
@@ -581,7 +595,7 @@ export async function sendTextChunk(input: SendTextChunkInput): Promise<ActionRe
     let skippedCount = 0;
 
     for (const contact of contacts) {
-      if (!hasMobile(contact) || contact.Do_Not_Text) {
+      if (!hasMobile(contact) || !meetsTextingCompliance(contact.Texting_Opt_In_Type_ID, smsNumber.complianceLevelId)) {
         skippedCount += 1;
         continue;
       }

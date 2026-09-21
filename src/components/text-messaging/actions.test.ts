@@ -98,7 +98,7 @@ function contact(id: number, overrides: Record<string, unknown> = {}) {
     Nickname: null,
     Mobile_Phone: `602555${String(id).padStart(4, '0')}`,
     Email_Address: null,
-    Do_Not_Text: false,
+    Texting_Opt_In_Type_ID: 3,
     Congregation_ID: 3,
     Congregation_Name: 'Phoenix',
     ...overrides,
@@ -138,6 +138,7 @@ const smsNumber = {
   congregationId: null,
   costPerSegment: 0.0079,
   isDefault: true,
+  complianceLevelId: 1,
 };
 
 describe('text-messaging actions', () => {
@@ -275,12 +276,12 @@ describe('text-messaging actions', () => {
   });
 
   describe('resolveTextRecipients', () => {
-    it('excludes no-mobile, opted-out, off-campus, and duplicate-number contacts for an audience', async () => {
+    it('excludes no-mobile, not-opted-in, off-campus, and duplicate-number contacts for an audience', async () => {
       service.getContactIdsForAudience.mockResolvedValueOnce([1, 2, 3, 4, 5, 5]);
       service.getTextableContacts.mockResolvedValueOnce([
         contact(1),
         contact(2, { Mobile_Phone: null }),
-        contact(3, { Do_Not_Text: true }),
+        contact(3, { Texting_Opt_In_Type_ID: 1 }),
         contact(4, { Congregation_ID: 9 }),
         contact(5, { Mobile_Phone: '(602) 555-0001' }),
       ]);
@@ -298,6 +299,62 @@ describe('text-messaging actions', () => {
       });
       expect(result.summary.sampleRecipient?.mergeValues.Nickname).toBe('First1');
       expect(result.summary.sampleRecipient?.mergeValues.Congregation_Name).toBe('Phoenix');
+    });
+
+    it('applies the sending number compliance level: double opt-in numbers exclude single opt-ins', async () => {
+      service.getSmsNumber.mockResolvedValueOnce({ ...smsNumber, complianceLevelId: 3 });
+      service.getContactIdsForAudience.mockResolvedValueOnce([1, 2, 3, 4, 5]);
+      service.getTextableContacts.mockResolvedValueOnce([
+        contact(1, { Texting_Opt_In_Type_ID: 1 }),
+        contact(2, { Texting_Opt_In_Type_ID: 2 }),
+        contact(3, { Texting_Opt_In_Type_ID: 3 }),
+        contact(4, { Texting_Opt_In_Type_ID: 4 }),
+        contact(5, { Texting_Opt_In_Type_ID: null }),
+      ]);
+      const result = await resolveTextRecipients({}, { mode: 'audience', audienceId: 8, congregationIds: [] }, [], 5);
+      expect(service.getSmsNumber).toHaveBeenCalledWith(5);
+      expect(result.success && result.summary).toMatchObject({
+        excludedOptedOut: 4,
+        requiresDoubleOptIn: true,
+        recipientContactIds: [4],
+      });
+    });
+
+    it('accepts single and double opt-ins for None and Single Opt-in numbers, and with no number', async () => {
+      const rows = () => [
+        contact(1, { Texting_Opt_In_Type_ID: 1 }),
+        contact(2, { Texting_Opt_In_Type_ID: 2 }),
+        contact(3, { Texting_Opt_In_Type_ID: 3 }),
+        contact(4, { Texting_Opt_In_Type_ID: 4 }),
+      ];
+      for (const complianceLevelId of [1, 2, null]) {
+        service.getSmsNumber.mockResolvedValueOnce({ ...smsNumber, complianceLevelId });
+        service.getContactIdsForAudience.mockResolvedValueOnce([1, 2, 3, 4]);
+        service.getTextableContacts.mockResolvedValueOnce(rows());
+        const result = await resolveTextRecipients({}, { mode: 'audience', audienceId: 8, congregationIds: [] }, [], 5);
+        expect(result.success && result.summary).toMatchObject({
+          excludedOptedOut: 2,
+          requiresDoubleOptIn: false,
+          recipientContactIds: [3, 4],
+        });
+      }
+
+      service.getContactIdsForAudience.mockResolvedValueOnce([1, 2, 3, 4]);
+      service.getTextableContacts.mockResolvedValueOnce(rows());
+      service.getSmsNumber.mockClear();
+      const noNumber = await resolveTextRecipients({}, { mode: 'audience', audienceId: 8, congregationIds: [] });
+      expect(service.getSmsNumber).not.toHaveBeenCalled();
+      expect(noNumber.success && noNumber.summary).toMatchObject({ excludedOptedOut: 2, recipientContactIds: [3, 4] });
+    });
+
+    it('fails when the chosen sending number is no longer active', async () => {
+      service.getSmsNumber.mockResolvedValueOnce(null);
+      service.getContactIdsForAudience.mockResolvedValueOnce([1]);
+      expect(await resolveTextRecipients({}, { mode: 'audience', audienceId: 8, congregationIds: [] }, [], 5)).toEqual({
+        success: false,
+        error: 'The sending number is no longer active.',
+      });
+      expect(service.getTextableContacts).not.toHaveBeenCalled();
     });
 
     it('normalizes lookalikes in the sample recipient merge values so the preview matches the send', async () => {
@@ -574,7 +631,7 @@ describe('text-messaging actions', () => {
     it('merges placeholders per contact, skips ineligible contacts, and inserts message rows', async () => {
       service.getTextableContacts.mockResolvedValueOnce([
         contact(1, { Nickname: 'Sam' }),
-        contact(2, { Do_Not_Text: true }),
+        contact(2, { Texting_Opt_In_Type_ID: 2 }),
         contact(3, { Mobile_Phone: '' }),
       ]);
       const result = await sendTextChunk({
@@ -599,6 +656,17 @@ describe('text-messaging actions', () => {
         },
       ]);
       expect(service.getSelectedContacts).not.toHaveBeenCalled();
+    });
+
+    it('skips single opt-in contacts when the sending number requires double opt-in', async () => {
+      service.getSmsNumber.mockResolvedValueOnce({ ...smsNumber, complianceLevelId: 3 });
+      service.getTextableContacts.mockResolvedValueOnce([
+        contact(1, { Texting_Opt_In_Type_ID: 3 }),
+        contact(2, { Texting_Opt_In_Type_ID: 4 }),
+      ]);
+      const result = await sendTextChunk({ communicationId: 900, contactIds: [1, 2], body: 'Hi', fromSmsNumberId: 5 });
+      expect(result).toEqual({ success: true, createdCount: 1, skippedCount: 1 });
+      expect(service.createMessages.mock.calls[0][0].map((r: { Contact_ID: number }) => r.Contact_ID)).toEqual([2]);
     });
 
     it('normalizes lookalike characters in merge values and the merged body at send time', async () => {

@@ -57,6 +57,7 @@ function defaults(): Props {
         congregationId: null,
         costPerSegment: 0.01,
         isDefault: true,
+        complianceLevelId: null,
       },
       {
         id: 2,
@@ -66,6 +67,7 @@ function defaults(): Props {
         congregationId: null,
         costPerSegment: null,
         isDefault: false,
+        complianceLevelId: null,
       },
     ],
     fromSmsNumberId: 1,

@@ -71,7 +71,12 @@ export function RecipientSection({
     ? [
         summary.excludedByCongregation > 0 && `${summary.excludedByCongregation.toLocaleString()} at other campuses`,
         summary.excludedNoMobile > 0 && `${summary.excludedNoMobile.toLocaleString()} with no mobile number`,
-        summary.excludedOptedOut > 0 && `${summary.excludedOptedOut.toLocaleString()} opted out of texting`,
+        summary.excludedOptedOut > 0 &&
+          `${summary.excludedOptedOut.toLocaleString()} ${
+            summary.requiresDoubleOptIn
+              ? 'without double opt-in (required by this number)'
+              : 'not opted in to texting'
+          }`,
         summary.excludedDuplicateNumber > 0 &&
           `${summary.excludedDuplicateNumber.toLocaleString()} sharing a number with someone already included`,
       ].filter((x): x is string => Boolean(x))

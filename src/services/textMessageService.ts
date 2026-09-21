@@ -159,7 +159,8 @@ export interface TextableContactRow {
   Nickname: string | null;
   Mobile_Phone: string | null;
   Email_Address: string | null;
-  Do_Not_Text: boolean | null;
+  /** `Texting_Opt_In_Types` ID; see `meetsTextingCompliance`. */
+  Texting_Opt_In_Type_ID: number | null;
   Congregation_ID: number | null;
   Congregation_Name: string | null;
 }
@@ -180,6 +181,8 @@ type SmsNumberRow = {
   Congregation_ID: number | null;
   Cost_Per_Segment: number | null;
   Sender_Label: string | null;
+  /** `Texting_Compliance_Levels` ID; drives which contacts may be texted from this number. */
+  Texting_Compliance_Level: number | null;
 };
 
 /**
@@ -386,7 +389,7 @@ export class TextMessageService {
       this.mp!.getTableRecords<SmsNumberRow>({
         table: 'dp_SMS_Numbers',
         select:
-          'SMS_Number_ID, Number_Title, SMS_Number, [Default], User_Group_ID, Congregation_ID, Cost_Per_Segment, Sender_Label',
+          'SMS_Number_ID, Number_Title, SMS_Number, [Default], User_Group_ID, Congregation_ID, Cost_Per_Segment, Sender_Label, Texting_Compliance_Level',
         filter: 'Active = 1',
         orderBy: 'Number_Title',
       }),
@@ -409,6 +412,7 @@ export class TextMessageService {
         congregationId: n.Congregation_ID ?? null,
         costPerSegment: n.Cost_Per_Segment ?? null,
         isDefault: Boolean(n.Default),
+        complianceLevelId: n.Texting_Compliance_Level ?? null,
       }));
   }
 
@@ -418,7 +422,7 @@ export class TextMessageService {
     const rows = await this.mp!.getTableRecords<SmsNumberRow>({
       table: 'dp_SMS_Numbers',
       select:
-        'SMS_Number_ID, Number_Title, SMS_Number, [Default], User_Group_ID, Congregation_ID, Cost_Per_Segment, Sender_Label',
+        'SMS_Number_ID, Number_Title, SMS_Number, [Default], User_Group_ID, Congregation_ID, Cost_Per_Segment, Sender_Label, Texting_Compliance_Level',
       filter: `SMS_Number_ID = ${validatePositiveInt(id)} AND Active = 1`,
       top: 1,
     });
@@ -432,6 +436,7 @@ export class TextMessageService {
       congregationId: n.Congregation_ID ?? null,
       costPerSegment: n.Cost_Per_Segment ?? null,
       isDefault: Boolean(n.Default),
+      complianceLevelId: n.Texting_Compliance_Level ?? null,
     };
   }
 
