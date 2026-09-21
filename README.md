@@ -27,6 +27,7 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 - [Tools](#tools)
   - [Address Labels](#address-labels)
   - [Field Management](#field-management)
+  - [Text Messaging](#text-messaging)
   - [Template Editor](#template-editor)
   - [Template Tool](#template-tool)
   - [Building Custom Tools](#building-custom-tools)
@@ -45,6 +46,7 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 - **Tools Framework**: Reusable components for building Ministry Platform page tools with URL parameter parsing and dual-mode support (create/edit)
 - **Address Labels**: Print address labels with USPS Intelligent Mail Barcodes (IMb), POSTNET fallback, and Word document mail merge
 - **Template Editor**: Visual email/document template editor with GrapesJS, merge field support, and MP template integration
+- **Text Messaging**: SMS/MMS sends from any MP selection or record through MP's own communication service, with cost and delivery estimates, scheduling, quiet-hours and approval handling, a collision check, and an optional bring-your-own-provider AI rewrite (see [TEXT_MESSAGING.md](TEXT_MESSAGING.md))
 - **Modern UI**: 22 Radix UI + shadcn/ui components with Tailwind CSS v4
 - **Type-Safe API**: Full TypeScript strict mode with auto-generated model and schema files from Ministry Platform
 - **REST API Client**: Six specialized services covering tables, procedures, communications, files, metadata, and domain operations
@@ -310,6 +312,7 @@ MPNext-Tools/
 │   │   │   │   ├── layout.tsx            # Full-height gray background
 │   │   │   │   ├── addresslabels/        # Address label printing tool
 │   │   │   │   ├── fieldmanagement/      # MP page field layout editor
+│   │   │   │   ├── textmessaging/        # SMS/MMS text messaging tool
 │   │   │   │   ├── template/             # Template tool (scaffold/demo)
 │   │   │   │   └── templateeditor/       # Visual template editor
 │   │   │   └── layout.tsx                # Auth + Providers wrapper
@@ -321,9 +324,11 @@ MPNext-Tools/
 │   ├── components/                       # React components
 │   │   ├── address-labels/               # Address label printing & mail merge
 │   │   ├── field-management/             # Drag-and-drop MP page field order editor
+│   │   ├── messaging-collision/          # Shared "other messages around this time" panel
 │   │   ├── layout/                       # AuthWrapper (server component)
 │   │   ├── shared-actions/               # Cross-feature server actions
 │   │   ├── template-editor/              # GrapesJS template editor
+│   │   ├── text-messaging/               # SMS/MMS compose, cost, schedule, approval, AI rewrite
 │   │   ├── tool/                         # Tool framework (Container, Header, Footer)
 │   │   ├── ui/                           # 22 shadcn/ui components
 │   │   ├── user-menu/                    # User dropdown with OIDC sign-out
@@ -457,6 +462,38 @@ A drag-and-drop editor for configuring Ministry Platform page field layout — r
 - `api_MPNextTools_GetPages` — List configurable pages
 - `api_MPNextTools_GetPageFields` — Fetch current `dp_Page_Fields` rows for a page
 - `api_MPNextTools_UpdatePageFieldOrder` — Upsert field order and per-field flags
+
+### Text Messaging
+
+**Route**: `/tools/textmessaging`
+
+Compose and queue a text (SMS, or MMS with one image) to a Ministry Platform selection, a single record, an audience, or publication subscribers. The tool writes `dp_Communications` and `dp_Communication_Messages` rows and lets MP's own communication service deliver them through the church's SMS numbers, so replies, opt-outs, and reporting stay in MP.
+
+**Setup guide**: [TEXT_MESSAGING.md](TEXT_MESSAGING.md) covers MP prerequisites, the `MPNEXT` configuration settings records the tool creates, approval limits, quiet hours, and how to enable the AI rewrite feature.
+
+**Features:**
+- Selection, record, audience, and publication targets, with messaging-view support on non-Contacts pages (for example Events > Participants > Registered)
+- Campus scoping that follows the sender's MP global filter
+- `[Placeholder]` merge fields (standard contact fields plus page merge tags) with a live phone preview
+- Character, segment, and cost estimates with automatic smart-quote and dash replacement to keep texts in GSM-7
+- One image attachment (MMS), resized client-side with a one-click shrink
+- Send now or schedule in the church's time zone; quiet-hours (messaging curfew) warning with a required override
+- Pre-approved quota gate from `dp_Roles.Mass_Text_Quota` and the domain's Messaging Approval Process
+- Collision check listing other large emails and texts scheduled around the same time
+- Optional **AI rewrite** that shortens a draft while keeping every fact and placeholder; hidden until you wire your own provider (see the setup guide)
+- Church-tunable pricing and throughput in `dp_Configuration_Settings` (Application Code `MPNEXT`)
+
+**Components** (`src/components/text-messaging/`):
+- `TextMessagingForm` — Loads config and orchestrates the composer, send loop, and reset
+- `RecipientSection` — Send-to target, messaging-view picker, and campus scope
+- `ComposeSection` — From-number, body, placeholder picker, attachment, AI rewrite toggle
+- `AiRewritePanel` — AI rewrite with before/after stats (shown only when a provider is wired)
+- `PhonePreview` — Merged message preview for a sample recipient
+- `CostSummarySection` — When to send, estimated total, delivery time, details
+- `CurfewNotice` — Quiet-hours warning with override checkbox
+- `ReviewSendSection` — Summary, approval note, confirm dialog, progress, retry
+
+**Shared**: `src/components/messaging-collision/` renders the collision panel used by the messaging tools; `src/components/campus-multi-select/` is the campus picker.
 
 ### Template Tool
 
@@ -796,6 +833,7 @@ Uses calver format: `v{YYYY}.{MM}.{DD}.{HHmm}`. Categorizes PRs as features, fix
 | Document | Description |
 |----------|-------------|
 | **[CLAUDE.md](CLAUDE.md)** | Development guide — commands, architecture, code style, testing patterns |
+| **[TEXT_MESSAGING.md](TEXT_MESSAGING.md)** | Text Messaging tool setup: MP prerequisites, `MPNEXT` configuration settings, approvals, quiet hours, wiring an AI provider |
 | **[Ministry Platform Provider](src/lib/providers/ministry-platform/docs/README.md)** | Complete REST API client documentation |
 | **[Type Generator](src/lib/providers/ministry-platform/scripts/README.md)** | CLI tool for generating TypeScript types from MP schema |
 | **[Auth Reference](.claude/references/auth/README.md)** | Better Auth config, OAuth flow, session access, userGuid vs user.id |

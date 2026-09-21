@@ -34,3 +34,31 @@ export {
   emptyMember,
   emptyHousehold,
 } from './family';
+
+export type {
+  MessagingChannel,
+  MessagingCollisionInput,
+  MessagingCollision,
+  MessagingCollisionResult,
+} from './messaging-collision';
+
+export type {
+  SelectOption,
+  TextRecipientMode,
+  TextRecipientTarget,
+  MessagingViewOption,
+  TextRecipient,
+  TextRecipientSummary,
+  SmsNumberOption,
+  MergeFieldOption,
+  MessageCurfewWindow,
+  TextToolConfig,
+  CreateTextCommunicationInput,
+  CreateTextCommunicationResult,
+  SendTextChunkInput,
+  SendTextChunkResult,
+  TextQuota,
+  TextReleaseOutcome,
+  FinalizeTextCommunicationResult,
+  SmsRewriteResult,
+} from './text-messaging';

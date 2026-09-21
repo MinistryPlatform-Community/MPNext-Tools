@@ -30,6 +30,7 @@ Agent-facing navigation map for MPNext-Tools. For each question pattern, find th
 | Set up Vitest or fix a mock pattern | [testing/setup.md](testing/setup.md), [testing/mocks.md](testing/mocks.md) |
 | Find a DTO or shared constant | [dto-constants/README.md](dto-constants/README.md) |
 | Look up barcode, label-stock, or tool-param utilities | [utils/README.md](utils/README.md) |
+| Set up the Text Messaging tool (MP prerequisites, settings records, approvals, AI provider) | [../../TEXT_MESSAGING.md](../../TEXT_MESSAGING.md) |
 | Look up a domain term | [GLOSSARY.md](GLOSSARY.md) |
 | Understand why a design choice was made | [DECISIONS.md](DECISIONS.md) |
 | Avoid a known trap | [GOTCHAS.md](GOTCHAS.md) |
