@@ -81,9 +81,11 @@ advanced: {
   hooks null the access/refresh tokens in memory. The **`idToken` is kept** in
   the in-memory row: on the instance that handled sign-in, better-auth's own
   `auth.api.signOut({ body: { disableRedirect: true } })` returns MP's
-  endsession URL with `id_token_hint` (pinned in `auth.user-oauth-tokens.test.ts`).
-  The sign-out action does not use it yet (security Step 4); on a different
-  serverless instance there is no row and so no hint.
+  endsession URL with `id_token_hint` (pinned in `auth.user-oauth-tokens.test.ts`),
+  and `handleSignOut` forwards that hint (`sharedInstance` makes every Next
+  bundle layer in the process share the row). On a different serverless
+  instance there is no row and so no hint: sign-out still sends `client_id`,
+  and MP may show its "log out?" prompt once. See `oauth-flow.md`.
 - **`customSession` (`enrichSession`)** runs on every `getSession()`. It must stay
   cheap: no MP API calls. It adds `firstName`/`lastName` and strips
   `WITHHELD_SESSION_FIELDS` (`token`, `ipAddress`, `userAgent`) from the

@@ -124,10 +124,10 @@ Hand-written TypeScript interface/type shaping data between layers (e.g. `LabelD
 
 ## endsession (aliases: RP-initiated logout, OIDC endsession)
 
-MP OAuth endpoint at `/oauth/connect/endsession` that ends the SSO session and redirects to a pre-registered `post_logout_redirect_uri`.
+MP OAuth endpoint at `/oauth/connect/endsession` that ends the SSO session and redirects to a pre-registered `post_logout_redirect_uri`. The app always sends `client_id` (the OIDC sign-in client) and adds `id_token_hint` when the process that handled sign-in still holds the id_token.
 
 **Not to be confused with:** Better Auth's local `signOut` (only clears the BA cookie).
-**Defined in:** `src/components/user-menu/actions.ts:18`
+**Defined in:** `src/components/user-menu/actions.ts` (`handleSignOut`)
 **See:** `components/user-menu.md`
 
 ## escapeFilterString (aliases: MP filter quote escape)
@@ -142,7 +142,7 @@ Helper that escapes `'` -> `''`, `%` -> `[%]`, `_` -> `[_]` before interpolating
 
 ## genericOAuth (aliases: generic OAuth plugin)
 
-Better Auth plugin wiring arbitrary OIDC providers; configured with `providerId: "ministryplatform"`, OIDC discovery URL, `openid` + MP all scope (no `offline_access`), `pkce: false` (MP advertises `S256` in discovery but rejects the token exchange with `invalid_grant`), `disableIdTokenNonceBinding: true` (MP omits the claim), and `realm=realm` authorization param. As of Better Auth 1.7 it registers providers as first-class **social** providers, so the callback URL is the core `/api/auth/callback/{providerId}` — not the former `/api/auth/oauth2/callback/{providerId}`.
+Better Auth plugin wiring arbitrary OIDC providers; configured with `providerId: "ministryplatform"`, explicit authorize/token/endsession endpoints and **no** `discoveryUrl` (since security Step 4: no MP call at boot; the id_token is verified by the app in `getUserInfo` against lazily loaded discovery + JWKS), the dedicated OIDC client (`MP_OIDC_CLIENT_ID`), `openid` + MP all scope (no `offline_access`), `pkce: false` (MP advertises `S256` in discovery but rejects the token exchange with `invalid_grant`), no nonce (MP omits the claim), and `realm=realm` authorization param. As of Better Auth 1.7 it registers providers as first-class **social** providers, so the callback URL is the core `/api/auth/callback/{providerId}` — not the former `/api/auth/oauth2/callback/{providerId}`.
 
 **Not to be confused with:** `client credentials flow` (server-to-server, no user).
 **Defined in:** `src/lib/auth.ts:32`
