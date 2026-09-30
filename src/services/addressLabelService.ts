@@ -79,7 +79,7 @@ export class AddressLabelService {
 
     for (let i = 0; i < contactIds.length; i += MP_FETCH_BATCH_SIZE) {
       const batch = contactIds.slice(i, i + MP_FETCH_BATCH_SIZE);
-      batch.forEach(validatePositiveInt);
+      batch.forEach((id) => validatePositiveInt(id));
       const idList = batch.join(', ');
 
       const rows = await this.mp!.getTableRecords<ContactAddressRow>({

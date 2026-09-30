@@ -161,8 +161,11 @@ describe('DomainTimezoneService', () => {
  * of bug CLAUDE.md rule 16 exists to prevent, so they are pinned explicitly.
  */
 describe('DomainTimezoneService guard clauses', () => {
+  const NEWLINE = String.fromCharCode(10);
   beforeEach(() => {
-    vi.clearAllMocks();
+    // mockReset (not clearAllMocks) so a leftover mockResolvedValueOnce queue
+    // from an earlier test cannot leak into these.
+    mockGetDomainInfo.mockReset();
   });
 
   it('rejects a whitespace-only time zone identifier', () => {
@@ -173,8 +176,34 @@ describe('DomainTimezoneService guard clauses', () => {
     const service = freshService();
 
     await expect(service.parseMpDatetime('not-a-date')).rejects.toThrow(
-      /unable to parse "not-a-date"/,
+      'parseMpDatetime: value could not be parsed as a date',
     );
+  });
+
+  // Log injection (ported from upstream's 2026-09-28 review): the values are
+  // caller-controlled (group wizard dates), and the messages used to embed
+  // them verbatim — newline and all — so wherever an error was logged a
+  // caller could forge a separate structured log line.
+  it('toMpSqlDatetime does not echo the unparseable value in its error', async () => {
+    const service = freshService();
+    const input = 'x' + NEWLINE + '{"event":"mp.write.unauthorized","reason":"forged"}';
+
+    const error = await service.toMpSqlDatetime(input).catch((e: Error) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe('toMpSqlDatetime: value could not be parsed as a date');
+    expect((error as Error).message).not.toContain('mp.write.unauthorized');
+    expect((error as Error).message).not.toContain(NEWLINE);
+  });
+
+  it('parseMpDatetime does not echo the unparseable value in its error', async () => {
+    const service = freshService();
+
+    const error = await service.parseMpDatetime('secret' + NEWLINE + 'value+05:00').catch((e: Error) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).not.toContain('secret');
+    expect((error as Error).message).not.toContain(NEWLINE);
   });
 
   it('parses a non-wall-clock but valid datetime through the Date fallback', async () => {

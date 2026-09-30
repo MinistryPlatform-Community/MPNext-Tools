@@ -1,7 +1,7 @@
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { PageData } from "@/lib/tool-params";
 import { AuthorizationService } from "@/services/authorizationService";
-import { validatePositiveInt, validateColumnName } from "@/lib/validation";
+import { validatePositiveInt, validateColumnName, escapeFilterString } from "@/lib/validation";
 import { MP_FETCH_BATCH_SIZE } from "@/lib/constants";
 
 export interface ContactRecord {
@@ -250,7 +250,7 @@ export class ToolService {
     });
     const term = search?.trim();
     const filter = term
-      ? `Role_Name LIKE '%${term.replace(/'/g, "''")}%'`
+      ? `Role_Name LIKE '%${escapeFilterString(term)}%'`
       : undefined;
 
     return this.mp!.getTableRecords<RoleLookup>({
@@ -361,7 +361,7 @@ export class ToolService {
 
     for (let i = 0; i < recordIds.length; i += MP_FETCH_BATCH_SIZE) {
       const batch = recordIds.slice(i, i + MP_FETCH_BATCH_SIZE);
-      batch.forEach(validatePositiveInt);
+      batch.forEach((id) => validatePositiveInt(id));
       const rows = await this.mp!.getTableRecords<Record<string, number>>({
         table: tableName,
         select: `${primaryKey}, ${contactIdField}`,
