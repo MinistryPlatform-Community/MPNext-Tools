@@ -53,27 +53,32 @@ const ERROR_MESSAGES = new Map<string, string>(Object.entries({
   state_security_mismatch:
     "The sign-in request couldn't be verified — this usually means it was left open too long, cookies are blocked, or another sign-in tab is open. Close other tabs and try again.",
 
-  /*
-   * Emitted when Better Auth sent a `nonce` and the id_token did not echo it.
-   * MP never echoes it, so seeing this means `disableIdTokenNonceBinding` has
-   * regressed in `src/lib/auth.ts` — it is a configuration bug, not a user
-   * problem, and it affects EVERY user.
-   */
-  nonce_binding_missing:
-    "Sign-in isn't configured correctly for Ministry Platform. Please contact your administrator.",
-
-  // The id_token didn't match the provider's discovery document.
+  // Better Auth's RFC 9207 callback `iss` check. The MP provider has no
+  // discovered issuer since security Step 4, so these should not fire for it;
+  // kept so a future provider change still gets an explanation.
   issuer_missing:
     "Ministry Platform returned a sign-in token this app can't trust. Please contact your administrator.",
   issuer_mismatch:
     "Ministry Platform returned a sign-in token this app can't trust. Please contact your administrator.",
+  /*
+   * The provider is not registered. Since security Step 4 building the auth
+   * instance makes no Ministry Platform call, so this is never an MP outage —
+   * it means the app's own sign-in configuration is wrong.
+   */
   oauth_provider_not_found:
-    "Ministry Platform sign-in isn't available right now. This can happen if the app couldn't reach Ministry Platform when it started — please contact your administrator.",
+    "Ministry Platform sign-in isn't configured correctly for this app. Please contact your administrator.",
 
-  // The userinfo endpoint gave us nothing usable. Includes the case where MP
-  // returned no `sub` (see `auth.userinfo.invalid_sub` in src/lib/auth.ts).
+  /*
+   * `getUserInfo` in src/lib/auth.ts returned null. Since security Step 4
+   * this is also what an MP blip at the callback looks like (discovery, JWKS
+   * or userinfo unreachable — `auth.oidc.discovery_failed`,
+   * `auth.userinfo.id_token_unverified`, `auth.userinfo.fetch_failed`), and
+   * the next attempt recovers on its own, so invite a retry. It also covers a
+   * refused token (`auth.userinfo.sub_mismatch`, `..._claims_invalid`,
+   * `..._invalid_sub`); the server log says which.
+   */
   unable_to_get_user_info:
-    "We signed you in with Ministry Platform, but couldn't read your user profile back from it. This usually clears up on a retry.",
+    "We couldn't read your Ministry Platform account. Please try again in a moment.",
   email_not_found:
     "Ministry Platform didn't return enough profile information to complete sign-in. Please contact your administrator.",
   email_not_verified:
