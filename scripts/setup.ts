@@ -131,6 +131,22 @@ const ENV_VARS: EnvVar[] = [
   },
   // Optional variables
   {
+    // Recommended, and planned to become required: the dedicated OIDC client
+    // for user sign-in. Unset, sign-in falls back to the service-account client
+    // above and logs `auth.oidc.shared_client` (see getOidcClient in
+    // src/lib/env.ts). Set both or neither.
+    name: 'MP_OIDC_CLIENT_ID',
+    required: false,
+    sensitive: false,
+    description: 'Dedicated MP OIDC client for user sign-in (recommended; separate from the API client)',
+  },
+  {
+    name: 'MP_OIDC_CLIENT_SECRET',
+    required: false,
+    sensitive: true,
+    description: 'Secret for MP_OIDC_CLIENT_ID',
+  },
+  {
     name: 'MINISTRY_PLATFORM_DEV_CLIENT_ID',
     required: false,
     sensitive: false,
@@ -811,6 +827,15 @@ function runCheckMode(): number {
     const issues = [...missing, ...empty].map((v) => v.name);
     console.log(chalk.red(`✗ Missing: ${issues.join(', ')}`));
   }
+  // Advisory only (not a failure yet): the dedicated sign-in client.
+  const envForOidc = parseEnvFile(ENV_LOCAL_PATH);
+  const hasOidcId = Boolean(envForOidc.get('MP_OIDC_CLIENT_ID'));
+  const hasOidcSecret = Boolean(envForOidc.get('MP_OIDC_CLIENT_SECRET'));
+  if (hasOidcId !== hasOidcSecret) {
+    console.log(chalk.red('      ✗ MP_OIDC_CLIENT_ID and MP_OIDC_CLIENT_SECRET must be set together (the app refuses to start)'));
+  } else if (!hasOidcId) {
+    console.log(chalk.yellow('      ! MP_OIDC_CLIENT_ID not set: sign-in reuses the API client (recommended: a dedicated client)'));
+  }
 
   // Step 6: Dependencies
   process.stdout.write(chalk.cyan('[6/8] Dependencies...           '));
@@ -1068,11 +1093,47 @@ async function runInteractiveSetup(options: SetupOptions): Promise<number> {
     console.log(chalk.green(`  ✓ MINISTRY_PLATFORM_CLIENT_SECRET = ********`));
   }
 
+  // The dedicated sign-in (OIDC) client. Optional for now: blank keeps the
+  // deprecated fallback to the API client above (logged as
+  // `auth.oidc.shared_client` at runtime). The app refuses to start with only
+  // one of the pair set, so the secret is asked for only when an id is given.
+  console.log(chalk.yellow('\n  User Sign-in (OIDC) Client'));
+  console.log(
+    chalk.gray(
+      '  Recommended: an MP API client used ONLY for user sign-in, separate from the data client.\n' +
+        '  Register redirect URI <BETTER_AUTH_URL>/api/auth/callback/ministryplatform and\n' +
+        '  post-logout redirect URI <BETTER_AUTH_URL>. Leave blank to reuse the data client (not recommended).'
+    )
+  );
+  const oidcClientId = await input({
+    message: 'Enter MP_OIDC_CLIENT_ID (blank to skip):',
+    default: currentEnv.get('MP_OIDC_CLIENT_ID') || undefined,
+  });
+  if (oidcClientId) {
+    updates.set('MP_OIDC_CLIENT_ID', oidcClientId);
+    console.log(chalk.green(`  ✓ MP_OIDC_CLIENT_ID = ${oidcClientId}`));
+    const oidcClientSecret = await password({
+      message: `Enter MP_OIDC_CLIENT_SECRET (${oidcClientId}):`,
+    });
+    if (oidcClientSecret) {
+      updates.set('MP_OIDC_CLIENT_SECRET', oidcClientSecret);
+      console.log(chalk.green(`  ✓ MP_OIDC_CLIENT_SECRET = ********`));
+    } else if (!currentEnv.get('MP_OIDC_CLIENT_SECRET')) {
+      console.log(
+        chalk.red('  ✗ MP_OIDC_CLIENT_SECRET is required with MP_OIDC_CLIENT_ID; the app will refuse to start until it is set.')
+      );
+    }
+  } else {
+    console.log(chalk.gray('  Skipped: sign-in will reuse MINISTRY_PLATFORM_CLIENT_ID (auth.oidc.shared_client warning).'));
+  }
+
   // Variables handled specially (skip in regular loop)
   const speciallyHandledVars = [
     ...mpDerivedVars,
     'MINISTRY_PLATFORM_CLIENT_ID',
     'MINISTRY_PLATFORM_CLIENT_SECRET',
+    'MP_OIDC_CLIENT_ID',
+    'MP_OIDC_CLIENT_SECRET',
   ];
 
   // Now check for other missing/empty required variables
