@@ -693,11 +693,17 @@ async function verifyMpIdToken(idToken: string): Promise<JWTPayload | null> {
  * process outside Vitest — see `sharedInstance`) when sign-in is not running
  * as a dedicated OIDC client. A warning, not a refusal, until every
  * environment has `MP_OIDC_CLIENT_ID` / `MP_OIDC_CLIENT_SECRET`; see
- * `.claude/TODO/2026-09-30-require-dedicated-oidc-client.md`. Exported for
- * tests.
+ * `.claude/TODO/2026-09-30-require-dedicated-oidc-client.md`.
+ *
+ * Silent during `next build` (`NEXT_PHASE`), whose page-data workers are
+ * separate processes and would each print it; the running server logs it.
+ * Exported for tests.
  */
-export function warnIfSharedOidcClient(client: Pick<OidcClient, "shared">): void {
-  if (!client.shared) return;
+export function warnIfSharedOidcClient(
+  client: Pick<OidcClient, "shared">,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): void {
+  if (!client.shared || env.NEXT_PHASE === "phase-production-build") return;
   console.warn(
     JSON.stringify({
       event: "auth.oidc.shared_client",

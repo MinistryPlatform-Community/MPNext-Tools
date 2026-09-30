@@ -234,6 +234,17 @@ describe('the OIDC sign-in client at module load (owner decision: dedicated clie
     expect(sharedClientWarnings()).toEqual([expect.objectContaining({ source: 'same_as_service_account' })]);
   });
 
+  it('stays silent during next build (NEXT_PHASE), whose workers are separate processes', async () => {
+    const { warnIfSharedOidcClient } = await import('@/lib/auth');
+    vi.mocked(console.warn).mockClear();
+    warnIfSharedOidcClient({ shared: 'fallback' }, { NEXT_PHASE: 'phase-production-build' });
+    expect(sharedClientWarnings()).toEqual([]);
+    warnIfSharedOidcClient({ shared: 'fallback' }, { NEXT_PHASE: 'phase-production-server' });
+    expect(sharedClientWarnings()).toHaveLength(1);
+    warnIfSharedOidcClient({ shared: null }, {});
+    expect(sharedClientWarnings()).toHaveLength(1);
+  });
+
   it('refuses to import with only half of the dedicated pair set', async () => {
     setEnv({ MP_OIDC_CLIENT_ID: 'oidc-app', MP_OIDC_CLIENT_SECRET: undefined });
     await expect(importAuthAsIfNotVitest()).rejects.toThrow(/MP_OIDC_CLIENT_ID and MP_OIDC_CLIENT_SECRET must be set together/);
