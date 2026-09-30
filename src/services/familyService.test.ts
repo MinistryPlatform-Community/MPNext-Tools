@@ -176,7 +176,70 @@ describe("FamilyService", () => {
       const service = await FamilyService.getInstance();
       await expect(
         service.resolveContactIdFromPage("Event_Participants", "Event_Participant_ID", 10, "bad; name"),
-      ).rejects.toThrow("Invalid column name");
+      ).rejects.toThrow("Invalid Contact_ID_Field");
+    });
+
+    // Adversarial (query injection): anything containing `_TABLE` used to go
+    // into $select verbatim, so a caller could append columns, aliases or
+    // expressions, or read a different table's column. Each must be refused
+    // before any MP call, and without echoing the hostile value.
+    it.each([
+      "Participant_ID_TABLE.Contact_ID, dp_Users_TABLE.Password",
+      "Participant_ID_TABLE.Contact_ID AS X",
+      "(SELECT TOP 1 User_ID FROM dp_Users) AS Participant_ID_TABLE",
+      "Participant_ID_TABLE.Contact_ID--",
+      "Participant_ID_TABLE..Contact_ID",
+      "Participant_ID.Contact_ID",
+      "Participant_ID_TABLE.",
+      "A_TABLE.B_TABLE.C_TABLE.D_TABLE.E_TABLE.Contact_ID",
+      "x_TABLE." + "a".repeat(300),
+    ])("refuses the hostile contactIdField %j before any MP call", async (hostile) => {
+      const service = await FamilyService.getInstance();
+      const err = await service
+        .resolveContactIdFromPage("Event_Participants", "Event_Participant_ID", 10, hostile)
+        .catch((e: Error) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe("Invalid Contact_ID_Field");
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+      expect(mockRequireSecurityRole).not.toHaveBeenCalled();
+    });
+
+    it.each(["dp_Users; --", "Contacts WHERE 1=1", "", 42 as unknown as string])(
+      "refuses a hostile tableName %j before any MP call",
+      async (hostile) => {
+        const service = await FamilyService.getInstance();
+        await expect(
+          service.resolveContactIdFromPage(hostile, "Event_Participant_ID", 10, "Contact_ID"),
+        ).rejects.toThrow();
+        expect(mockGetTableRecords).not.toHaveBeenCalled();
+      },
+    );
+
+    it("refuses a non-string contactIdField", async () => {
+      const service = await FamilyService.getInstance();
+      await expect(
+        service.resolveContactIdFromPage("Event_Participants", "Event_Participant_ID", 10, ["Contact_ID"] as unknown as string),
+      ).rejects.toThrow("Invalid Contact_ID_Field");
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      "Participant_ID_TABLE.Contact_ID",
+      "Participant_ID_Table.Contact_ID",
+      "Building_ID_TABLE_Location_ID_TABLE.Congregation_ID",
+    ])("accepts the legitimate FK path %j", async (path) => {
+      mockGetTableRecords.mockResolvedValueOnce([{ Resolved_Contact_ID: 7 }]);
+      const service = await FamilyService.getInstance();
+      const result = await service.resolveContactIdFromPage(
+        "Event_Participants",
+        "Event_Participant_ID",
+        10,
+        path,
+      );
+      expect(result).toBe(7);
+      expect(mockGetTableRecords).toHaveBeenCalledWith(
+        expect.objectContaining({ select: `${path} AS Resolved_Contact_ID` }),
+      );
     });
 
     it("uses the FK path directly when contactIdField traverses a _TABLE join", async () => {

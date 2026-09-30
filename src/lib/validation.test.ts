@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { validateGuid, validatePositiveInt, validateColumnName, escapeFilterString, validateMailerId } from './validation';
+import {
+  validateGuid,
+  validatePositiveInt,
+  validateColumnName,
+  validateFkPath,
+  escapeFilterString,
+  validateMailerId,
+} from './validation';
 
 describe('validation', () => {
   describe('validateGuid', () => {
@@ -65,6 +72,37 @@ describe('validation', () => {
 
     it('throws on SQL injection attempt', () => {
       expect(() => validateColumnName("' OR 1=1--")).toThrow('Invalid column name');
+    });
+  });
+
+  describe('validateFkPath', () => {
+    it.each([
+      'Contact_ID',
+      'Participant_ID_TABLE.Contact_ID',
+      'Participant_ID_Table.Contact_ID',
+      'Building_ID_TABLE_Location_ID_TABLE.Congregation_ID',
+      'A_TABLE.B_TABLE.Contact_ID',
+    ])('accepts %j', (path) => {
+      expect(validateFkPath(path)).toBe(path);
+    });
+
+    it.each([
+      '',
+      'Contact_ID, Password',
+      'Participant_ID_TABLE.Contact_ID AS X',
+      'Participant_ID.Contact_ID',
+      '.Contact_ID',
+      'Participant_ID_TABLE.',
+      'A_TABLE.B_TABLE.C_TABLE.D_TABLE.E_TABLE.Contact_ID',
+      'x'.repeat(257),
+      42,
+      null,
+    ])('refuses %j, naming the field and never the value', (bad) => {
+      expect(() => validateFkPath(bad, 'Contact_ID_Field')).toThrow(/^Invalid Contact_ID_Field$/);
+    });
+
+    it('uses a generic field name by default', () => {
+      expect(() => validateFkPath('a b')).toThrow('Invalid column path');
     });
   });
 

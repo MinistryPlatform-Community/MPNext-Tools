@@ -23,6 +23,39 @@ export function validateColumnName(value: string): string {
   return value;
 }
 
+/** A foreign-key traversal segment: an identifier ending in `_TABLE` (any case). */
+const FK_SEGMENT_REGEX = /^[A-Za-z][A-Za-z0-9_]*_TABLE$/i;
+const MAX_FK_PATH_LENGTH = 256;
+const MAX_FK_SEGMENTS = 4;
+
+/**
+ * Validate a column reference that may traverse foreign keys, for use in a
+ * `$select` — e.g. `Contact_ID`, `Participant_ID_TABLE.Contact_ID`,
+ * `Participant_ID_Table.Contact_ID` (the casing `api_Tools_GetPageData`
+ * returns), or the underscore-chained `A_ID_TABLE_B_ID_TABLE.Column`.
+ *
+ * Every segment before the final column must be an identifier ending in
+ * `_TABLE`; the final column must be a plain identifier. Nothing else — no
+ * spaces, commas, parentheses, quotes, `AS`, or functions — so the value can
+ * never add a second column, an alias, or an expression to the `$select`.
+ * The error names the field, never the value (CLAUDE.md rule 14).
+ */
+export function validateFkPath(value: unknown, field = 'column path'): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_FK_PATH_LENGTH) {
+    throw new Error(`Invalid ${field}`);
+  }
+  const segments = value.split('.');
+  const column = segments.pop() as string;
+  if (
+    segments.length > MAX_FK_SEGMENTS ||
+    !COLUMN_NAME_REGEX.test(column) ||
+    !segments.every((s) => FK_SEGMENT_REGEX.test(s))
+  ) {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value;
+}
+
 /**
  * Validate a USPS Mailer ID — must be exactly 6 or 9 digits (no other length
  * is valid per USPS IMb spec). Throws on any other input so we never silently
