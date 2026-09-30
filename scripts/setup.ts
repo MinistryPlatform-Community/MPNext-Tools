@@ -119,6 +119,16 @@ const ENV_VARS: EnvVar[] = [
     sensitive: false,
     description: 'Ministry Platform API base URL',
   },
+  {
+    // Fails closed: unset/blank means NOBODY may use the MP-data tools, so the
+    // wizard treats it as required and offers `*` (any MP security role).
+    name: 'MP_SECURITY_ROLES',
+    required: true,
+    sensitive: false,
+    description:
+      'MP security roles allowed to use the tools: * = any role, or a comma list. Blank locks everyone out',
+    defaultValue: '*',
+  },
   // Optional variables
   {
     name: 'MINISTRY_PLATFORM_DEV_CLIENT_ID',

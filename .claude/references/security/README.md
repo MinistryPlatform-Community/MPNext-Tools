@@ -64,8 +64,11 @@ and only renders `children` once it returns.
   means refused.
 - **Infrastructure failures throw; they do not return `permitted: false`.** A
   caller must never mistake "MP is down" for "this user is not allowed".
-- **Config, not code:** `MP_SECURITY_ROLES` (comma-separated, case-insensitive).
-  Blank or unset means "any MP security role will do". Tighten without a deploy.
+- **Config, not code — and fail-closed:** `MP_SECURITY_ROLES` (comma-separated,
+  case-insensitive). `*` means "any MP security role will do"; a list means only
+  those roles; **unset, blank or `","` means nobody** (denials log reason
+  `roles_not_configured`). `*` is a wildcard only as the whole value. Changed
+  2026-09-30 — blank used to mean "any role". Tighten without a deploy.
 
 ### Write attribution
 

@@ -56,6 +56,7 @@ to keep them from diverging.
   - **Critical**: `session.user.id` is Better Auth's internal ID, NOT the MP User_GUID. Use `session.user.userGuid` for all MP API lookups.
   - **Stateless Sessions**: JWT cookie cache, no database; `customSession` does name splitting only (no API calls)
   - **Required Environment Variables**: `MINISTRY_PLATFORM_BASE_URL`, `BETTER_AUTH_URL` (or `NEXTAUTH_URL` fallback), `BETTER_AUTH_SECRET` (or `NEXTAUTH_SECRET` fallback)
+  - **`MP_SECURITY_ROLES` fails closed**: `*` = any MP security role, a comma list = only those roles, **unset/blank/`","` = nobody** (every tool redirects to `/no-access`). Set it in every environment.
 - **Services Layer**: Singleton service classes in `src/services/` wrap MPHelper for domain logic (ToolService, UserService, AddressLabelService, GroupService, FieldManagementService)
 - **Contexts**: React context providers in `src/contexts/` (UserProvider) composed in `src/app/providers.tsx`; `useAppSession()` wraps Better Auth's `authClient.useSession()`
 - **UI**: Radix UI primitives + shadcn/ui components in `src/components/ui/`, Tailwind CSS v4
