@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/metadata.service.ts]
 symbols: [MetadataService, getTables, refreshMetadata]
 related: [../README.md, table.md, ../../ministryplatform.schema.md]
-last_verified: 2026-04-17
+last_verified: 2026-09-30
 ---
 
 ## Purpose
@@ -72,7 +72,7 @@ export interface ColumnMetadata {
 - Both methods call `ensureValidToken()` first.
 - `getTables('')` → falsy → `params = undefined` (no `$search` sent).
 - `getTables('contact')` → `params = { $search: 'contact' }`.
-- Errors from `HttpClient` propagate after `logger.error`.
+- Errors from `HttpClient` propagate after `logger.error(event, { error: errorName(e) })`.
 
 ## Usage
 

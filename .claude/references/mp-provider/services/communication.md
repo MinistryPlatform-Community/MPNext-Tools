@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/communication.service.ts]
 symbols: [CommunicationService, createCommunication, sendMessage]
 related: [../README.md, file.md]
-last_verified: 2026-04-17
+last_verified: 2026-09-30
 ---
 
 ## Purpose
