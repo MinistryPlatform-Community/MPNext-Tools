@@ -291,7 +291,9 @@ export class DomainTimezoneService {
     }
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
-      throw new Error(`toMpSqlDatetime: unable to parse "${value}"`);
+      // Never echo the value: it is caller-controlled (a form field), and a
+      // newline in it would forge a log line wherever this is logged.
+      throw new Error('toMpSqlDatetime: value could not be parsed as a date');
     }
     const iana = await this.getMpTimezone();
     return formatInstantAsMpSql(parsed, iana);
@@ -307,7 +309,8 @@ export class DomainTimezoneService {
     if (!wallClock) {
       const direct = new Date(value);
       if (Number.isNaN(direct.getTime())) {
-        throw new Error(`parseMpDatetime: unable to parse "${value}"`);
+        // Never echo the value (CLAUDE.md rule 14).
+        throw new Error('parseMpDatetime: value could not be parsed as a date');
       }
       return direct;
     }

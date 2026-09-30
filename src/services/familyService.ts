@@ -1,6 +1,11 @@
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { AuthorizationService } from "@/services/authorizationService";
-import { escapeFilterString, validatePositiveInt, validateColumnName } from "@/lib/validation";
+import {
+  escapeFilterString,
+  validatePositiveInt,
+  validateColumnName,
+  validateFkPath,
+} from "@/lib/validation";
 import { DomainTimezoneService } from "@/services/domainTimezoneService";
 import type {
   ContactSearchResult,
@@ -137,28 +142,45 @@ export class FamilyService {
     }));
   }
 
+  /**
+   * Resolve the Contact_ID a page record points at, using the page's MP
+   * metadata (`Table_Name`, `Primary_Key`, `Contact_ID_Field`).
+   *
+   * Every identifier is validated BEFORE it is interpolated: `tableName` and
+   * `primaryKey` must be plain identifiers and `contactIdField` a strict FK
+   * path (`validateFkPath`). Previously any `contactIdField` containing
+   * `_TABLE` went into `$select` verbatim, and the action let the caller
+   * choose `tableName`, so a role holder could read a numeric value from any
+   * table/column through the service account. Callers must pass metadata
+   * resolved server-side from a page ID, never caller-supplied names.
+   *
+   * Validation runs before the gate (it is pure — no I/O) so the gate's
+   * denial log never carries an unvalidated table name.
+   */
   async resolveContactIdFromPage(
     tableName: string,
     primaryKey: string,
     recordId: number,
     contactIdField: string,
   ): Promise<number | null> {
+    validateColumnName(tableName);
+    validateColumnName(primaryKey);
+    validatePositiveInt(recordId);
+    if (typeof contactIdField !== "string") {
+      throw new Error("Invalid Contact_ID_Field");
+    }
+    const fkPath = contactIdField.trim();
+    if (fkPath) validateFkPath(fkPath, "Contact_ID_Field");
+
     await AuthorizationService.getInstance().requireSecurityRole({
       table: tableName,
       operation: 'read',
     });
-    validatePositiveInt(recordId);
-    validateColumnName(primaryKey);
-    const fkPath = contactIdField.trim();
     if (!fkPath) return null;
-
-    const select = fkPath.includes("_TABLE")
-      ? `${fkPath} AS Resolved_Contact_ID`
-      : `${validateColumnName(fkPath)} AS Resolved_Contact_ID`;
 
     const rows = await this.mp!.getTableRecords<{ Resolved_Contact_ID: number | null }>({
       table: tableName,
-      select,
+      select: `${fkPath} AS Resolved_Contact_ID`,
       filter: `${primaryKey} = ${recordId}`,
       top: 1,
     });

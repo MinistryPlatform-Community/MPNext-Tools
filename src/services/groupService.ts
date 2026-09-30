@@ -21,19 +21,92 @@ export interface GetGroupResult {
   displayNames: GroupWizardDisplayNames;
 }
 
-/** Prepare form data for the MP API by converting date fields to MP-TZ SQL datetime */
+/**
+ * The ONLY Groups columns this app may write — exactly the fields the group
+ * wizard UI edits (one per form control across the five editing steps; see
+ * `STEP_FIELDS` in `group-wizard/schema.ts`, whose union this equals — pinned
+ * by a test so the two cannot drift).
+ *
+ * WHY AN ALLOWLIST: the create/update payload arrives from a server action,
+ * i.e. a callable POST endpoint whose body the caller controls. Spreading it
+ * into the Groups POST/PUT let any role holder write ANY Groups column through
+ * the app's service account (e.g. `_Last_Attendance_Posted`, `Domain_ID`), and
+ * a smuggled `Group_ID` retargeted an update at a different record. Keys not
+ * listed here are dropped, never forwarded. Deliberately an explicit list,
+ * not `Object.keys(schema.shape)`, so widening what the app can write is a
+ * visible change to this file.
+ */
+export const GROUP_WRITABLE_FIELDS = Object.freeze([
+  // Step 1: Identity
+  'Group_Name',
+  'Group_Type_ID',
+  'Description',
+  'Start_Date',
+  'End_Date',
+  'Reason_Ended',
+  // Step 2: Organization & People
+  'Congregation_ID',
+  'Ministry_ID',
+  'Primary_Contact',
+  'Parent_Group',
+  'Priority_ID',
+  // Step 3: Meeting Schedule
+  'Meeting_Day_ID',
+  'Meeting_Time',
+  'Meeting_Frequency_ID',
+  'Meeting_Duration_ID',
+  'Meets_Online',
+  'Default_Meeting_Room',
+  'Offsite_Meeting_Address',
+  // Step 4: Attributes
+  'Target_Size',
+  'Life_Stage_ID',
+  'Group_Focus_ID',
+  'Required_Book',
+  'SMS_Number',
+  'Group_Is_Full',
+  // Step 5: Settings & Promotion
+  'Available_Online',
+  'Available_On_App',
+  'Enable_Discussion',
+  'Send_Attendance_Notification',
+  'Send_Service_Notification',
+  'Create_Next_Meeting',
+  'Secure_Check-in',
+  'Suppress_Nametag',
+  'Suppress_Care_Note',
+  'On_Classroom_Manager',
+  'Promote_to_Group',
+  'Age_in_Months_to_Promote',
+  'Promote_Weekly',
+  'Promote_Participants_Only',
+  'Promotion_Date',
+  'Descended_From',
+] as const satisfies readonly (keyof GroupWizardFormData)[]);
+
+const DATE_FIELDS = ['Start_Date', 'End_Date', 'Promotion_Date'] as const;
+
+/**
+ * Prepare form data for the MP API: keep only {@link GROUP_WRITABLE_FIELDS}
+ * (own properties only — nothing from the prototype), then convert the date
+ * fields that are present to MP-TZ SQL datetime.
+ */
 async function prepareForApi(
-  data: GroupWizardFormData,
+  data: Partial<GroupWizardFormData>,
 ): Promise<Record<string, unknown>> {
+  const source = data as Record<string, unknown>;
+  const picked: Record<string, unknown> = {};
+  for (const field of GROUP_WRITABLE_FIELDS) {
+    if (Object.hasOwn(source, field)) picked[field] = source[field];
+  }
+
   const tz = DomainTimezoneService.getInstance();
-  const convert = async (value: string | null | undefined) =>
-    value ? await tz.toMpSqlDatetime(value) : null;
-  return {
-    ...data,
-    Start_Date: await convert(data.Start_Date),
-    End_Date: await convert(data.End_Date),
-    Promotion_Date: await convert(data.Promotion_Date),
-  };
+  for (const field of DATE_FIELDS) {
+    if (!Object.hasOwn(picked, field)) continue;
+    const value = picked[field] as string | null | undefined;
+    picked[field] = value ? await tz.toMpSqlDatetime(value) : null;
+  }
+  return picked;
 }
 
 export class GroupService {
@@ -312,9 +385,14 @@ export class GroupService {
       table: 'Groups',
       operation: 'update',
     });
+    // Validated after the gate (gate first, always) and before any MP call.
+    validatePositiveInt(groupId);
+    // `Group_ID` LAST, from the validated argument: nothing in the payload can
+    // retarget the update at another record (and prepareForApi drops a
+    // payload `Group_ID` anyway — two independent guards).
     const apiData = {
+      ...(await prepareForApi(data)),
       Group_ID: groupId,
-      ...(await prepareForApi(data as GroupWizardFormData)),
     };
     const result = await this.mp!.updateTableRecords('Groups', [apiData], {
       partial: true,

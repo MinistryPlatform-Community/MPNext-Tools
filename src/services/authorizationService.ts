@@ -63,22 +63,53 @@ const loadSecurityRoles = cache(async (userId: number): Promise<string[]> => {
     .filter((n): n is string => typeof n === "string" && n.trim().length > 0);
 });
 
+/** The whole-value wildcard meaning "any MP security role". */
+const ANY_ROLE = "*";
+
 /**
- * Roles permitted to use gated features, from `MP_SECURITY_ROLES`
- * (comma-separated). Unset or blank means "any MP security role will do", which
- * lets a deployment tighten access without a code change.
+ * The effective role policy, from `MP_SECURITY_ROLES`.
+ *
+ * - `any`: holding at least one MP security role is sufficient (`*`).
+ * - `list`: the user must hold one of `names` (normalized, case-insensitive).
+ * - `unconfigured`: no usable policy — NOBODY is permitted.
+ *
+ * FAILS CLOSED (2026-09-30, ported from upstream's 2026-09-28 review): unset,
+ * blank, or a value that parses to no role names (e.g. `","`) permits nobody.
+ * "Any role will do" used to be what a blank value silently meant; it is now
+ * something an operator has to opt into with `*`. `*` means "any role" only as
+ * the WHOLE value — inside a list it is just a (non-matching) name, so
+ * `"Administrators,*"` does not widen the gate.
+ *
+ * Read per call, not at module load, so tests and a redeployed env var take
+ * effect without a restart of anything else.
  */
-function configuredRoles(): string[] {
-  return (process.env.MP_SECURITY_ROLES ?? "")
+export type RolePolicy =
+  | { kind: "any" }
+  | { kind: "list"; names: string[] }
+  | { kind: "unconfigured" };
+
+export function resolveRolePolicy(raw = process.env.MP_SECURITY_ROLES): RolePolicy {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed) return { kind: "unconfigured" };
+  if (trimmed === ANY_ROLE) return { kind: "any" };
+  const names = trimmed
     .split(",")
     .map((r) => r.trim().toLowerCase())
     .filter((r) => r.length > 0);
+  return names.length > 0 ? { kind: "list", names } : { kind: "unconfigured" };
 }
 
 interface Decision {
   permitted: boolean;
   userId: number | null;
-  reason: "ok" | "no_session" | "no_user_guid" | "no_mp_user" | "no_role";
+  reason:
+    | "ok"
+    | "no_session"
+    | "no_user_guid"
+    | "no_mp_user"
+    | "no_role"
+    /** `MP_SECURITY_ROLES` is unset, blank, or names no role — nobody passes. */
+    | "roles_not_configured";
 }
 
 /**
@@ -94,7 +125,8 @@ interface Decision {
  * through field management.
  *
  * POLICY: any MP user may sign in and use the app shell. The MP-data tools
- * require an MP security role. Sign-in is deliberately NOT role-gated — a
+ * require an MP security role named in `MP_SECURITY_ROLES` (or any role when
+ * it is `*`); with no roles configured, nobody may use them. Sign-in is deliberately NOT role-gated — a
  * role-less user still gets a session, the header and a working sign-out,
  * because refusing at sign-in strands them with no way out.
  */
@@ -133,19 +165,24 @@ export class AuthorizationService {
       return { permitted: false, userId: null, reason: "no_mp_user" };
     }
 
+    // Checked before the role read: an unconfigured app refuses everyone, and
+    // the MP round-trip would be wasted.
+    const policy = resolveRolePolicy();
+    if (policy.kind === "unconfigured") {
+      return { permitted: false, userId, reason: "roles_not_configured" };
+    }
+
     const roles = await loadSecurityRoles(userId);
     if (roles.length === 0) {
       return { permitted: false, userId, reason: "no_role" };
     }
 
-    const allowed = configuredRoles();
-    if (allowed.length === 0) {
-      // Blank config: holding any MP security role is sufficient.
+    if (policy.kind === "any") {
+      // `*`: holding any MP security role is sufficient.
       return { permitted: true, userId, reason: "ok" };
     }
 
-    const held = roles.map((r) => r.toLowerCase());
-    const match = held.some((r) => allowed.includes(r));
+    const match = roles.some((r) => policy.names.includes(r.trim().toLowerCase()));
     return match
       ? { permitted: true, userId, reason: "ok" }
       : { permitted: false, userId, reason: "no_role" };

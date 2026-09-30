@@ -397,3 +397,89 @@ describe('updateGroup', () => {
     expect(result).toEqual({ success: false, error: 'Failed to update group' });
   });
 });
+
+describe('server-side payload parsing (mass assignment)', () => {
+  const signedIn = {
+    user: { id: 'user-1', userGuid: '550e8400-e29b-41d4-a716-446655440000' },
+  };
+
+  it('createGroup strips keys the wizard schema does not define before calling the service', async () => {
+    // Adversarial: the action is a POST endpoint; the client zodResolver never
+    // runs for a hand-built request. Unknown keys must not reach the service.
+    mockGetSession.mockResolvedValueOnce(signedIn);
+    mockCreateGroup.mockResolvedValueOnce({ Group_ID: 200, Group_Name: 'Test Group' });
+
+    const hostile = {
+      ...BASE_FORM,
+      Group_ID: 999,
+      _Last_Attendance_Posted: '2020-01-01',
+      Domain_ID: 7,
+      $userId: 1,
+    } as unknown as GroupWizardFormData;
+
+    const result = await createGroup(hostile);
+
+    expect(result).toEqual({ success: true, groupId: 200, groupName: 'Test Group' });
+    const sent = mockCreateGroup.mock.calls[0][0] as Record<string, unknown>;
+    expect(sent).toEqual(BASE_FORM);
+    for (const key of ['Group_ID', '_Last_Attendance_Posted', 'Domain_ID', '$userId']) {
+      expect(Object.hasOwn(sent, key)).toBe(false);
+    }
+  });
+
+  it('updateGroup strips a smuggled Group_ID and unknown columns before calling the service', async () => {
+    mockGetSession.mockResolvedValueOnce(signedIn);
+    mockUpdateGroup.mockResolvedValueOnce({ Group_ID: 100, Group_Name: 'Updated' });
+
+    await updateGroup(100, {
+      ...BASE_FORM,
+      Group_ID: 999,
+      Domain_ID: 7,
+    } as unknown as GroupWizardFormData);
+
+    expect(mockUpdateGroup).toHaveBeenCalledWith(100, BASE_FORM);
+  });
+
+  it.each([
+    ['createGroup', () => createGroup({ ...BASE_FORM, Group_Name: '' })],
+    ['updateGroup', () => updateGroup(100, { ...BASE_FORM, Group_Name: '' })],
+  ])('%s refuses a payload that fails the schema, naming fields not values', async (_n, call) => {
+    mockGetSession.mockResolvedValueOnce(signedIn);
+
+    const result = await call();
+
+    expect(result).toEqual({ success: false, error: 'Invalid group data: Group_Name' });
+    expect(mockCreateGroup).not.toHaveBeenCalled();
+    expect(mockUpdateGroup).not.toHaveBeenCalled();
+  });
+
+  it('refuses a wrongly-typed field without echoing the submitted value', async () => {
+    mockGetSession.mockResolvedValueOnce(signedIn);
+
+    const result = await createGroup({
+      ...BASE_FORM,
+      Congregation_ID: '1; DROP TABLE Groups' as unknown as number,
+    });
+
+    expect(result).toEqual({ success: false, error: 'Invalid group data: Congregation_ID' });
+    expect(JSON.stringify(result)).not.toContain('DROP');
+    expect(mockCreateGroup).not.toHaveBeenCalled();
+  });
+
+  it('refuses a non-object payload', async () => {
+    mockGetSession.mockResolvedValueOnce(signedIn);
+
+    const result = await createGroup(null as unknown as GroupWizardFormData);
+
+    expect(result).toEqual({ success: false, error: 'Invalid group data: (root)' });
+    expect(mockCreateGroup).not.toHaveBeenCalled();
+  });
+
+  it('gates BEFORE parsing: an unauthorized caller learns nothing about the schema', async () => {
+    mockRequireSecurityRole.mockRejectedValueOnce(new Error('Not authorized'));
+
+    const result = await createGroup({ ...BASE_FORM, Group_Name: '' });
+
+    expect(result).toEqual({ success: false, error: 'Not authorized' });
+  });
+});

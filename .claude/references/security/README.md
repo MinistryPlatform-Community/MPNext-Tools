@@ -64,8 +64,11 @@ and only renders `children` once it returns.
   means refused.
 - **Infrastructure failures throw; they do not return `permitted: false`.** A
   caller must never mistake "MP is down" for "this user is not allowed".
-- **Config, not code:** `MP_SECURITY_ROLES` (comma-separated, case-insensitive).
-  Blank or unset means "any MP security role will do". Tighten without a deploy.
+- **Config, not code — and fail-closed:** `MP_SECURITY_ROLES` (comma-separated,
+  case-insensitive). `*` means "any MP security role will do"; a list means only
+  those roles; **unset, blank or `","` means nobody** (denials log reason
+  `roles_not_configured`). `*` is a wildcard only as the whole value. Changed
+  2026-09-30 — blank used to mean "any role". Tighten without a deploy.
 
 ### Write attribution
 
@@ -84,7 +87,8 @@ justification, in the file, in writing.
 - `components/layout/auth-wrapper.tsx` — it *is* the session gate
 - `components/shared-actions/user.ts` — the user's own profile; enforced by the
   signature (no parameter to forge), not just asserted
-- `components/shared-actions/domain.ts` — the domain-wide time zone (one string)
+- `components/shared-actions/domain.ts` — the domain-wide time zone (one string);
+  session-checked since 2026-09-30 (F11 — it previously had no check at all)
 - `components/dev-panel/panels/require-dev-session.ts` — dev-only
   (`NODE_ENV !== "production"`), and the services it calls gate anyway
 

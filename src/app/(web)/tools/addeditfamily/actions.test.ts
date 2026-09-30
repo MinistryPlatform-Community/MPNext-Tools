@@ -59,6 +59,14 @@ vi.mock("@/services/familyService", () => ({
   PartialSaveError: FakePartialSaveError,
 }));
 
+const { mockGetPageData } = vi.hoisted(() => ({ mockGetPageData: vi.fn() }));
+
+vi.mock("@/services/toolService", () => ({
+  ToolService: {
+    getInstance: vi.fn(async () => ({ getPageData: mockGetPageData })),
+  },
+}));
+
 const { mockIsEnabled, mockAutocomplete, mockGetPlaceDetails } = vi.hoisted(() => ({
   mockIsEnabled: vi.fn(),
   mockAutocomplete: vi.fn(),
@@ -206,45 +214,91 @@ describe("addeditfamily actions", () => {
   });
 
   describe("resolveContactIdFromPage", () => {
-    const args = {
-      tableName: "Event_Participants",
-      primaryKey: "Event_Participant_ID",
-      recordId: 10,
-      contactIdField: "Participant_ID_TABLE_Contact_ID",
+    const args = { pageId: 292, recordId: 10 };
+    const pageData = {
+      Page_ID: 292,
+      Table_Name: "Event_Participants",
+      Primary_Key: "Event_Participant_ID",
+      Contact_ID_Field: "Participant_ID_TABLE.Contact_ID",
     };
 
-    it("authorizes against the given table and returns the contactId", async () => {
+    it("resolves page metadata server-side from the page ID and returns the contactId", async () => {
+      mockGetPageData.mockResolvedValueOnce(pageData);
       mockResolveContactIdFromPage.mockResolvedValueOnce(99);
       const result = await resolveContactIdFromPage(args);
       expect(mockRequireSecurityRole).toHaveBeenCalledWith({
-        table: "Event_Participants",
+        table: "dp_Pages",
         operation: "read",
       });
+      expect(mockGetPageData).toHaveBeenCalledWith(292);
       expect(mockResolveContactIdFromPage).toHaveBeenCalledWith(
-        args.tableName,
-        args.primaryKey,
-        args.recordId,
-        args.contactIdField,
+        "Event_Participants",
+        "Event_Participant_ID",
+        10,
+        "Participant_ID_TABLE.Contact_ID",
       );
       expect(result).toEqual({ success: true, contactId: 99 });
     });
 
-    it("returns null contactId when unresolved", async () => {
-      mockResolveContactIdFromPage.mockResolvedValueOnce(null);
+    it("IGNORES caller-supplied table/column names — only the page's metadata is used", async () => {
+      // Adversarial: the action used to take tableName/contactIdField from the
+      // POST body, letting a caller read any numeric column of any table.
+      mockGetPageData.mockResolvedValueOnce(pageData);
+      mockResolveContactIdFromPage.mockResolvedValueOnce(99);
+      await resolveContactIdFromPage({
+        ...args,
+        tableName: "dp_Users",
+        primaryKey: "User_ID",
+        contactIdField: "User_ID_TABLE.Password",
+      } as unknown as typeof args);
+      expect(mockResolveContactIdFromPage).toHaveBeenCalledWith(
+        "Event_Participants",
+        "Event_Participant_ID",
+        10,
+        "Participant_ID_TABLE.Contact_ID",
+      );
+    });
+
+    it.each([
+      [{ pageId: 0, recordId: 10 }],
+      [{ pageId: 292, recordId: -1 }],
+      [{ pageId: "292 OR 1=1", recordId: 10 }],
+    ])("refuses invalid ids %j before any lookup", async (bad) => {
+      const result = await resolveContactIdFromPage(bad as unknown as typeof args);
+      expect(result).toMatchObject({ success: false });
+      expect(mockGetPageData).not.toHaveBeenCalled();
+      expect(mockResolveContactIdFromPage).not.toHaveBeenCalled();
+    });
+
+    it.each([null, { Table_Name: "Contacts", Primary_Key: "Contact_ID" }])(
+      "returns null without querying when the page has no usable metadata (%j)",
+      async (page) => {
+        mockGetPageData.mockResolvedValueOnce(page);
+        const result = await resolveContactIdFromPage(args);
+        expect(result).toEqual({ success: true, contactId: null });
+        expect(mockResolveContactIdFromPage).not.toHaveBeenCalled();
+      },
+    );
+
+    it("does not look anything up when the gate refuses", async () => {
+      mockRequireSecurityRole.mockRejectedValueOnce(new Error("Not authorized"));
       const result = await resolveContactIdFromPage(args);
-      expect(result).toEqual({ success: true, contactId: null });
+      expect(result).toEqual({ success: false, error: "Not authorized" });
+      expect(mockGetPageData).not.toHaveBeenCalled();
     });
 
     it("returns a generic error message for a non-Error throw", async () => {
+      mockGetPageData.mockResolvedValueOnce(pageData);
       mockResolveContactIdFromPage.mockRejectedValueOnce("boom");
       const result = await resolveContactIdFromPage(args);
       expect(result).toEqual({ success: false, error: "Failed to resolve contact" });
     });
 
     it("returns the Error message when the service throws an Error", async () => {
-      mockResolveContactIdFromPage.mockRejectedValueOnce(new Error("invalid column"));
+      mockGetPageData.mockResolvedValueOnce(pageData);
+      mockResolveContactIdFromPage.mockRejectedValueOnce(new Error("Invalid Contact_ID_Field"));
       const result = await resolveContactIdFromPage(args);
-      expect(result).toEqual({ success: false, error: "invalid column" });
+      expect(result).toEqual({ success: false, error: "Invalid Contact_ID_Field" });
     });
   });
 
