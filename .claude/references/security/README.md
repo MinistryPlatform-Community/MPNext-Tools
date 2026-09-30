@@ -128,6 +128,15 @@ deny-by-default, and it is why this is the *primary* control, with
 - `/sign-out` is deliberately **absent**: sign-out runs server-side through
   `auth.api.signOut`, which never crosses this HTTP boundary. Moving it to
   `authClient.signOut()` would 404 — loudly, which is the point.
+- `POST /sign-in/social` is additionally **body-filtered** (F12): raw
+  Content-Type `application/json` (params allowed, no comma, untrimmed), body
+  ≤ 4096 bytes (declared and streamed), keys ⊆ `provider`/`callbackURL`,
+  `provider === "ministryplatform"`, `callbackURL` ≤ 2048 chars. Anything else
+  gets the same plain 404. The primary F12 control is `refuseIdTokenSignIn`
+  (`hooks.before` in `src/lib/auth.ts`), which also covers in-process
+  `auth.api` calls. If the client ever sends another key, add it deliberately;
+  never add `idToken`.
+- Every `/api/auth` response, 404s included, carries `Cache-Control: no-store`.
 - `/oauth2/link` no longer exists in 1.7 (it was genericOAuth's account-linking
   endpoint); core `/link-social` and `/unlink-account` are deliberately absent.
 - **`onAPIError.errorURL` is set to `/auth-error`.** Better Auth's default is
@@ -376,6 +385,8 @@ Closed in this repo, from the upstream MPNext hardening playbook
 | F5 | Medium | Member PII, `$filter` strings and response bodies in logs and thrown messages |
 | F9 | Medium | No CSP, no HSTS, no anti-framing, no Referrer-Policy |
 | F3 | Medium | Open redirect via `?callbackUrl=` on `/signin` |
+| F3b | Low–Medium | F3 bypass: `?callbackUrl=/%09/evil` — the URL parser strips tab/LF/CR after string checks. Closed 2026-09-30 (sanitizer mirrors `isSafeRelativeURL`, returns the raw value) |
+| F12 | Low–Medium | `/sign-in/social` id_token branch + caller-supplied access token = sign in as another user. Closed 2026-09-30 by `hooks.before` (`ID_TOKEN_SIGN_IN_DISABLED`) + route body filter + `/link-social` disabled. MP's client allows implicit/hybrid, hence Low–Medium. The `sub` binding in `getUserInfo` is **still open** (Step 4) |
 | F7 | Low | ~30 Better Auth endpoints publicly mounted; OAuth errors on a third-party page |
 | F8 | Low | **Resolved as WONTFIX.** PKCE stays `false`: MP advertises `S256` in discovery but rejects the token exchange with `invalid_grant`. See below. |
 

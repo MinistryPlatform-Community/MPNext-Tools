@@ -1,4 +1,5 @@
 import { betterAuth, BetterAuthOptions } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import {
   genericOAuth,
   type GenericOAuthConfig,
@@ -84,7 +85,68 @@ export const disabledAuthPaths = [
   "/set-password",
   "/delete-user",
   "/delete-user/callback",
+  // `/link-social` has its own id_token branch — a second route to the
+  // token-substitution takeover `refuseIdTokenSignIn` closes on
+  // `/sign-in/social`. It needs a session and is already outside the route
+  // allowlist, but this app never links accounts, so close it outright rather
+  // than rely on the allowlist alone.
+  "/link-social",
 ];
+
+/**
+ * Error code for a refused id_token sign-in (F12). Exported so tests can
+ * assert on it; it is what distinguishes this refusal from better-auth's own
+ * `ID_TOKEN_NOT_SUPPORTED` in logs.
+ */
+export const ID_TOKEN_SIGN_IN_DISABLED = "ID_TOKEN_SIGN_IN_DISABLED";
+
+/**
+ * F12 — closes the id_token branch of `POST /sign-in/social`. This is the
+ * PRIMARY control for the token-substitution account takeover reported
+ * upstream on 2026-09-25.
+ *
+ * better-auth 1.7's `/sign-in/social` has two modes. Without `idToken` it
+ * starts the normal authorization-code redirect — the only mode this app uses.
+ * With `idToken: { token, accessToken }` it signs the caller in DIRECTLY: no
+ * `state`, no code, no exchange. It verifies the id_token (signature, iss,
+ * aud) and then calls our `getUserInfo` with the CALLER-SUPPLIED
+ * `accessToken` (`node_modules/better-auth/dist/api/routes/sign-in.mjs`).
+ *
+ * Because `ministryPlatformProviderConfig` sets `discoveryUrl`, genericOAuth
+ * builds an id_token config for the provider, which switches that mode ON
+ * (`supportsIdTokenSignIn`) — and genericOAuth has no option to turn it off.
+ * Nothing binds the verified id_token's `sub` to the access token's userinfo
+ * `sub`, so an attacker's own valid id_token plus ANY other user's MP access
+ * token (from any MP client `/connect/userinfo` accepts) would mint a session
+ * as that other user: their roles on every authorization check, their
+ * `User_ID` on every write.
+ *
+ * `hooks.before` runs for HTTP requests AND in-process `auth.api.*` calls, so
+ * this covers callers the route filter in `src/app/api/auth/[...all]/route.ts`
+ * never sees. It keys on the key's PRESENCE (`"idToken" in body`), not its
+ * truthiness, so `idToken: null` / `idToken: {}` cannot slip past.
+ *
+ * 404 (NOT_FOUND), not 400, deliberately: from outside, this mode simply does
+ * not exist here — matching the route's deny posture and better-auth's own
+ * `ID_TOKEN_NOT_SUPPORTED` (also 404).
+ *
+ * Defence in depth: the route filter refuses any body key but `provider` and
+ * `callbackURL`. The remaining layer — binding `id_token.sub` to userinfo
+ * `sub` inside `getUserInfo` — is NOT here yet; it lands with the OIDC
+ * lazy-discovery rewrite (security Step 4). Until then this hook and the
+ * route filter are what close the path. `src/auth.id-token-sign-in.test.ts`
+ * proves each independently.
+ */
+export const refuseIdTokenSignIn = createAuthMiddleware(async (ctx) => {
+  if (ctx.path !== "/sign-in/social") return;
+  const body: unknown = ctx.body;
+  if (typeof body === "object" && body !== null && "idToken" in body) {
+    throw APIError.from("NOT_FOUND", {
+      message: "id_token sign-in is disabled",
+      code: ID_TOKEN_SIGN_IN_DISABLED,
+    });
+  }
+});
 
 /**
  * Custom fields added to the Better Auth `user` record.
@@ -230,6 +292,19 @@ export const ministryPlatformProviderConfig: GenericOAuthConfig = {
    * discovery means a broken sign-in.
    */
   disableIdTokenNonceBinding: true,
+  /**
+   * Refuse to register the provider if discovery yields no usable `issuer` +
+   * `jwks_uri`, instead of silently skipping id_token verification.
+   *
+   * Without this, a discovery document missing either field leaves the
+   * id_token config undefined and the normal flow's id_token goes UNVERIFIED
+   * — exactly the "working discovery breaks sign-in, broken discovery works"
+   * inversion described above, in its dangerous direction. With it, genericOAuth
+   * logs and skips the provider (sign-in 404s `PROVIDER_NOT_FOUND`): an outage,
+   * not a silent downgrade. MP's document publishes both (checked against
+   * `mpi.ministryplatform.com` on 2026-09-30).
+   */
+  requireIdTokenVerification: true,
   authorizationUrlParams: {
     realm: "realm",
   },
@@ -345,6 +420,13 @@ const options = {
   baseURL: process.env.BETTER_AUTH_URL || process.env.NEXTAUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   disabledPaths: disabledAuthPaths,
+  // User-level hooks. customSession and nextCookies register their own hooks
+  // on the plugin objects; these run alongside them, not instead. If another
+  // `before` check is ever needed, compose it INTO this one — there is only
+  // one `hooks.before` slot. See `refuseIdTokenSignIn` above.
+  hooks: {
+    before: refuseIdTokenSignIn,
+  },
   /**
    * Send OAuth callback failures to a page this app owns.
    *

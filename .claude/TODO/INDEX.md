@@ -10,6 +10,7 @@ last_updated: 2026-09-30
 <!-- 2026-05-21: opened 1 critical TODO (xmldom-critical-vulnerability) — see install-testing feedback; address before next ship -->
 <!-- 2026-05-21: closed 1 critical TODO (xmldom-critical-vulnerability) — replaced docxtemplater-image-module-free with maintained docxtemplater-image (uses @xmldom/xmldom@^0.9.7) -->
 <!-- 2026-09-30: playbook audit (5 MPNext port playbooks) opened 14 TODOs: 9 remediation steps, 2 ops, 3 held. -->
+<!-- 2026-09-30: closed 1 critical TODO (step1 F12/F3b) — see fix/step1-f12-f3b-signin-hardening PR. -->
 <!-- 2026-09-13: coverage push 49.67% -> 98.84% statements. Opened 8 TODOs, closed 2 (template-editor-missing-tests, coverage-report-masked-untested-files). -->
 
 
@@ -23,7 +24,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **18 open TODOs**.
+Total: **17 open TODOs**.
 
 > **2026-09-30 — MPNext playbook audit.** The five `S:\MP\MPNext\.claude\playbooks`
 > port playbooks were audited against this fork. Remediation is split into nine
@@ -46,10 +47,8 @@ Total: **18 open TODOs**.
 
 ## By severity
 
-### Critical (1)
-| Area | Tags | Title | File |
-|---|---|---|---|
-| auth | security, missing-test | Step 1 — F12 ID-token sign-in, F3b open-redirect bypass, /sign-in/social boundary | [→](2026-09-30-step1-close-live-auth-holes-f12-f3b.md) |
+### Critical (0)
+_none open_
 
 ### High (5)
 | Area | Tags | Title | File |
@@ -84,8 +83,8 @@ Total: **18 open TODOs**.
 
 ## By tag
 
-### security (13)
-- all 2026-09-30 step/ops/held items except step7
+### security (12)
+- all open 2026-09-30 step/ops/held items except step7 (step1 resolved)
 
 ### bug (3)
 - components-template-editor-no-mp-persistence — medium
@@ -135,6 +134,7 @@ _none open_
 
 | Date | Title | File |
 |---|---|---|
+| 2026-09-30 | Step 1 — F12 id_token sign-in refused, F3b callbackUrl bypass closed, /sign-in/social boundary + no-store | [→](2026-09-30-step1-close-live-auth-holes-f12-f3b.md) |
 | 2026-09-13 | Coverage config omitted `coverage.include`, hiding every untested file | [→](2026-09-13-testing-coverage-report-masked-untested-files.md) |
 | 2026-09-13 | No tests for `src/components/template-editor/` | [→](2026-04-17-components-template-editor-missing-tests.md) |
 | 2026-09-13 | `vitest.config.ts` loaded as CommonJS (renamed to `.mts`) | [→](2026-09-13-testing-vitest-config-loaded-as-cjs.md) |
