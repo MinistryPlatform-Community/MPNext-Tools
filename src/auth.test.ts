@@ -9,6 +9,7 @@ import {
   extractUserGuid,
   buildDisplayName,
   ministryPlatformProviderConfig,
+  refuseIdTokenSignIn,
 } from '@/lib/auth';
 
 /**
@@ -481,6 +482,18 @@ describe('Auth - Ministry Platform provider config (better-auth 1.7)', () => {
     // This test exists to stop someone re-enabling it on the strength of the
     // discovery document alone.
     expect(ministryPlatformProviderConfig.pkce).toBe(false);
+  });
+
+  it('requires id_token verification, so a discovery document without issuer/jwks_uri is refused', () => {
+    // Without it, a document missing either field silently leaves the normal
+    // flow's id_token UNVERIFIED. Behaviour is proven end to end in
+    // src/auth.id-token-sign-in.test.ts.
+    expect(ministryPlatformProviderConfig.requireIdTokenVerification).toBe(true);
+  });
+
+  it('wires refuseIdTokenSignIn as the hooks.before (F12)', () => {
+    expect(auth.options.hooks?.before).toBe(refuseIdTokenSignIn);
+    expect(disabledAuthPaths).toContain('/link-social');
   });
 
   it('uses discovery rather than hardcoded endpoints', () => {
