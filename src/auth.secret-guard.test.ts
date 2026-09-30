@@ -20,6 +20,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  * exercise).
  */
 
+// Every test re-imports `@/lib/auth` from a reset module graph, which is slow
+// under coverage instrumentation on a loaded runner; give it headroom rather
+// than let a cold import trip the 5 s default.
+vi.setConfig({ testTimeout: 30_000 });
+
 const GOOD_SECRET = 'a-perfectly-fine-test-secret-0123456789';
 const KEYS = [
   'VITEST', 'BETTER_AUTH_SECRET', 'NEXTAUTH_SECRET', 'BETTER_AUTH_SECRETS', 'NODE_ENV', 'TEST',
