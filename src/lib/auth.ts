@@ -7,9 +7,176 @@ import {
 } from "better-auth/plugins";
 import { customSession } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
+import { isIP } from "node:net";
+import { getAuthBaseUrl, getMpBaseUrl } from "@/lib/env";
 import { validateGuid } from "@/lib/validation";
 
-const mpBaseUrl = process.env.MINISTRY_PLATFORM_BASE_URL!;
+/**
+ * better-auth's built-in fallback secret (`DEFAULT_SECRET`,
+ * node_modules/better-auth/dist/utils/constants.mjs — not exported, so it is
+ * pinned here; `src/auth.secret-guard.test.ts` reads the library file to catch
+ * drift). It is public, so a session signed with it can be forged by anyone.
+ */
+export const BETTER_AUTH_DEFAULT_SECRET = "better-auth-secret-12345678901234567890";
+export const MIN_AUTH_SECRET_LENGTH = 32;
+
+/** Mirrors better-auth's `toBoolean` (@better-auth/core env-impl), which `isTest()` uses on `TEST`. */
+function isTruthyEnvFlag(value: string | undefined): boolean {
+  return value ? value !== "false" : false;
+}
+
+/**
+ * Refuses to boot on an auth configuration that would make sessions forgeable
+ * or silently switch off better-auth's own safety checks. Throws; never puts
+ * the secret in the message.
+ *
+ * Why this exists instead of relying on better-auth's `validateSecret`
+ * (node_modules/better-auth/dist/context/create-context.mjs, 1.7.6):
+ * - With no secret set, better-auth falls back to its PUBLIC default secret and
+ *   only throws for it when `NODE_ENV === "production"`. On a dev/demo box
+ *   (which in the MP world usually talks to the production MP) it boots
+ *   silently. In stateless mode the signed cookie is the only authority, so a
+ *   known secret lets anyone mint a session for any `userGuid`.
+ * - A secret shorter than 32 characters only produces a warning.
+ * - `isTest()` is `NODE_ENV === "test" || toBoolean(env.TEST)`. Any truthy
+ *   `TEST` on a production process skips secret validation entirely and (were
+ *   `advanced.disableOriginCheck` not pinned below) the Origin/callbackURL
+ *   checks too.
+ * - `BETTER_AUTH_SECRETS` (versioned secrets) silently takes precedence over
+ *   the `secret` option, so a guard on `BETTER_AUTH_SECRET` would be checking
+ *   a key that is not the one in use. This app does not use versioned
+ *   secrets; refuse the variable rather than half-validate it.
+ *
+ * Exported and pure (takes the env as an argument) so it can be tested without
+ * re-importing the module; the module-level call below is what enforces it.
+ */
+export function assertAuthEnvironment(
+  env: Readonly<Record<string, string | undefined>>,
+): void {
+  const secret = env.BETTER_AUTH_SECRET || env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error(
+      "[auth] BETTER_AUTH_SECRET is not set (NEXTAUTH_SECRET is accepted as a fallback). Refusing to start: better-auth would sign sessions with its public default secret. Generate one with `openssl rand -base64 32`.",
+    );
+  }
+  if (secret === BETTER_AUTH_DEFAULT_SECRET) {
+    throw new Error(
+      "[auth] BETTER_AUTH_SECRET is better-auth's public default secret. Refusing to start: anyone could forge a session. Generate one with `openssl rand -base64 32`.",
+    );
+  }
+  if (secret.length < MIN_AUTH_SECRET_LENGTH) {
+    throw new Error(
+      `[auth] BETTER_AUTH_SECRET must be at least ${MIN_AUTH_SECRET_LENGTH} characters. Refusing to start. Generate one with \`openssl rand -base64 32\`.`,
+    );
+  }
+  if (env.BETTER_AUTH_SECRETS) {
+    throw new Error(
+      "[auth] BETTER_AUTH_SECRETS is set, but this app signs with BETTER_AUTH_SECRET and does not support versioned secrets. Refusing to start: better-auth would silently prefer BETTER_AUTH_SECRETS over the validated secret. Unset it.",
+    );
+  }
+  if (env.NODE_ENV === "production" && isTruthyEnvFlag(env.TEST)) {
+    throw new Error(
+      "[auth] TEST is set on a production process. Refusing to start: better-auth treats a truthy TEST as a test run and skips its secret validation. Unset TEST.",
+    );
+  }
+}
+
+// Enforced at module load in every environment (development, production, or
+// NODE_ENV unset — including `next build`, which imports this module while
+// collecting page data). Vitest is the only exemption, detected by the
+// `VITEST` env var Vitest itself sets, so individual tests can stub the
+// environment and build auth instances; `src/auth.secret-guard.test.ts`
+// clears `VITEST` to prove this call really runs on import.
+if (!process.env.VITEST) {
+  assertAuthEnvironment(process.env);
+}
+
+// The two auth-critical URLs, validated once at module load (see
+// src/lib/env.ts): https (loopback http outside production only for MP), no
+// credentials, query or fragment, no trailing slash, and BETTER_AUTH_URL an
+// origin. Unlike the secret guard these run under Vitest too; `test-setup.ts`
+// stubs valid values. An unset BETTER_AUTH_URL is refused rather than left to
+// better-auth, which would otherwise derive the base URL — and so the OAuth
+// redirect_uri and the trusted origins — from the request's Host header.
+const mpBaseUrl = getMpBaseUrl();
+const authBaseUrl = getAuthBaseUrl();
+
+/**
+ * Default client-IP headers, used only when the process runs on Vercel
+ * (`VERCEL` is set) and `AUTH_IP_ADDRESS_HEADERS` is not.
+ *
+ * Vercel's edge sets and overwrites `x-forwarded-for`, `x-vercel-forwarded-for`
+ * and `x-real-ip` with the single public client IP and does not forward a
+ * client-supplied value (https://vercel.com/docs/headers/request-headers,
+ * checked 2026-09-30). `x-vercel-forwarded-for` comes first because it is the
+ * one that survives a proxy placed IN FRONT of Vercel, which may overwrite
+ * `x-forwarded-for`.
+ *
+ * Off Vercel these are just request headers any client can send, so they are
+ * NOT a safe default there: with the variable unset on another host,
+ * better-auth's own default (a single-value `x-forwarded-for`) applies.
+ */
+export const VERCEL_IP_ADDRESS_HEADERS = ["x-vercel-forwarded-for", "x-real-ip"];
+
+/**
+ * Client-IP resolution for better-auth's rate limiter (`/sign-in*` is limited
+ * per IP in production). better-auth's default trusts only a single, valid IP
+ * in `x-forwarded-for`; anything else — no header, an appended chain, Azure's
+ * `ip:port` — drops every client into ONE shared bucket, so a handful of
+ * requests blocks sign-in for everyone. Which header is trustworthy depends on
+ * the host, so it is configuration, not code:
+ *
+ * - `AUTH_IP_ADDRESS_HEADERS` — comma-separated header names, tried in order
+ *   (e.g. `cf-connecting-ip` behind Cloudflare). Only name a header your edge
+ *   always OVERWRITES; a header clients can set themselves lets them rotate
+ *   past the limit or lock a victim's IP out. Unset: `VERCEL_IP_ADDRESS_HEADERS`
+ *   on Vercel, better-auth's default elsewhere.
+ * - `AUTH_TRUSTED_PROXIES` — comma-separated proxy IPs/CIDRs. The forwarded
+ *   chain is walked right to left past these, and the first untrusted hop is
+ *   the client (for proxies that append to `x-forwarded-for`).
+ *
+ * Invalid entries refuse startup: better-auth itself only warns and ignores a
+ * bad trusted-proxy entry, which would silently fall back to the shared
+ * bucket. Per-host guidance is in `.env.example`. Exported for tests.
+ */
+export function parseIpAddressOptions(
+  env: Readonly<Record<string, string | undefined>>,
+): { ipAddressHeaders?: string[]; trustedProxies?: string[] } {
+  const list = (value: string | undefined) =>
+    (value ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+
+  const configured = list(env.AUTH_IP_ADDRESS_HEADERS).map((h) => h.toLowerCase());
+  const badHeaders = configured.filter((h) => !/^[a-z0-9-]+$/.test(h));
+  if (badHeaders.length > 0) {
+    throw new Error(
+      `[auth] AUTH_IP_ADDRESS_HEADERS has invalid header names: ${badHeaders.join(", ")}. Use comma-separated names like "cf-connecting-ip".`,
+    );
+  }
+  const ipAddressHeaders =
+    configured.length > 0 ? configured : env.VERCEL ? [...VERCEL_IP_ADDRESS_HEADERS] : [];
+
+  const trustedProxies = list(env.AUTH_TRUSTED_PROXIES);
+  const badProxies = trustedProxies.filter((entry) => !isIpOrCidr(entry));
+  if (badProxies.length > 0) {
+    throw new Error(
+      `[auth] AUTH_TRUSTED_PROXIES has entries that are not an IP address or CIDR range: ${badProxies.join(", ")}.`,
+    );
+  }
+
+  return {
+    ...(ipAddressHeaders.length > 0 && { ipAddressHeaders }),
+    ...(trustedProxies.length > 0 && { trustedProxies }),
+  };
+}
+
+function isIpOrCidr(entry: string): boolean {
+  const slash = entry.indexOf("/");
+  const family = isIP(slash === -1 ? entry : entry.slice(0, slash));
+  if (family === 0) return false;
+  if (slash === -1) return true;
+  const prefix = entry.slice(slash + 1);
+  return /^\d{1,3}$/.test(prefix) && Number(prefix) <= (family === 4 ? 32 : 128);
+}
 
 /**
  * Reserved TLD (RFC 2606) used to build a synthetic, guaranteed-unique email
@@ -242,9 +409,14 @@ export const ministryPlatformProviderConfig: GenericOAuthConfig = {
   discoveryUrl: `${mpBaseUrl}/oauth/.well-known/openid-configuration`,
   clientId: process.env.MINISTRY_PLATFORM_CLIENT_ID!,
   clientSecret: process.env.MINISTRY_PLATFORM_CLIENT_SECRET!,
+  /**
+   * No `offline_access`: this app never uses the user's own MP tokens (all MP
+   * data access goes through the client-credentials service account), so it
+   * has no business asking MP for a long-lived, full-scope refresh token for
+   * every signed-in user. `src/auth.user-oauth-tokens.test.ts` guards it.
+   */
   scopes: [
     "openid",
-    "offline_access",
     "http://www.thinkministry.com/dataplatform/scopes/all",
   ],
   /**
@@ -416,9 +588,119 @@ export const ministryPlatformProviderConfig: GenericOAuthConfig = {
   },
 };
 
+/**
+ * Session lifetime. The app is stateless (no database, no `secondaryStorage`):
+ * the signed `session_token` + encrypted `session_data` cookies are the
+ * session, backed only by better-auth's per-process in-memory adapter. That
+ * rules out real server-side revocation, so these settings instead put a HARD
+ * ceiling on how long any session — including a copied or forged cookie pair —
+ * can live. Verified against better-auth 1.7.6 source;
+ * `src/auth.session-lifetime.test.ts` walks the clock through the real `auth`
+ * instance to pin it.
+ *
+ * - `expiresIn: 12h` — `session.expiresAt` is set once, at sign-in, to
+ *   sign-in + 12h. Both `/get-session` paths refuse a session past it (the
+ *   cookie-cache path checks the cached `expiresAt`, the memory-adapter path
+ *   the stored row). It also sets the `session_token` cookie's Max-Age.
+ *   Default was 7 days.
+ *
+ * - `disableSessionRefresh: true` — without it the memory-adapter path slides
+ *   `expiresAt` forward another `expiresIn` once per `updateAge` (1 day), so a
+ *   long-running process kept a session alive indefinitely.
+ *
+ * - `cookieCache.refreshCache: false` — MUST be explicit. With no database,
+ *   better-auth defu-merges `refreshCache: true` UNDER this config
+ *   (context/create-context.mjs), so leaving it out silently turns it on. With
+ *   `true`, `/get-session` re-signs `session_data` from the cookie itself in
+ *   the last 20% of `maxAge` with no store lookup at all, so a copied cookie
+ *   pair survived the victim's sign-out until `expiresAt` (7 days, before this
+ *   change). With `false`, a cookie NOT backed by a live in-memory row — a
+ *   pair copied before sign-out, or one forged from a leaked secret — dies
+ *   `maxAge` (1h) after it was minted: the request then falls through to the
+ *   memory adapter, which re-mints the cache only if the row still exists.
+ *   Trade-off: on serverless, a request that lands on an instance without the
+ *   row after the hour gets no session and goes back through MP sign-in —
+ *   which doubles as an hourly re-check against MP that a disabled login fails.
+ *
+ * Emergency "sign everyone out": bump `cookieCache.version` and redeploy, or
+ * rotate BETTER_AUTH_SECRET (invalidates every signed cookie, including a
+ * forged one). See .claude/references/auth/README.md.
+ */
+export const SESSION_EXPIRES_IN_SECONDS = 12 * 60 * 60;
+export const SESSION_COOKIE_CACHE_MAX_AGE_SECONDS = 60 * 60;
+
+/**
+ * Blanks the user's MP access and refresh tokens (and their expiries) on an
+ * account row before better-auth stores it in the in-memory adapter — where
+ * they would otherwise sit in plaintext until restart, and a heap dump would
+ * expose every signed-in user's full-scope MP API rights. `getUserInfo` has
+ * already used the access token by the time the row is written.
+ *
+ * The `idToken` is KEPT: it is not an API bearer, and an RP-initiated logout
+ * `id_token_hint` (security Step 4) needs it. Exported for tests.
+ */
+export function stripUserOAuthTokens<T extends object>(account: T): T {
+  return {
+    ...account,
+    accessToken: null,
+    refreshToken: null,
+    accessTokenExpiresAt: null,
+    refreshTokenExpiresAt: null,
+  };
+}
+
+/**
+ * Session-row fields withheld from the `/get-session` response (and from
+ * server-side `auth.api.getSession`). Nothing in `src/` reads them, and each is
+ * more than the page needs:
+ * - `token` — the raw session token: a bearer credential the day a `bearer`
+ *   plugin is added, which would make the cookie's HttpOnly flag moot.
+ * - `ipAddress`, `userAgent` — request metadata better-auth records at
+ *   sign-in; not the page's business.
+ * better-auth still keeps them on the in-memory row and inside the encrypted
+ * `session_data` cookie; this only stops them being handed to page JS.
+ */
+export const WITHHELD_SESSION_FIELDS = ["token", "ipAddress", "userAgent"] as const;
+
+type WithheldSessionField = (typeof WITHHELD_SESSION_FIELDS)[number];
+
+/**
+ * The `customSession` callback, extracted so it can be unit tested (the plugin
+ * closes over its callback and never exposes it).
+ *
+ * No API calls here — profile loading is handled by UserProvider via
+ * getCurrentUserProfile(). This keeps getSession() fast and avoids hitting the
+ * MP API on every request. It only splits the display name and strips
+ * `WITHHELD_SESSION_FIELDS` from the session.
+ */
+export function enrichSession<
+  U extends { name?: string | null },
+  S extends object,
+>(user: U, session: S) {
+  const copy = { ...session } as Record<string, unknown>;
+  for (const field of WITHHELD_SESSION_FIELDS) delete copy[field];
+  return {
+    user: {
+      ...user,
+      firstName: user.name?.split(" ")[0] || "",
+      lastName: user.name?.split(" ").slice(1).join(" ") || "",
+    },
+    session: copy as Omit<S, WithheldSessionField>,
+  };
+}
+
 const options = {
-  baseURL: process.env.BETTER_AUTH_URL || process.env.NEXTAUTH_URL,
+  baseURL: authBaseUrl,
   secret: process.env.BETTER_AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  advanced: {
+    // Pinned explicitly so an env var cannot flip it: left undefined,
+    // better-auth sets `skipOriginCheck = isTest()`, i.e. a truthy `TEST` env
+    // var would disable the Origin/callbackURL checks
+    // (context/create-context.mjs). See `assertAuthEnvironment` above.
+    disableOriginCheck: false,
+    // See `parseIpAddressOptions` above.
+    ipAddress: parseIpAddressOptions(process.env),
+  },
   disabledPaths: disabledAuthPaths,
   // User-level hooks. customSession and nextCookies register their own hooks
   // on the plugin objects; these run alongside them, not instead. If another
@@ -441,16 +723,31 @@ const options = {
   onAPIError: {
     errorURL: "/auth-error",
   },
+  // See SESSION_EXPIRES_IN_SECONDS above for why each of these is set.
   session: {
+    expiresIn: SESSION_EXPIRES_IN_SECONDS,
+    disableSessionRefresh: true,
     cookieCache: {
       enabled: true,
-      maxAge: 60 * 60, // 1 hour cache
-      strategy: "jwt" as const,
+      maxAge: SESSION_COOKIE_CACHE_MAX_AGE_SECONDS,
+      // Encrypted (JWE keyed from BETTER_AUTH_SECRET), not just signed. With
+      // "jwt" the payload — name, real MP email, userGuid, IP, user agent, the
+      // raw session token — was readable by anything that sees Cookie
+      // headers: proxy/APM logs, HAR files, cookie-reading extensions.
+      // Changing strategy invalidates every existing `session_data` cookie
+      // once. `src/auth.session-config.test.ts` guards it.
+      strategy: "jwe" as const,
+      refreshCache: false,
     },
   },
   account: {
     storeStateStrategy: "cookie" as const,
-    storeAccountCookie: true,
+    // The user's own MP tokens are never used: all MP data access goes
+    // through the client-credentials service account. better-auth defaults
+    // this to `true` when there is no database, which put the user's MP
+    // access/refresh/id tokens into an `account_data` cookie. Keep them out of
+    // the browser entirely. See `stripUserOAuthTokens` for the in-memory copy.
+    storeAccountCookie: false,
     /**
      * Never merge a new provider account onto an existing user record.
      *
@@ -466,6 +763,14 @@ const options = {
   user: {
     additionalFields: userAdditionalFields,
   },
+  // Applied by the in-memory adapter better-auth uses when there is no
+  // database. See `stripUserOAuthTokens` above.
+  databaseHooks: {
+    account: {
+      create: { before: async (account) => ({ data: stripUserOAuthTokens(account) }) },
+      update: { before: async (account) => ({ data: stripUserOAuthTokens(account) }) },
+    },
+  },
   plugins: [
     genericOAuth({
       config: [ministryPlatformProviderConfig],
@@ -477,22 +782,7 @@ export const auth = betterAuth({
   ...options,
   plugins: [
     ...(options.plugins ?? []),
-    customSession(
-      async ({ user, session }) => {
-        // No API calls here — profile loading is handled by UserProvider
-        // on the client side via getCurrentUserProfile(). This keeps
-        // getSession() fast and avoids hitting the MP API on every request.
-        return {
-          user: {
-            ...user,
-            firstName: user.name?.split(" ")[0] || "",
-            lastName: user.name?.split(" ").slice(1).join(" ") || "",
-          },
-          session,
-        };
-      },
-      options,
-    ),
+    customSession(async ({ user, session }) => enrichSession(user, session), options),
     nextCookies(),
   ],
 });

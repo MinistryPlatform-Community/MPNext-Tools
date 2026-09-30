@@ -19,6 +19,7 @@ vi.stubEnv('MINISTRY_PLATFORM_CLIENT_ID', 'test-client-id');
 vi.stubEnv('MINISTRY_PLATFORM_CLIENT_SECRET', 'test-client-secret');
 vi.stubEnv('MINISTRY_PLATFORM_DEV_CLIENT_ID', 'test-dev-client-id');
 vi.stubEnv('MINISTRY_PLATFORM_DEV_CLIENT_SECRET', 'test-dev-client-secret');
-vi.stubEnv('NEXTAUTH_SECRET', 'test-secret-key-for-testing');
+// >= 32 chars, so it would also pass assertAuthEnvironment (src/lib/auth.ts).
+vi.stubEnv('NEXTAUTH_SECRET', 'test-secret-key-for-testing-0123456789');
 vi.stubEnv('NEXTAUTH_URL', 'http://localhost:3000');
 vi.stubEnv('NODE_ENV', 'test');
