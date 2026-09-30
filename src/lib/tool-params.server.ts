@@ -54,9 +54,9 @@ export async function parseToolParams(searchParams: URLSearchParams | { [key: st
       const toolService = await ToolService.getInstance();
       pageData = await toolService.getPageData(parsedPageID) || undefined;
     } catch {
-      // Identifier only. A caller without an MP security role also lands
-      // here — the tools layout redirects them to /no-access, and the page
-      // simply renders without page metadata in the meantime.
+      // Identifier only. Every tool page gates (requireToolAccess) before
+      // calling this, so a refusal here is unexpected; the page simply
+      // renders without page metadata.
       console.warn('tool_params.page_data_unavailable', { pageID: parsedPageID });
       pageData = undefined;
     }

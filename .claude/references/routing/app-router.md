@@ -16,7 +16,8 @@ Next.js 16 App Router tree. A `(web)` route group gates all authenticated pages 
 - `src/app/(web)/layout.tsx` — group layout; wraps children in `AuthWrapper` then `Providers`, injects Geist fonts, sets `metadata` + `viewport`
 - `src/app/(web)/page.tsx` — dashboard `/` — 5 tool cards (Template, Template Editor, Address Labels, Group Wizard, Field Management)
 - `src/app/(web)/home/page.tsx` — `/home` → `redirect('/')`
-- `src/app/(web)/tools/layout.tsx` — tools sub-layout, `flex flex-col h-screen bg-gray-50`
+- `src/app/(web)/tools/layout.tsx` — tools sub-layout, `flex flex-col h-screen bg-gray-50`; role-less users get a UX redirect to `/no-access` — **not** enforcement (a layout redirect does not stop a page segment rendering in Next 16)
+- `src/app/(web)/tools/require-tool-access.ts` — `requireToolAccess()`, the page-level enforcement every tool page awaits first
 - `src/app/(web)/tools/<tool>/page.tsx` — per-tool entry (`addresslabels`, `fieldmanagement`, `groupwizard`, `template`, `templateeditor`)
 - `src/app/(web)/error.tsx` — `"use client"` error boundary for the group
 - `src/app/signin/page.tsx` — public OAuth redirect page
@@ -118,7 +119,7 @@ export function Providers({ children }: ProvidersProps) {
 - **ESLint**: `next lint` was removed; `package.json` uses `"lint": "eslint ."` with flat config in `eslint.config.mjs`
 
 ## Usage
-- Add a tool route: create `src/app/(web)/tools/<slug>/page.tsx` — inherits `WebLayout` (auth) + `ToolsLayout` (gray bg)
+- Add a tool route: create `src/app/(web)/tools/<slug>/page.tsx` — inherits `WebLayout` (auth) + `ToolsLayout` (gray bg). Its first statement must be `await requireToolAccess({ table, operation: 'read' })`, before parsing params; `require-tool-access.test.ts` fails if a page is missing it
 - Add a public route: create a sibling of `(web)/` (e.g. `src/app/public-thing/page.tsx`) **and** whitelist in `src/proxy.ts` — see `proxy.md`
 
 ## Gotchas
