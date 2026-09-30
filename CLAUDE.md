@@ -54,8 +54,10 @@ to keep them from diverging.
 - **Auth**: Better Auth with Ministry Platform OAuth via genericOAuth plugin — see **[Auth Reference](.claude/references/auth/README.md)** for full details
   - **Key files**: `src/lib/auth.ts` (server config), `src/lib/auth-client.ts` (client), `src/proxy.ts` (route protection)
   - **Critical**: `session.user.id` is Better Auth's internal ID, NOT the MP User_GUID. Use `session.user.userGuid` for all MP API lookups.
-  - **Stateless Sessions**: JWT cookie cache, no database; `customSession` does name splitting only (no API calls)
-  - **Required Environment Variables**: `MINISTRY_PLATFORM_BASE_URL`, `BETTER_AUTH_URL` (or `NEXTAUTH_URL` fallback), `BETTER_AUTH_SECRET` (or `NEXTAUTH_SECRET` fallback)
+  - **Stateless Sessions**: no database; hard 12 h lifetime, encrypted (JWE) cookie cache with `refreshCache: false`, no user OAuth tokens in cookies or memory (`storeAccountCookie: false`, no `offline_access`); `customSession` does name splitting and withholds `token`/`ipAddress`/`userAgent` (no API calls). See [sessions](.claude/references/auth/sessions.md)
+  - **Required Environment Variables**: `MINISTRY_PLATFORM_BASE_URL`, `BETTER_AUTH_URL` (or `NEXTAUTH_URL` fallback), `BETTER_AUTH_SECRET` (or `NEXTAUTH_SECRET` fallback). **The app refuses to boot** (including `next build`) on a missing/default/<32-char secret, `BETTER_AUTH_SECRETS`, `TEST` in production, or a non-https/malformed URL — read URLs through `src/lib/env.ts` (`getMpBaseUrl()`, `getAuthBaseUrl()`), never raw `process.env`
+  - **Optional**: `AUTH_IP_ADDRESS_HEADERS` / `AUTH_TRUSTED_PROXIES` — client-IP source for rate limiting (default on Vercel: `x-vercel-forwarded-for,x-real-ip`; see `.env.example`)
+  - **Git hooks**: `npm install` runs `prepare`, which sets `core.hooksPath=.githooks`; `.githooks/pre-commit` refuses staged `.env*` files other than `.env.example`
   - **`MP_SECURITY_ROLES` fails closed**: `*` = any MP security role, a comma list = only those roles, **unset/blank/`","` = nobody** (every tool redirects to `/no-access`). Set it in every environment.
 - **Services Layer**: Singleton service classes in `src/services/` wrap MPHelper for domain logic (ToolService, UserService, AddressLabelService, GroupService, FieldManagementService)
 - **Contexts**: React context providers in `src/contexts/` (UserProvider) composed in `src/app/providers.tsx`; `useAppSession()` wraps Better Auth's `authClient.useSession()`

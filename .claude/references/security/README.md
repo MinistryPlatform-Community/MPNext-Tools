@@ -10,6 +10,8 @@ policy. Read this before changing anything under `src/lib/auth.ts`,
 | Which Better Auth endpoints are reachable? | [Endpoint surface](#endpoint-surface) |
 | Why is `style-src 'unsafe-inline'`? Can I tighten it? | [Headers and CSP](#headers-and-csp) |
 | How is a user identified, and why is their email `@mp.invalid`? | [Identity](#identity) |
+| How long does a session live? What must the secret look like? | [Sessions and secrets](#sessions-and-secrets) |
+| We forked this repo — what do we have to do? | [Downstream clones](#downstream-clones) |
 | What was fixed, and what is still open? | [Findings](#findings) |
 
 ---
@@ -320,6 +322,61 @@ path too, so it can constrain the GUID's *shape* but cannot tell
 
 ---
 
+## Sessions and secrets
+
+Full detail in [`../auth/sessions.md`](../auth/sessions.md). The security-relevant
+points (security Step 3, 2026-09-30):
+
+- **Hard 12 h ceiling** (`expiresIn`, `disableSessionRefresh`). A cookie pair
+  not backed by a live in-memory row — copied before sign-out, forged from a
+  leaked secret, or replayed at another serverless instance — dies within
+  **1 h** (`cookieCache.maxAge` with `refreshCache: false`). The earlier
+  "up to an hour" claim for forged sessions was **wrong**: stateless
+  better-auth defaults `refreshCache` on, and such a cookie re-signed itself
+  for up to 7 days.
+- **`session_data` is encrypted (JWE)**, not a readable JWT; `/get-session`
+  withholds `token`, `ipAddress` and `userAgent`.
+- **No user MP OAuth tokens**: no `offline_access`, no `account_data` cookie,
+  access/refresh tokens nulled in the in-memory account row. The `idToken` is
+  kept in memory for a future `id_token_hint` (Step 4).
+- **Boot refusals**: missing, default or < 32-char `BETTER_AUTH_SECRET`,
+  `BETTER_AUTH_SECRETS`, `TEST` in production, or a malformed/non-https
+  `BETTER_AUTH_URL` / `MINISTRY_PLATFORM_BASE_URL` all stop the process
+  (including `next build`). `advanced.disableOriginCheck` is pinned `false`.
+- **Rate-limit client IP**: `AUTH_IP_ADDRESS_HEADERS` / `AUTH_TRUSTED_PROXIES`,
+  invalid entries refuse startup. On Vercel the default is
+  `x-vercel-forwarded-for,x-real-ip` — Vercel's edge sets both to the client IP
+  and does not forward client-supplied values
+  (<https://vercel.com/docs/headers/request-headers>, checked 2026-09-30);
+  `x-vercel-forwarded-for` is first because it survives a proxy in front of
+  Vercel. Off Vercel the default stays better-auth's single-value
+  `x-forwarded-for`, because there these headers are client-controlled.
+- **Git hygiene**: `.env*` (except `.env.example`), `.vercel`,
+  `.claude/settings.local.json` and `.claude/worktrees/` are ignored;
+  `.githooks/pre-commit` refuses staged env files. `.claude/settings.local.json`
+  was untracked on 2026-09-30 (it granted `Bash(sed:*)` and `rm -rf .claude/*`).
+- **Emergency sign-out of everyone**: bump `cookieCache.version` and redeploy,
+  or rotate `BETTER_AUTH_SECRET`.
+
+## Downstream clones
+
+No advisory or Dependabot alert reaches a copy of this repo. **Every downstream
+clone made before 2026-09-30 should:**
+
+1. Port `disabledPaths` + the deny-by-default auth route allowlist
+   (F-UPDATE-USER, exposure window 2026-07-09 → 2026-09-13 here).
+2. **Rotate its own `BETTER_AUTH_SECRET`** (`openssl rand -base64 32`) in every
+   environment. Only rotation invalidates a forged cookie minted during the
+   window; without `refreshCache: false` such a cookie keeps re-signing itself.
+3. Review its own `dp_Audit_Log` for writes via the app during its exposure
+   window whose `User_ID` doesn't match the signed-in person.
+4. Port the session hardening above.
+
+`SECURITY.md` at the repo root carries the same list for people who never open
+`.claude/`.
+
+---
+
 ## Logging
 
 The rule: **identifiers and shape, never content.** `no-console` is enforced by
@@ -392,6 +449,7 @@ Closed in this repo, from the upstream MPNext hardening playbook
 | F3b | Low–Medium | F3 bypass: `?callbackUrl=/%09/evil` — the URL parser strips tab/LF/CR after string checks. Closed 2026-09-30 (sanitizer mirrors `isSafeRelativeURL`, returns the raw value) |
 | F12 | Low–Medium | `/sign-in/social` id_token branch + caller-supplied access token = sign in as another user. Closed 2026-09-30 by `hooks.before` (`ID_TOKEN_SIGN_IN_DISABLED`) + route body filter + `/link-social` disabled. MP's client allows implicit/hybrid, hence Low–Medium. The `sub` binding in `getUserInfo` is **still open** (Step 4) |
 | F7 | Low | ~30 Better Auth endpoints publicly mounted; OAuth errors on a third-party page |
+| P2/P3/P6 (2026-09-28 review) | Medium | Sessions up to 7 days via default `refreshCache`; readable JWT cookie; user MP refresh token in an `account_data` cookie; no boot-time secret/URL guards; rate-limit IP unconfigured; `.env*` not ignored; `settings.local.json` tracked. Closed 2026-09-30 (security Step 3) — see [Sessions and secrets](#sessions-and-secrets) |
 | F8 | Low | **Resolved as WONTFIX.** PKCE stays `false`: MP advertises `S256` in discovery but rejects the token exchange with `invalid_grant`. See below. |
 
 **Not applicable to this repo:** F4 (no `Made_By` / contact-log feature, and
@@ -432,10 +490,16 @@ which is a confidential client's normal posture.
 - **The enforced-CSP browser walk has not been done.** Headers and nonce
   coverage were verified against `next start`; a human still needs to click
   through every Radix surface under enforcement.
-- **`BETTER_AUTH_SECRET` should be rotated** if this deployment was ever exposed
-  to F-UPDATE-USER. Patching does not revoke sessions already forged — they
-  survive in the JWT cookie cache for up to an hour, and with no database there
-  is no session table to clear.
+- **`BETTER_AUTH_SECRET` must be rotated** (owner decision 2026-09-30) in every
+  Vercel environment and `.env.local` — this deployment was exposed to
+  F-UPDATE-USER from 2026-07-09 to 2026-09-13. Patching does not revoke sessions
+  already forged, and with `refreshCache` on (fixed 2026-09-30) they could keep
+  re-signing themselves; with no database there is no session table to clear.
+  Tracked in `.claude/TODO/2026-09-30-ops-rotate-better-auth-secret.md`.
+- **Repo settings**: GitHub private vulnerability reporting, secret scanning,
+  push protection and Dependabot security updates were all **disabled** on
+  2026-09-30 (public repo). `SECURITY.md` points reporters at private
+  vulnerability reporting, so it needs enabling.
 - A transient **discovery failure at boot disables the OAuth provider for the
   life of the process**, with no retry (inherited upstream issue). It also
   inverts the sign-in failure mode: a *working* discovery is what turns on

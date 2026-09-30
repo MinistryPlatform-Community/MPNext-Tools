@@ -40,7 +40,7 @@ End-to-end OAuth2/OIDC flow against Ministry Platform: sign-in, token exchange, 
 | `discoveryUrl` | `${MP_BASE_URL}/oauth/.well-known/openid-configuration` | `auth.ts:36` |
 | `clientId` | `process.env.MINISTRY_PLATFORM_CLIENT_ID!` | `auth.ts:37` |
 | `clientSecret` | `process.env.MINISTRY_PLATFORM_CLIENT_SECRET!` | `auth.ts:38` |
-| `scopes` | `["openid", "offline_access", "http://www.thinkministry.com/dataplatform/scopes/all"]` | `auth.ts:39-43` |
+| `scopes` | `["openid", "http://www.thinkministry.com/dataplatform/scopes/all"]` — no `offline_access` since 2026-09-30 (the user's own tokens are never used) | `ministryPlatformProviderConfig` |
 | `pkce` | `false` (MP advertises S256 but rejects the exchange) | `ministryPlatformProviderConfig` |
 | `disableIdTokenNonceBinding` | `true` (MP omits the claim) | `ministryPlatformProviderConfig` |
 | `authorizationUrlParams` | `{ realm: "realm" }` | `auth.ts:45-47` |
@@ -116,8 +116,9 @@ mapProfileToUser: (profile) => {
    b2. accountSubject({ profile }) → sub   (the provider account key)
    c. mapProfileToUser(profile) → { userGuid: sub, email: <sub>@mp.invalid, mpEmail }
    d. Creates user (id=generated, userGuid=sub, email, name)
-   e. Creates account (accountId=sub, tokens) — storeAccountCookie: true
-   f. Creates session → sets JWT cookie (cookieCache)
+   e. Creates account (accountId=sub) in the in-memory adapter — access/refresh tokens
+      nulled by databaseHooks (idToken kept); storeAccountCookie: false (no account_data cookie)
+   f. Creates session (expiresAt = now + 12h) → sets session_token + encrypted (JWE) session_data
 8. Browser lands on callbackURL (app page)
 9. Client-side UserProvider reads session.user.userGuid (to decide whether to load)
    → getCurrentUserProfile()  [server action re-derives the GUID from the session]
@@ -167,13 +168,15 @@ export async function handleSignOut() {
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `MINISTRY_PLATFORM_BASE_URL` | yes | OIDC discovery root + userinfo + endsession |
+| `MINISTRY_PLATFORM_BASE_URL` | yes | OIDC discovery root + userinfo + endsession. Validated at boot by `getMpBaseUrl()` (https; loopback http outside production) |
 | `MINISTRY_PLATFORM_CLIENT_ID` | yes | OAuth + API client ID registered on MP |
 | `MINISTRY_PLATFORM_CLIENT_SECRET` | yes | OAuth + API client secret |
-| `BETTER_AUTH_URL` | yes (fallback `NEXTAUTH_URL`) | App base URL for callbacks + `post_logout_redirect_uri` |
-| `BETTER_AUTH_SECRET` | yes (fallback `NEXTAUTH_SECRET`) | Session signing secret |
+| `BETTER_AUTH_URL` | yes (fallback `NEXTAUTH_URL`) | App base URL for callbacks + `post_logout_redirect_uri`. Validated at boot by `getAuthBaseUrl()` (origin only; https except loopback) |
+| `BETTER_AUTH_SECRET` | yes (fallback `NEXTAUTH_SECRET`) | Session signing/encryption secret. Boot refuses unset, better-auth's default, or < 32 chars |
+| `AUTH_IP_ADDRESS_HEADERS` | no | Client-IP header(s) for rate limiting. Default on Vercel: `x-vercel-forwarded-for,x-real-ip` |
+| `AUTH_TRUSTED_PROXIES` | no | Proxy IPs/CIDRs to skip in an appended `x-forwarded-for` chain |
 
-`NEXTAUTH_*` fallbacks exist for gradual migration from NextAuth (`src/lib/auth.ts:9-10`, `src/components/user-menu/actions.ts:20`).
+`NEXTAUTH_*` fallbacks exist for gradual migration from NextAuth (`src/lib/auth.ts`, `src/lib/env.ts`).
 
 ## MP OAuth client setup
 

@@ -5,13 +5,13 @@ domain: auth
 ---
 
 ## What's in this domain
-Better Auth (`^1.5.5`) wired to Ministry Platform OIDC via the `genericOAuth` plugin, with stateless JWT cookie sessions, a `customSession` name-splitter, and dual-layer route protection (proxy + `AuthWrapper`).
+Better Auth (`^1.5.5`) wired to Ministry Platform OIDC via the `genericOAuth` plugin, with stateless sessions (12 h ceiling, encrypted `session_data` cookie, no user OAuth tokens), boot-time secret/URL refusals, a `customSession` name-splitter, and dual-layer route protection (proxy + `AuthWrapper`).
 
 ## File map
 | File | Purpose | When to read |
 |------|---------|--------------|
 | `oauth-flow.md` | `genericOAuth` config, callback URL, `getUserInfo`, `mapProfileToUser`, OIDC `endsession` logout | Wiring the MP OAuth client, debugging callbacks or logout |
-| `sessions.md` | Stateless JWT cookie strategy, `cookieCache`, `customSession`, session shape, access patterns | Reading/modifying session data, any `getSession()` call |
+| `sessions.md` | Session lifetime, JWE `cookieCache`, no OAuth tokens, boot refusals (`assertAuthEnvironment`, `src/lib/env.ts`), client-IP headers, `customSession`, session shape | Reading/modifying session data, any `getSession()` call |
 | `route-protection.md` | `src/proxy.ts` + `AuthWrapper` dual-layer pattern, `x-pathname` forwarding, `callbackUrl` preservation | Touching route guards or sign-in redirect behavior |
 | `user-identity.md` | `session.user.id` (Better Auth internal) vs `session.user.userGuid` (MP `User_GUID`) — gotcha | Before any MP API lookup keyed by the signed-in user |
 

@@ -25,7 +25,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **16 open TODOs**.
+Total: **15 open TODOs**.
 
 > **2026-09-30 — MPNext playbook audit.** The five `S:\MP\MPNext\.claude\playbooks`
 > port playbooks were audited against this fork. Remediation is split into nine
@@ -51,10 +51,9 @@ Total: **16 open TODOs**.
 ### Critical (0)
 _none open_
 
-### High (4)
+### High (3)
 | Area | Tags | Title | File |
 |---|---|---|---|
-| auth | security, missing-test, doc | Step 3 — Session lifetime, token-in-cookie, boot guards, secrets hygiene, client-IP header | [→](2026-09-30-step3-session-lifetime-and-secrets-hygiene.md) |
 | auth | security, missing-test, doc | Step 4 — OIDC lazy discovery, sub binding, dedicated OIDC client, sign-out | [→](2026-09-30-step4-oidc-lazy-discovery-and-sub-binding.md) |
 | auth | security, doc | Ops — Rotate BETTER_AUTH_SECRET; advise downstream clones | [→](2026-09-30-ops-rotate-better-auth-secret.md) |
 | auth | security, doc | Ops — Set MP_SECURITY_ROLES=* in every environment | [→](2026-09-30-ops-set-mp-security-roles-env.md) |
@@ -83,8 +82,8 @@ _none open_
 
 ## By tag
 
-### security (11)
-- all open 2026-09-30 step/ops/held items except step7 (step1, step2 resolved)
+### security (10)
+- all open 2026-09-30 step/ops/held items except step7 (step1, step2, step3 resolved)
 
 ### bug (3)
 - components-template-editor-no-mp-persistence — medium
@@ -134,6 +133,7 @@ _none open_
 
 | Date | Title | File |
 |---|---|---|
+| 2026-09-30 | Step 3 — 12 h session ceiling, JWE cookie, no user OAuth tokens, boot guards + env.ts, secrets hygiene, client-IP header | [→](2026-09-30-step3-session-lifetime-and-secrets-hygiene.md) |
 | 2026-09-30 | Step 2 — Fail-closed MP_SECURITY_ROLES, group-wizard mass assignment, page-metadata injection, F11, page self-gating, filter/error hygiene | [→](2026-09-30-step2-authorization-and-input-validation.md) |
 | 2026-09-30 | Step 1 — F12 id_token sign-in refused, F3b callbackUrl bypass closed, /sign-in/social boundary + no-store | [→](2026-09-30-step1-close-live-auth-holes-f12-f3b.md) |
 | 2026-09-13 | Coverage config omitted `coverage.include`, hiding every untested file | [→](2026-09-13-testing-coverage-report-masked-untested-files.md) |

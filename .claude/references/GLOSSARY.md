@@ -80,7 +80,7 @@ OAuth2 grant type used by the provider to acquire tokens for server-to-MP calls 
 
 ## cookieCache (aliases: JWT cookie cache)
 
-Better Auth stateless session strategy: 1-hour TTL JWT stored in a cookie with no database — subsequent `getSession()` calls decode the cookie directly.
+Better Auth stateless session strategy: the `session_data` cookie (encrypted JWE, 1-hour `maxAge`, `refreshCache: false`) caches the session with no database — subsequent `getSession()` calls decrypt the cookie directly. The session itself has a hard 12 h ceiling (`expiresIn`). See `auth/sessions.md`.
 
 **Not to be confused with:** server-side session storage (not used here).
 **Defined in:** `src/lib/auth.ts:12`
@@ -142,7 +142,7 @@ Helper that escapes `'` -> `''`, `%` -> `[%]`, `_` -> `[_]` before interpolating
 
 ## genericOAuth (aliases: generic OAuth plugin)
 
-Better Auth plugin wiring arbitrary OIDC providers; configured with `providerId: "ministryplatform"`, OIDC discovery URL, `offline_access` + MP all scope, `pkce: false` (MP advertises `S256` in discovery but rejects the token exchange with `invalid_grant`), `disableIdTokenNonceBinding: true` (MP omits the claim), and `realm=realm` authorization param. As of Better Auth 1.7 it registers providers as first-class **social** providers, so the callback URL is the core `/api/auth/callback/{providerId}` — not the former `/api/auth/oauth2/callback/{providerId}`.
+Better Auth plugin wiring arbitrary OIDC providers; configured with `providerId: "ministryplatform"`, OIDC discovery URL, `openid` + MP all scope (no `offline_access`), `pkce: false` (MP advertises `S256` in discovery but rejects the token exchange with `invalid_grant`), `disableIdTokenNonceBinding: true` (MP omits the claim), and `realm=realm` authorization param. As of Better Auth 1.7 it registers providers as first-class **social** providers, so the callback URL is the core `/api/auth/callback/{providerId}` — not the former `/api/auth/oauth2/callback/{providerId}`.
 
 **Not to be confused with:** `client credentials flow` (server-to-server, no user).
 **Defined in:** `src/lib/auth.ts:32`

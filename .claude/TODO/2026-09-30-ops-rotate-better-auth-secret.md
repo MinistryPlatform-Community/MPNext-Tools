@@ -28,3 +28,13 @@ Only rotating the signing secret invalidates them. Owner decision (2026-09-30): 
 
 ## Impact if not fixed
 A forged-identity cookie from the exposure window stays valid.
+
+## Progress (2026-09-30, Step 3)
+
+- Item 4 (downstream recommendation) is done: `SECURITY.md` § Downstream clones and
+  `.claude/references/security/README.md` § Downstream clones.
+- The app now refuses to start with a secret shorter than 32 characters, so the rotated value must be
+  ≥ 32 chars (`openssl rand -base64 32` gives 44). Step 3's session-config change signs everyone out
+  once on deploy anyway — rotate at that same deploy.
+- Still open: items 1–3 (owner sets the Vercel env vars and reviews `dp_Audit_Log`).
+

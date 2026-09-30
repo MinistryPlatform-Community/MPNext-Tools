@@ -41,7 +41,7 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 
 ## Features
 
-- **Authentication**: Better Auth with Ministry Platform OAuth (genericOAuth plugin), stateless JWT sessions, and OIDC RP-initiated logout
+- **Authentication**: Better Auth with Ministry Platform OAuth (genericOAuth plugin), stateless encrypted-cookie sessions, and OIDC RP-initiated logout
 - **Tools Framework**: Reusable components for building Ministry Platform page tools with URL parameter parsing and dual-mode support (create/edit)
 - **Address Labels**: Print address labels with USPS Intelligent Mail Barcodes (IMb), POSTNET fallback, and Word document mail merge
 - **Template Editor**: Visual email/document template editor with GrapesJS, merge field support, and MP template integration
@@ -84,7 +84,7 @@ MPHelper (Public API Facade)
 
 Better Auth with Ministry Platform OAuth via genericOAuth plugin (`src/lib/auth.ts`):
 
-- **Stateless JWT cookie sessions** with 1-hour cache (no database required)
+- **Stateless sessions** (no database required): hard 12-hour lifetime, encrypted cookie cache, no user OAuth tokens stored, and boot-time refusal of a weak/missing `BETTER_AUTH_SECRET` or bad base URLs
 - **Custom session enrichment** with name splitting via `customSession` plugin
 - **OIDC RP-initiated logout** for proper MP session termination
 - **Dual-layer route protection**: proxy-level cookie check (`src/proxy.ts`) + component-level session validation (`AuthWrapper`)
