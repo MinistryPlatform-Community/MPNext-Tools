@@ -1,10 +1,12 @@
 /**
- * Validated readers for the two auth-critical URLs.
+ * Validated readers for the two auth-critical URLs (and, at the end of the
+ * file, the OIDC sign-in client).
  *
  * `MINISTRY_PLATFORM_BASE_URL` is the trust anchor for everything the app says
  * to Ministry Platform: the client-secret POST, every bearer API call, the
- * userinfo call carrying the user's access token, OIDC discovery (which names
- * the JWKS that id_tokens are verified against) and the end-session redirect.
+ * userinfo call carrying the user's access token, OIDC discovery (loaded lazily
+ * at the first sign-in callback; it names the issuer and the JWKS that
+ * id_tokens are verified against) and the end-session redirect.
  * `BETTER_AUTH_URL` is better-auth's `baseURL`: the OAuth `redirect_uri`, the
  * trusted origin for `callbackURL`, and (via its scheme) whether cookies are
  * `Secure`. Unvalidated, an `http://` value sent secrets in cleartext, a
@@ -106,4 +108,63 @@ export function getAuthBaseUrl(env: Env = process.env): string {
     throw new Error(`[env] ${name} must be an origin only (no path), e.g. https://app.example.org.`);
   }
   return url.origin;
+}
+
+/** The OIDC client user sign-in runs as. See `getOidcClient`. */
+export interface OidcClient {
+  clientId: string;
+  clientSecret: string;
+  /**
+   * `null` for a dedicated client. Otherwise why the client is (or may be) the
+   * one the service account also uses:
+   * - `"fallback"`: `MP_OIDC_CLIENT_ID` / `MP_OIDC_CLIENT_SECRET` are unset,
+   *   so `MINISTRY_PLATFORM_CLIENT_ID` / `_SECRET` are used;
+   * - `"same_as_service_account"`: they are set, to the service account's id.
+   */
+  shared: "fallback" | "same_as_service_account" | null;
+}
+
+/**
+ * The MP OAuth client that user sign-in (OIDC) runs as, and whose id is the
+ * id_token audience and the sign-out `client_id`.
+ *
+ * It should be a client registered for THIS app's sign-in only
+ * (`MP_OIDC_CLIENT_ID` / `MP_OIDC_CLIENT_SECRET`), not the client-credentials
+ * service account every MP data call uses (`MINISTRY_PLATFORM_CLIENT_ID` /
+ * `_SECRET`). Sharing one client means one leaked secret is both the app's
+ * full MP data access and its user sign-in, the id_token audience check
+ * accepts tokens minted for the service account's client, and the redirect
+ * URIs registered on it serve two purposes.
+ *
+ * Until every environment has the dedicated pair, an unset pair falls back to
+ * the service-account client (`shared: "fallback"`) so existing deploys keep
+ * signing in; `src/lib/auth.ts` logs `auth.oidc.shared_client` once per
+ * process when `shared` is not null. Setting only ONE of the two is refused:
+ * half a dedicated client would pair one client's id with another's secret.
+ *
+ * Throws on an unusable configuration and never echoes a value.
+ */
+export function getOidcClient(env: Env = process.env): OidcClient {
+  const id = env.MP_OIDC_CLIENT_ID?.trim();
+  const secret = env.MP_OIDC_CLIENT_SECRET?.trim();
+  const serviceId = env.MINISTRY_PLATFORM_CLIENT_ID?.trim();
+  if (id || secret) {
+    if (!id || !secret) {
+      throw new Error(
+        "[env] MP_OIDC_CLIENT_ID and MP_OIDC_CLIENT_SECRET must be set together (the dedicated sign-in client); one of them is empty.",
+      );
+    }
+    return {
+      clientId: id,
+      clientSecret: secret,
+      shared: id === serviceId ? "same_as_service_account" : null,
+    };
+  }
+  const serviceSecret = env.MINISTRY_PLATFORM_CLIENT_SECRET?.trim();
+  if (!serviceId || !serviceSecret) {
+    throw new Error(
+      "[env] No OIDC client for sign-in: set MP_OIDC_CLIENT_ID and MP_OIDC_CLIENT_SECRET (or, as a deprecated fallback, MINISTRY_PLATFORM_CLIENT_ID and MINISTRY_PLATFORM_CLIENT_SECRET).",
+    );
+  }
+  return { clientId: serviceId, clientSecret: serviceSecret, shared: "fallback" };
 }

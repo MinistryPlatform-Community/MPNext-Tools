@@ -14,10 +14,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  * IMPORTING `@/lib/auth` throws for each bad configuration — removing the
  * module-level call (or any single check) turns them red.
  *
- * `fetch` is stubbed to throw so nothing can leave the process (this fork's
- * genericOAuth config fetches discovery when the instance initialises; the
- * blocked fetch just leaves the provider unregistered, which these tests don't
- * exercise).
+ * `fetch` is stubbed to throw so nothing can leave the process (building the
+ * auth instance makes no MP call; discovery is loaded lazily at the first
+ * sign-in callback, which these tests never reach).
+ *
+ * Imports with `VITEST` cleared go through `sharedInstance`, which caches the
+ * instance on globalThis; the cache is cleared around every test so each
+ * import really builds a new instance from the env it was given.
  */
 
 // Every test re-imports `@/lib/auth` from a reset module graph, which is slow
@@ -29,13 +32,20 @@ const GOOD_SECRET = 'a-perfectly-fine-test-secret-0123456789';
 const KEYS = [
   'VITEST', 'BETTER_AUTH_SECRET', 'NEXTAUTH_SECRET', 'BETTER_AUTH_SECRETS', 'NODE_ENV', 'TEST',
   'BETTER_AUTH_URL', 'NEXTAUTH_URL', 'MINISTRY_PLATFORM_BASE_URL',
+  'MP_OIDC_CLIENT_ID', 'MP_OIDC_CLIENT_SECRET', 'MINISTRY_PLATFORM_CLIENT_ID', 'MINISTRY_PLATFORM_CLIENT_SECRET',
 ] as const;
 // test-setup.ts stubs an http://localhost BETTER_AUTH_URL, which src/lib/env.ts
 // refuses in production; the production cases below use this one instead.
 const PROD_URL = 'https://app.example.org';
 let saved: Record<string, string | undefined>;
 
+const SHARED_AUTH_KEY = Symbol.for('mpnext-tools.auth');
+const clearSharedAuth = () => {
+  delete (globalThis as Record<symbol, unknown>)[SHARED_AUTH_KEY];
+};
+
 beforeEach(() => {
+  clearSharedAuth();
   saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
   vi.resetModules();
   vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
@@ -46,6 +56,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  clearSharedAuth();
   setEnv(saved);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -163,9 +174,69 @@ describe('auth-critical URLs at module load', () => {
     setEnv({ BETTER_AUTH_URL: 'https://app.example.org/', MINISTRY_PLATFORM_BASE_URL: 'https://mp.example.org/api/' });
     const { auth, ministryPlatformProviderConfig } = await import('@/lib/auth');
     expect(auth.options.baseURL).toBe('https://app.example.org');
-    expect(ministryPlatformProviderConfig.discoveryUrl).toBe(
-      'https://mp.example.org/api/oauth/.well-known/openid-configuration',
+    expect(ministryPlatformProviderConfig.authorizationUrl).toBe(
+      'https://mp.example.org/api/oauth/connect/authorize',
     );
+    expect(ministryPlatformProviderConfig.tokenUrl).toBe('https://mp.example.org/api/oauth/connect/token');
+    expect(ministryPlatformProviderConfig.endSessionEndpoint).toBe(
+      'https://mp.example.org/api/oauth/connect/endsession',
+    );
+    // Building the instance (and its context) contacted nothing.
+    await auth.$context;
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('the OIDC sign-in client at module load (owner decision: dedicated client)', () => {
+  const sharedClientWarnings = () =>
+    vi.mocked(console.warn).mock.calls.flatMap(([line]) => {
+      try {
+        const event = JSON.parse(String(line)) as Record<string, unknown>;
+        return event.event === 'auth.oidc.shared_client' ? [event] : [];
+      } catch {
+        return [];
+      }
+    });
+
+  it('uses the dedicated MP_OIDC_CLIENT_ID / _SECRET, not the service account, and does not warn', async () => {
+    setEnv({ MP_OIDC_CLIENT_ID: 'oidc-app', MP_OIDC_CLIENT_SECRET: 'oidc-secret', MINISTRY_PLATFORM_CLIENT_ID: 'svc' });
+    const { ministryPlatformProviderConfig } = await importAuthAsIfNotVitest();
+    expect(ministryPlatformProviderConfig.clientId).toBe('oidc-app');
+    expect(ministryPlatformProviderConfig.clientSecret).toBe('oidc-secret');
+    expect(sharedClientWarnings()).toEqual([]);
+  });
+
+  it('falls back to the service-account client with ONE auth.oidc.shared_client warning per process', async () => {
+    setEnv({
+      MP_OIDC_CLIENT_ID: undefined,
+      MP_OIDC_CLIENT_SECRET: undefined,
+      MINISTRY_PLATFORM_CLIENT_ID: 'svc',
+      MINISTRY_PLATFORM_CLIENT_SECRET: 'svc-secret',
+    });
+    const first = await importAuthAsIfNotVitest();
+    vi.resetModules();
+    const second = await importAuthAsIfNotVitest(); // another Next bundle layer
+
+    expect(second.auth).toBe(first.auth);
+    expect(first.ministryPlatformProviderConfig.clientId).toBe('svc');
+    expect(sharedClientWarnings()).toEqual([
+      { event: 'auth.oidc.shared_client', message: expect.any(String), source: 'fallback' },
+    ]);
+    // Identifiers only: never the client id or secret.
+    const logged = vi.mocked(console.warn).mock.calls.flat().join(' ');
+    expect(logged).not.toContain('svc-secret');
+    expect(logged).not.toMatch(/"svc"/);
+  });
+
+  it('warns when the "dedicated" client is the service-account id', async () => {
+    setEnv({ MP_OIDC_CLIENT_ID: 'svc', MP_OIDC_CLIENT_SECRET: 'x', MINISTRY_PLATFORM_CLIENT_ID: 'svc' });
+    await importAuthAsIfNotVitest();
+    expect(sharedClientWarnings()).toEqual([expect.objectContaining({ source: 'same_as_service_account' })]);
+  });
+
+  it('refuses to import with only half of the dedicated pair set', async () => {
+    setEnv({ MP_OIDC_CLIENT_ID: 'oidc-app', MP_OIDC_CLIENT_SECRET: undefined });
+    await expect(importAuthAsIfNotVitest()).rejects.toThrow(/MP_OIDC_CLIENT_ID and MP_OIDC_CLIENT_SECRET must be set together/);
   });
 });
 

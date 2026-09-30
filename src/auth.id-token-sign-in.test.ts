@@ -11,33 +11,35 @@ import { genericOAuth, type GenericOAuthConfig, type GenericOAuthOptions } from 
  *
  * better-auth 1.7's `/sign-in/social` has an id_token mode: given
  * `idToken: { token, accessToken }` it verifies the id_token (signature, iss,
- * aud) and then calls our `getUserInfo` with the CALLER'S access token. This
- * fork sets `discoveryUrl`, so the mode is live for the "ministryplatform"
- * provider, and nothing binds the verified id_token's `sub` to the access
+ * aud) and then calls our `getUserInfo` with the CALLER'S access token. While
+ * this fork set `discoveryUrl` the mode was live for the "ministryplatform"
+ * provider, and nothing bound the verified id_token's `sub` to the access
  * token's userinfo `sub`: an attacker's own valid id_token plus a victim's
- * access token mints a session as the victim.
+ * access token minted a session as the victim.
  *
  * These tests drive the REAL `auth` instance from src/lib/auth.ts against a
  * mock MP OIDC provider (discovery, JWKS and userinfo), with id_tokens really
- * RS256-signed by a key the mock JWKS publishes — so better-auth's own
- * verification genuinely passes and the only thing standing between the
- * attacker and the victim's session is this app's code. `fetch` is replaced
- * with a stub that THROWS for any URL the mock doesn't serve: nothing here can
- * reach a real Ministry Platform.
+ * RS256-signed by a key the mock JWKS publishes — so every signature check
+ * genuinely passes and the only thing standing between the attacker and the
+ * victim's session is this app's code. `fetch` is replaced with a stub that
+ * THROWS for any URL the mock doesn't serve: nothing here can reach a real
+ * Ministry Platform.
  *
  * Layers, each proven with the others out of the way:
- * - `refuseIdTokenSignIn` (`hooks.before`) — here, driving `auth.handler`
- *   directly, i.e. with the route filter bypassed.
+ * - `refuseIdTokenSignIn` (`hooks.before`) — the primary control; here,
+ *   driving `auth.handler` directly, i.e. with the route filter bypassed.
  * - The route's body filter — src/app/api/auth/[...all]/route.test.ts, with
  *   Better Auth (and so the hook) mocked out.
  * - `/link-social` in `disabledAuthPaths` — here, bypassing the route.
- * - `requireIdTokenVerification` — here, on an instance whose discovery
- *   document lacks `jwks_uri`.
- *
- * NOT YET: the `id_token.sub` <-> userinfo `sub` binding inside `getUserInfo`
- * lands with the OIDC lazy-discovery rewrite (security Step 4). The "KNOWN GAP"
- * test below pins today's behaviour with the hook removed, and must be flipped
- * to a refusal when that binding lands.
+ * - With the hook removed, better-auth refuses the mode itself
+ *   (`ID_TOKEN_NOT_SUPPORTED`), because since security Step 4 the provider
+ *   has no `discoveryUrl` and so no id_token config. A side effect of
+ *   configuration, not a control.
+ * - The `id_token.sub` <-> userinfo `sub` binding in `getUserInfo`
+ *   (Step 4) — here, with the hook removed AND `discoveryUrl` re-added, i.e.
+ *   the exact configuration that made the attack work. The substitution is
+ *   refused, while the victim's own matched pair still signs in (proving the
+ *   mode really is live and the refusal is the binding).
  */
 
 const mockOidc = await vi.hoisted(async () => {
@@ -90,12 +92,6 @@ const mockOidc = await vi.hoisted(async () => {
     const url = request.url;
     if (url === `${issuer}/.well-known/openid-configuration`) {
       return json(discovery);
-    }
-    // A discovery document with no jwks_uri, for requireIdTokenVerification.
-    if (url === `${base}/no-jwks/.well-known/openid-configuration`) {
-      const { jwks_uri: _omit, ...rest } = discovery;
-      void _omit;
-      return json(rest);
     }
     if (url === `${issuer}/.well-known/jwks`) {
       return json({ keys: [jwk] });
@@ -157,6 +153,17 @@ function pluginsWith(patch: Partial<GenericOAuthConfig>) {
     if (plugin.id !== 'generic-oauth') return plugin;
     const [config] = (plugin as unknown as { options: GenericOAuthOptions }).options.config;
     return genericOAuth({ config: [{ ...config, ...patch }] });
+  });
+}
+
+/** The structured (JSON) events written to console.error. */
+function loggedEvents(): Array<Record<string, unknown>> {
+  return vi.mocked(console.error).mock.calls.flatMap(([line]) => {
+    try {
+      return [JSON.parse(String(line)) as Record<string, unknown>];
+    } catch {
+      return [];
+    }
   });
 }
 
@@ -236,9 +243,56 @@ describe('refuseIdTokenSignIn (hooks.before) — primary control, route filter b
   });
 });
 
-describe('with the hook removed — the mode is live on this config (discoveryUrl is set)', () => {
+describe('with the hook removed, better-auth refuses the mode itself (no discoveryUrl since Step 4)', () => {
   // Same config, same plugins, same getUserInfo — only the user hook is gone.
   const authWithoutHook = betterAuth({ ...auth.options, hooks: {} });
+
+  it.each([
+    ['an attacker id_token paired with a victim access token', attackBody],
+    [
+      'even a matched id_token + access token pair (the mode is off, not just the attack)',
+      () => ({
+        provider: PROVIDER,
+        idToken: { token: mockOidc.signIdToken(mockOidc.subs.victim), accessToken: 'access-token-victim' },
+      }),
+    ],
+  ])('refuses %s with 404 ID_TOKEN_NOT_SUPPORTED', async (_label, body) => {
+    const response = await signInSocial(authWithoutHook, body());
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: 'ID_TOKEN_NOT_SUPPORTED' });
+    expect(sessionCookies(response)).toEqual([]);
+    expect(mockOidc.userinfoCalls).toEqual([]);
+  });
+});
+
+describe('getUserInfo sub binding — with the hook removed AND discoveryUrl re-added (the pre-Step-4 config)', () => {
+  // The configuration that made the mode live: `discoveryUrl` gives the
+  // provider an id_token config, and with it nonce binding and a mandatory
+  // verifier, which the old config also had to set.
+  const authWithoutHook = betterAuth({
+    ...auth.options,
+    plugins: pluginsWith({
+      discoveryUrl: `${mockOidc.base}/oauth/.well-known/openid-configuration`,
+      requireIdTokenVerification: true,
+      disableIdTokenNonceBinding: true,
+    }),
+    hooks: {},
+  });
+
+  it('REFUSES the substituted token (formerly the "KNOWN GAP until Step 4")', async () => {
+    const response = await signInSocial(authWithoutHook, attackBody());
+
+    // better-auth maps getUserInfo's null to FAILED_TO_GET_USER_INFO (401).
+    expect(response.status).toBe(401);
+    expect(sessionCookies(response)).toEqual([]);
+    // The victim's token WAS used (the mode is live without the hook)...
+    expect(mockOidc.userinfoCalls).toEqual(['access-token-victim']);
+    // ...and the binding is what refused it.
+    expect(loggedEvents()).toContainEqual(
+      expect.objectContaining({ event: 'auth.userinfo.sub_mismatch', reason: 'mismatch' }),
+    );
+  });
 
   it('CONTROL: a matched id_token + access token pair signs in, so the fixture really exercises the mode', async () => {
     const response = await signInSocial(authWithoutHook, {
@@ -251,18 +305,8 @@ describe('with the hook removed — the mode is live on this config (discoveryUr
 
     expect(response.status).toBe(200);
     expect(sessionCookies(response)).not.toEqual([]);
-  });
-
-  it('KNOWN GAP until Step 4: without the hook, the substituted token signs in AS THE VICTIM', async () => {
-    // This is exactly why the hook (and the route filter) must stay. When the
-    // `id_token.sub` <-> userinfo `sub` binding lands in `getUserInfo`
-    // (Step 4), this test must be flipped to expect a refusal.
-    const response = await signInSocial(authWithoutHook, attackBody());
-
-    expect(response.status).toBe(200);
     const body = (await response.json()) as { user: { userGuid: string } };
     expect(body.user.userGuid).toBe(mockOidc.subs.victim);
-    expect(mockOidc.userinfoCalls).toEqual(['access-token-victim']);
   });
 });
 
@@ -285,32 +329,5 @@ describe('/link-social is disabled at the router (its own id_token branch)', () 
     // Without a session it fails on auth, but it is routed — proving the 404
     // above comes from `disabledPaths`, not from a missing endpoint.
     expect(response.status).not.toBe(404);
-  });
-});
-
-describe('requireIdTokenVerification — refuse to run with an unverified id_token', () => {
-  const noJwksDiscovery = `${mockOidc.base}/no-jwks/.well-known/openid-configuration`;
-
-  it('skips the provider when discovery yields no jwks_uri, so sign-in 404s instead of downgrading', async () => {
-    const instance = betterAuth({
-      ...auth.options,
-      plugins: pluginsWith({ discoveryUrl: noJwksDiscovery }),
-    });
-
-    const response = await signInSocial(instance, { provider: PROVIDER, callbackURL: '/' });
-
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({ code: 'PROVIDER_NOT_FOUND' });
-  });
-
-  it('CONTROL: without the flag, the same discovery document registers the provider with NO id_token verification', async () => {
-    const instance = betterAuth({
-      ...auth.options,
-      plugins: pluginsWith({ discoveryUrl: noJwksDiscovery, requireIdTokenVerification: false }),
-    });
-
-    const response = await signInSocial(instance, { provider: PROVIDER, callbackURL: '/' });
-
-    expect(response.status).toBe(200);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAuthBaseUrl, getMpBaseUrl } from '@/lib/env';
+import { getAuthBaseUrl, getMpBaseUrl, getOidcClient } from '@/lib/env';
 
 const dev = (extra: Record<string, string | undefined>) => ({ NODE_ENV: 'development', ...extra });
 const prod = (extra: Record<string, string | undefined>) => ({ NODE_ENV: 'production', ...extra });
@@ -115,5 +115,56 @@ describe('getAuthBaseUrl', () => {
 
   it('reads process.env by default', () => {
     expect(getAuthBaseUrl()).toBe('http://localhost:3000');
+  });
+});
+
+describe('getOidcClient', () => {
+  const service = { MINISTRY_PLATFORM_CLIENT_ID: 'svc', MINISTRY_PLATFORM_CLIENT_SECRET: 'svc-secret' };
+
+  it('uses the dedicated pair when both are set', () => {
+    expect(getOidcClient({ ...service, MP_OIDC_CLIENT_ID: ' app ', MP_OIDC_CLIENT_SECRET: ' s ' })).toEqual({
+      clientId: 'app',
+      clientSecret: 's',
+      shared: null,
+    });
+  });
+
+  it('flags a dedicated pair whose id is the service account id', () => {
+    expect(getOidcClient({ ...service, MP_OIDC_CLIENT_ID: 'svc', MP_OIDC_CLIENT_SECRET: 's' }).shared).toBe(
+      'same_as_service_account',
+    );
+  });
+
+  it.each([
+    ['unset', {}],
+    ['blank', { MP_OIDC_CLIENT_ID: '  ', MP_OIDC_CLIENT_SECRET: '' }],
+  ])('falls back to the service-account client when the pair is %s', (_label, extra) => {
+    expect(getOidcClient({ ...service, ...extra })).toEqual({
+      clientId: 'svc',
+      clientSecret: 'svc-secret',
+      shared: 'fallback',
+    });
+  });
+
+  it.each([
+    ['only the id', { MP_OIDC_CLIENT_ID: 'app' }],
+    ['only the secret', { MP_OIDC_CLIENT_SECRET: 's' }],
+  ])('refuses %s of the dedicated pair, without echoing it', (_label, extra) => {
+    expect(() => getOidcClient({ ...service, ...extra })).toThrow(/must be set together/);
+    expect(() => getOidcClient({ ...service, ...extra })).toThrow(
+      expect.objectContaining({ message: expect.not.stringMatching(/app|: s/) }),
+    );
+  });
+
+  it.each([
+    ['no client at all', {}],
+    ['a fallback id without a secret', { MINISTRY_PLATFORM_CLIENT_ID: 'svc' }],
+  ])('refuses %s', (_label, env) => {
+    expect(() => getOidcClient(env)).toThrow(/No OIDC client for sign-in/);
+  });
+
+  it('reads process.env by default', () => {
+    // test-setup.ts stubs a dedicated pair distinct from the service account.
+    expect(getOidcClient()).toMatchObject({ clientId: 'test-client-id', shared: null });
   });
 });

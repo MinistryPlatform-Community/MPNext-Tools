@@ -17,9 +17,13 @@ import {
  *
  * Tests for the Better Auth configuration in src/lib/auth.ts.
  * - customSession: lightweight name splitting only (no API calls)
- * - getUserInfo: fetches OIDC profile and returns id=sub (used as accountId)
+ * - the Ministry Platform provider config pins (explicit endpoints, no
+ *   discovery at boot, PKCE off, account subject)
  * - mapProfileToUser: stores the OAuth sub claim as userGuid (additionalField)
  * - User profile loading is handled client-side by UserProvider
+ *
+ * `getUserInfo` itself verifies a real RS256 id_token with jose, which needs
+ * the node environment; its tests live in src/auth.user-info.test.ts.
  */
 
 /**
@@ -154,60 +158,20 @@ describe('Auth - Custom Session Enrichment Logic', () => {
 });
 
 describe('Auth - OAuth Configuration', () => {
-  it('should configure Ministry Platform as generic OAuth provider', () => {
-    const config = {
-      providerId: 'ministryplatform',
-      scopes: ['openid', 'offline_access', 'http://www.thinkministry.com/dataplatform/scopes/all'],
-      pkce: false,
-    };
+  it('configures Ministry Platform as a generic OAuth provider with the real settings', () => {
+    const config = ministryPlatformProviderConfig;
 
     expect(config.providerId).toBe('ministryplatform');
-    expect(config.scopes).toContain('openid');
-    expect(config.scopes).toContain('offline_access');
+    expect(config.scopes).toEqual(['openid', 'http://www.thinkministry.com/dataplatform/scopes/all']);
     expect(config.pkce).toBe(false);
+    expect(config.authorizationUrlParams).toEqual({ realm: 'realm' });
   });
 
-  it('should map getUserInfo profile to user info with sub as id', () => {
-    // Simulate the getUserInfo callback — returns id=sub for the accountId
-    const profile = {
-      sub: 'ab12cd34-ef56-7890-abcd-ef1234567890',
-      given_name: 'John',
-      family_name: 'Doe',
-      email: 'john@example.com',
-    };
-
-    const userInfo = {
-      id: profile.sub,
-      email: profile.email,
-      name: `${profile.given_name} ${profile.family_name}`,
-      image: undefined,
-      emailVerified: true,
-    };
-
-    expect(userInfo.id).toBe('ab12cd34-ef56-7890-abcd-ef1234567890');
-    expect(userInfo.name).toBe('John Doe');
-    expect(userInfo.email).toBe('john@example.com');
-    expect(userInfo.image).toBeUndefined();
-    expect(userInfo.emailVerified).toBe(true);
-  });
-
-  it('should map profile to user with userGuid via mapProfileToUser', () => {
-    // Simulate the mapProfileToUser callback
-    // It receives the getUserInfo result and extracts the sub as userGuid
-    const getUserInfoResult = {
-      id: 'ab12cd34-ef56-7890-abcd-ef1234567890',
-      email: 'john@example.com',
-      name: 'John Doe',
-      image: undefined,
-      emailVerified: true,
-    };
-
-    // mapProfileToUser extracts profile.id (the sub) as userGuid
-    const mappedFields = {
-      userGuid: getUserInfoResult.id,
-    };
-
-    expect(mappedFields.userGuid).toBe('ab12cd34-ef56-7890-abcd-ef1234567890');
+  it('signs in as the dedicated OIDC client, not the service account', () => {
+    // test-setup.ts stubs the two as different clients.
+    expect(ministryPlatformProviderConfig.clientId).toBe(process.env.MP_OIDC_CLIENT_ID);
+    expect(ministryPlatformProviderConfig.clientSecret).toBe(process.env.MP_OIDC_CLIENT_SECRET);
+    expect(ministryPlatformProviderConfig.clientId).not.toBe(process.env.MINISTRY_PLATFORM_CLIENT_ID);
   });
 
   /**
@@ -451,24 +415,45 @@ describe('Auth - buildDisplayName', () => {
 });
 
 /**
- * Better Auth 1.7 provider-config guards.
+ * Provider-config pins (security Step 4 / MPNext issue #101).
  *
- * Both flags below fail SILENTLY-ish: sign-in breaks for every user with a
- * generic `unable_to_get_user_info`, with nothing in the app's own code to
- * point at. They are pinned here because a future upgrade that resets them
- * should fail a test run, not a production sign-in.
+ * Each of these fails SILENTLY in production — a sign-in outage, or a closed
+ * hole quietly reopened — rather than as a type error, so they are pinned
+ * here. Behaviour is proven end to end in src/auth.oidc-discovery.test.ts,
+ * src/auth.user-info.test.ts and src/auth.id-token-sign-in.test.ts.
  */
 describe('Auth - Ministry Platform provider config (better-auth 1.7)', () => {
-  it('disables id_token nonce binding, because MP does not echo the claim', () => {
-    // As of 1.7, any provider with a `discoveryUrl` publishing a JWKS binds the
-    // id_token to the authorization request BY DEFAULT — Better Auth sends a
-    // server-generated nonce and rejects a callback whose id_token does not
-    // echo it. MP omits the claim entirely.
-    //
-    // The failure looks intermittent but is inverted from the obvious reading:
-    // sign-in works only when the boot-time discovery fetch FAILED, because
-    // that leaves the id_token config undefined and skips verification.
-    expect(ministryPlatformProviderConfig.disableIdTokenNonceBinding).toBe(true);
+  const oauth = `${process.env.MINISTRY_PLATFORM_BASE_URL}/oauth`;
+
+  it('configures explicit MP endpoints and NO discoveryUrl (no MP call at boot)', () => {
+    // With `discoveryUrl`, genericOAuth fetched discovery once at boot with no
+    // timeout or retry: one MP blip left sign-in 404ing (or every request
+    // hanging ~300 s) until a restart. It would also give the provider an
+    // id_token config, which re-opens /sign-in/social's id_token mode (F12).
+    expect(ministryPlatformProviderConfig).not.toHaveProperty('discoveryUrl');
+    expect(ministryPlatformProviderConfig.authorizationUrl).toBe(`${oauth}/connect/authorize`);
+    expect(ministryPlatformProviderConfig.tokenUrl).toBe(`${oauth}/connect/token`);
+    // Without it, sign-out loses the MP end-session URL and its id_token_hint.
+    expect(ministryPlatformProviderConfig.endSessionEndpoint).toBe(`${oauth}/connect/endsession`);
+  });
+
+  it('carries neither requireIdTokenVerification nor disableIdTokenNonceBinding', () => {
+    // genericOAuth THROWS at init for the first without discoveryUrl; the
+    // second is a no-op with no id_token config. The id_token is verified by
+    // the app (`verifyMpIdToken`) instead.
+    expect(ministryPlatformProviderConfig).not.toHaveProperty('requireIdTokenVerification');
+    expect(ministryPlatformProviderConfig).not.toHaveProperty('disableIdTokenNonceBinding');
+  });
+
+  it('the live provider has no id_token config and requires no nonce', async () => {
+    const ctx = await auth.$context;
+    const provider = ctx.socialProviders.find((p) => p.id === 'ministryplatform') as
+      | { idToken?: unknown; requiresIdTokenNonce?: boolean }
+      | undefined;
+
+    expect(provider).toBeDefined();
+    expect(provider!.idToken).toBeUndefined();
+    expect(provider!.requiresIdTokenNonce).toBe(false);
   });
 
   it('keeps PKCE OFF — MP advertises it but does not honour it', () => {
@@ -478,17 +463,7 @@ describe('Auth - Ministry Platform provider config (better-auth 1.7)', () => {
     // authorize leg succeeds and returns a code, then the token exchange fails
     // with `invalid_grant` and the user lands on
     // /auth-error?error=invalid_code.
-    //
-    // This test exists to stop someone re-enabling it on the strength of the
-    // discovery document alone.
     expect(ministryPlatformProviderConfig.pkce).toBe(false);
-  });
-
-  it('requires id_token verification, so a discovery document without issuer/jwks_uri is refused', () => {
-    // Without it, a document missing either field silently leaves the normal
-    // flow's id_token UNVERIFIED. Behaviour is proven end to end in
-    // src/auth.id-token-sign-in.test.ts.
-    expect(ministryPlatformProviderConfig.requireIdTokenVerification).toBe(true);
   });
 
   it('wires refuseIdTokenSignIn as the hooks.before (F12)', () => {
@@ -496,16 +471,10 @@ describe('Auth - Ministry Platform provider config (better-auth 1.7)', () => {
     expect(disabledAuthPaths).toContain('/link-social');
   });
 
-  it('uses discovery rather than hardcoded endpoints', () => {
-    expect(ministryPlatformProviderConfig.discoveryUrl).toContain(
-      '/oauth/.well-known/openid-configuration',
-    );
-  });
-
-  it('keeps the providerId the allowlist and the client both reference', () => {
+  it('keeps the providerId the allowlist, the client and the MP redirect URI all reference', () => {
     // `src/app/api/auth/[...all]/route.ts` allowlists
-    // `GET /callback/ministryplatform`, and the sign-in page calls
-    // `signIn.social({ provider: "ministryplatform" })`. All three must agree.
+    // `GET /callback/ministryplatform` (the redirect URI registered in MP), and
+    // the sign-in page calls `signIn.social({ provider: "ministryplatform" })`.
     expect(ministryPlatformProviderConfig.providerId).toBe('ministryplatform');
   });
 });
@@ -524,7 +493,6 @@ describe('Auth - Ministry Platform provider config (better-auth 1.7)', () => {
  * userinfo fetch problem, not an identity-mapping one.
  */
 describe('Auth - provider account key (better-auth 1.7)', () => {
-  const GUID = 'AB12CD34-EF56-7890-ABCD-EF1234567890';
   const normalized = 'ab12cd34-ef56-7890-abcd-ef1234567890';
 
   function callAccountSubject(profile: Record<string, unknown>) {
@@ -534,98 +502,24 @@ describe('Auth - provider account key (better-auth 1.7)', () => {
   }
 
   it('declares accountSubject explicitly rather than relying on the default', () => {
-    // The default is `isOidc ? profile.sub : profile.id`, where `isOidc` is
-    // inferred at boot from the discovery fetch. That would make the account
-    // key depend on a network call succeeding at startup.
+    // Required, not a style choice: without discovery the provider is not
+    // recognised as OIDC, so the default resolver reads `profile.id` — which
+    // getUserInfo never returns — and every account would key on "".
     expect(typeof ministryPlatformProviderConfig.accountSubject).toBe('function');
   });
 
-  it('derives the account key from sub', () => {
-    expect(callAccountSubject({ sub: normalized })).toBe(normalized);
+  it('derives the account key from sub, never from id', () => {
+    expect(callAccountSubject({ sub: normalized, id: 'not-this' })).toBe(normalized);
+    expect(callAccountSubject({ id: 'not-this' })).toBe('');
   });
 
-  it('returns empty (not "undefined") when sub is absent, so Better Auth refuses cleanly', () => {
+  it('returns empty (not "undefined") when sub is absent or not a string, so Better Auth refuses cleanly', () => {
     // `resolveOAuthAccountKey` rejects "", "undefined" and "null" alike, but
     // returning the literal string "undefined" would be a latent bug if that
     // guard ever narrowed.
     expect(callAccountSubject({})).toBe('');
     expect(callAccountSubject({ sub: null })).toBe('');
-  });
-
-  it('getUserInfo returns `sub`, NOT `id` — the 1.6 shape breaks the account key', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            sub: GUID,
-            email: 'jane@example.org',
-            email_verified: true,
-            given_name: 'Jane',
-            family_name: 'Doe',
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
-      );
-
-    try {
-      const getUserInfo = ministryPlatformProviderConfig.getUserInfo!;
-      const info = (await getUserInfo({ accessToken: 'tok' } as never)) as Record<
-        string,
-        unknown
-      >;
-
-      expect(info.sub).toBe(normalized);
-      expect(info).not.toHaveProperty('id');
-      // And the account key resolves off it.
-      expect(callAccountSubject(info)).toBe(normalized);
-    } finally {
-      fetchMock.mockRestore();
-    }
-  });
-
-  it('getUserInfo still applies the synthetic email and keeps the real one as mpEmail', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({ sub: GUID, email: 'shared@household.org', email_verified: false }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
-      );
-
-    try {
-      const info = (await ministryPlatformProviderConfig.getUserInfo!({
-        accessToken: 'tok',
-      } as never)) as Record<string, unknown>;
-
-      expect(info.email).toBe(`${normalized}@mp.invalid`);
-      expect(info.mpEmail).toBe('shared@household.org');
-      expect(info.emailVerified).toBe(false);
-    } finally {
-      fetchMock.mockRestore();
-    }
-  });
-
-  it('getUserInfo returns null (never throws) when MP sends no usable sub', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ email: 'x@y.org' }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    try {
-      await expect(
-        ministryPlatformProviderConfig.getUserInfo!({ accessToken: 'tok' } as never),
-      ).resolves.toBeNull();
-    } finally {
-      fetchMock.mockRestore();
-      errSpy.mockRestore();
-    }
+    expect(callAccountSubject({ sub: 12345 })).toBe('');
   });
 
   it('mapProfileToUser reads sub from the raw profile', () => {
@@ -639,115 +533,6 @@ describe('Auth - provider account key (better-auth 1.7)', () => {
     expect(mapped.userGuid).toBe(normalized);
     expect(mapped.email).toBe(`${normalized}@mp.invalid`);
     expect(mapped.mpEmail).toBe('jane@example.org');
-  });
-});
-
-/**
- * `getUserInfo` failure paths.
- *
- * Better Auth does NOT wrap `provider.getUserInfo` in a try/catch inside its
- * callback route, so this function must return `null` rather than throw on
- * every failure — a throw surfaces as an unhandled error instead of a clean
- * `unable_to_get_user_info` redirect.
- *
- * These paths also carry a logging contract (CLAUDE.md rule 14): the userinfo
- * body can echo profile content, so only status and shape may be logged.
- */
-describe('Auth - getUserInfo failure handling', () => {
-  const GUID = 'ab12cd34-ef56-7890-abcd-ef1234567890';
-
-  function callGetUserInfo() {
-    const fn = ministryPlatformProviderConfig.getUserInfo;
-    if (!fn) throw new Error('getUserInfo must be declared');
-    return fn({ accessToken: 'token-abc' } as never);
-  }
-
-  beforeEach(() => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('returns null — never throws — when the userinfo endpoint errors', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 502, json: vi.fn() }),
-    );
-
-    await expect(callGetUserInfo()).resolves.toBeNull();
-  });
-
-  it('logs only the HTTP status on a failed fetch, never the body', async () => {
-    const json = vi.fn().mockResolvedValue({ secret: 'profile-content' });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403, json }));
-
-    await callGetUserInfo();
-
-    expect(console.error).toHaveBeenCalledWith('auth.userinfo.fetch_failed', { status: 403 });
-    expect(json).not.toHaveBeenCalled();
-  });
-
-  it('sends the access token as a bearer credential', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500, json: vi.fn() });
-    vi.stubGlobal('fetch', fetchMock);
-
-    await callGetUserInfo();
-
-    const [, init] = fetchMock.mock.calls[0];
-    expect(init.headers.Authorization).toBe('Bearer token-abc');
-  });
-
-  it('returns null when the profile carries no usable sub', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue({ email: 'someone@example.com' }),
-      }),
-    );
-
-    await expect(callGetUserInfo()).resolves.toBeNull();
-    expect(console.error).toHaveBeenCalledWith(
-      'auth.userinfo.invalid_sub',
-      expect.objectContaining({ hasSub: false }),
-    );
-  });
-
-  it('returns the normalized sub and a trimmed mpEmail on success', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue({
-          sub: GUID.toUpperCase(),
-          email: '  person@church.org  ',
-        }),
-      }),
-    );
-
-    const result = (await callGetUserInfo()) as Record<string, unknown>;
-
-    expect(result.sub).toBe(GUID);
-    expect(result.mpEmail).toBe('person@church.org');
-  });
-
-  it('nulls mpEmail when the profile email is blank', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue({ sub: GUID, email: '   ' }),
-      }),
-    );
-
-    const result = (await callGetUserInfo()) as Record<string, unknown>;
-
-    expect(result.mpEmail).toBeNull();
   });
 });
 
