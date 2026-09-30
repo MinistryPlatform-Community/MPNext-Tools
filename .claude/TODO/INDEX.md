@@ -1,7 +1,7 @@
 ---
 title: TODO Index
 type: index
-last_updated: 2026-09-13
+last_updated: 2026-09-30
 ---
 
 <!-- 2026-04-18: closed 3 routing TODOs (proxy-api-whitelist, signin-no-error-ui, home-page-roundtrip) — see commit fix(routing): tighten proxy API whitelist, add signin error UI, optimize /home redirect -->
@@ -9,6 +9,7 @@ last_updated: 2026-09-13
 <!-- 2026-04-18: closed 5 low TODOs (contexts-session-context-misnamed, dto-constants-batchsize-duplication, dto-constants-mailerid-not-validated, testing-claude-md-readme-counts-drift, verify-auth-oauth-flow) — see commit chore: rename contexts hook, dedupe BATCH_SIZE, validate mailerId, refresh docs -->
 <!-- 2026-05-21: opened 1 critical TODO (xmldom-critical-vulnerability) — see install-testing feedback; address before next ship -->
 <!-- 2026-05-21: closed 1 critical TODO (xmldom-critical-vulnerability) — replaced docxtemplater-image-module-free with maintained docxtemplater-image (uses @xmldom/xmldom@^0.9.7) -->
+<!-- 2026-09-30: playbook audit (5 MPNext port playbooks) opened 14 TODOs: 9 remediation steps, 2 ops, 3 held. -->
 <!-- 2026-09-13: coverage push 49.67% -> 98.84% statements. Opened 8 TODOs, closed 2 (template-editor-missing-tests, coverage-report-masked-untested-files). -->
 
 
@@ -22,7 +23,12 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **4 open TODOs**.
+Total: **18 open TODOs**.
+
+> **2026-09-30 — MPNext playbook audit.** The five `S:\MP\MPNext\.claude\playbooks`
+> port playbooks were audited against this fork. Remediation is split into nine
+> ordered steps (`step1`…`step9`, one PR each), two ops actions the owner performs
+> in Vercel, and three held items awaiting owner decisions.
 
 > **2026-09-13 — unit-test coverage push.** Statement coverage over authored
 > code went from 49.67% to 98.84% (3,610/3,652), lines to 99.70%, across 1,535
@@ -40,21 +46,37 @@ Total: **4 open TODOs**.
 
 ## By severity
 
-### Critical (0)
-_none open_
-
-### High (0)
-_none open_
-
-### Medium (2)
+### Critical (1)
 | Area | Tags | Title | File |
 |---|---|---|---|
+| auth | security, missing-test | Step 1 — F12 ID-token sign-in, F3b open-redirect bypass, /sign-in/social boundary | [→](2026-09-30-step1-close-live-auth-holes-f12-f3b.md) |
+
+### High (5)
+| Area | Tags | Title | File |
+|---|---|---|---|
+| services | security, missing-test | Step 2 — Fail-closed roles, group-wizard mass assignment, page-metadata injection, F11 | [→](2026-09-30-step2-authorization-and-input-validation.md) |
+| auth | security, missing-test, doc | Step 3 — Session lifetime, token-in-cookie, boot guards, secrets hygiene, client-IP header | [→](2026-09-30-step3-session-lifetime-and-secrets-hygiene.md) |
+| auth | security, missing-test, doc | Step 4 — OIDC lazy discovery, sub binding, dedicated OIDC client, sign-out | [→](2026-09-30-step4-oidc-lazy-discovery-and-sub-binding.md) |
+| auth | security, doc | Ops — Rotate BETTER_AUTH_SECRET; advise downstream clones | [→](2026-09-30-ops-rotate-better-auth-secret.md) |
+| auth | security, doc | Ops — Set MP_SECURITY_ROLES=* in every environment | [→](2026-09-30-ops-set-mp-security-roles-env.md) |
+
+### Medium (7)
+| Area | Tags | Title | File |
+|---|---|---|---|
+| mp-provider | security, missing-test | Step 5 — MP HTTP client and provider hardening | [→](2026-09-30-step5-mp-http-client-and-provider-hardening.md) |
+| routing | security, drift | Step 6 — Headers, next.config, server-only, prerender + build in CI | [→](2026-09-30-step6-headers-csp-build-guards.md) |
+| services | drift, missing-test | Step 7 — Write-audit gaps and datetime drift cleanup | [→](2026-09-30-step7-write-audit-and-datetime-cleanup.md) |
+| routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
+| mp-provider | security | Held — Deny-all stored-procedure allowlist | [→](2026-09-30-held-stored-procedure-allowlist.md) |
 | components | bug, drift | Template editor ignores pageID/recordID (no MP persistence) | [→](2026-04-17-components-template-editor-no-mp-persistence.md) |
 | components | bug, refactor | Merge tokens `{{Field_Name}}` have no resolver anywhere | [→](2026-04-17-components-template-editor-merge-token-resolver.md) |
 
-### Low (2)
+### Low (5)
 | Area | Tags | Title | File |
 |---|---|---|---|
+| components | security, bug | Step 8 — Address-label caps, error boundaries, tool-params decode, codegen escaping | [→](2026-09-30-step8-fork-specific-low-risk-items.md) |
+| commands | security, doc | Step 9 — CI supply chain, setup env writer, docs | [→](2026-09-30-step9-ci-setup-and-docs.md) |
+| commands | security, doc | Held — GitHub repo security settings | [→](2026-09-30-held-github-repo-security-settings.md) |
 | components | bug | Add/Edit Family search: "No contacts found" empty state never renders | [→](2026-09-13-search-empty-state-never-renders.md) |
 | components | refactor, missing-test | Unreachable "empty STEP_FIELDS" branch in `GroupWizard.handleNext` | [→](2026-09-13-dead-empty-fields-branch-handlenext.md) |
 
@@ -62,8 +84,8 @@ _none open_
 
 ## By tag
 
-### security (0)
-_none open_
+### security (13)
+- all 2026-09-30 step/ops/held items except step7
 
 ### bug (3)
 - components-template-editor-no-mp-persistence — medium
