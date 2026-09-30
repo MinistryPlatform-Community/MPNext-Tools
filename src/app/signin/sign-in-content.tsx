@@ -17,44 +17,95 @@ import {
 // an error state so the user sees a retry path instead of an infinite spinner.
 const REDIRECT_TIMEOUT_MS = 10_000;
 
+// C0 controls, DEL and C1 controls. The WHATWG URL parser silently STRIPS tab,
+// LF and CR from anywhere in the input before it parses — i.e. AFTER every
+// string check below has run. So `/\t/evil.example` (from
+// `?callbackUrl=/%09/evil.example`) passes a `startsWith("//")` test and then
+// navigates as `//evil.example`: off-site. Refusing all control characters
+// closes that and any other parser-stripped variant in one rule.
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
+// A percent-encoded `/` or `\` in the PATH can be decoded by a router or proxy
+// downstream into a real separator (`/%2F/evil` -> `//evil`). Only the path is
+// checked: `%2F` in a query string or fragment is ordinary data.
+const ENCODED_SEPARATOR = /%2f|%5c/i;
+// A throwaway base for the final resolution check. `.invalid` is reserved
+// (RFC 2606), so it can never collide with a real origin.
+const SENTINEL = "https://sentinel.invalid";
+
 /**
  * Clamps `?callbackUrl=` to a path on this origin.
  *
- * Without this, `/signin?callbackUrl=https://evil.example` bounces the user
- * off-site from a URL that looks exactly like this app's own login page — a
- * credible phishing hop.
+ * F3: without this, `/signin?callbackUrl=https://evil.example` bounces the
+ * user off-site from a URL that looks exactly like this app's own login page —
+ * a credible phishing hop.
+ *
+ * F3b: the first version only refused a leading `//` or `/\`, which
+ * `?callbackUrl=/%09/example.com` bypassed (see `CONTROL_CHARS`). The rules
+ * now mirror better-auth's server-side `isSafeRelativeURL`, which already
+ * refuses these values as a `callbackURL` on the signed-out path. The
+ * signed-in path is a bare `location.href` assignment with no server in the
+ * loop, so this function is the ONLY check there — and client and server
+ * should agree on what "safe" means, or a URL one accepts and the other
+ * rejects strands the user.
  *
  * Sanitizing happens once, HERE AT THE SOURCE, rather than at each sink,
  * because the value feeds two different consumers: the `window.location.href`
- * assignment (where no server is involved at all) and the `callbackURL` handed
- * to `signIn.oauth2`. Cleaning it once means a future third use cannot miss it.
- *
- * `//` is protocol-relative (`//evil.example` → `https://evil.example`), and
- * browsers normalize `/\` to `//`, so both are rejected.
+ * assignment and the `callbackURL` handed to `signIn.social`. Cleaning it once
+ * means a future third use cannot miss it.
  */
 export function sanitizeCallbackUrl(raw: string | null | undefined): string {
-  if (!raw || !raw.startsWith("/")) return "/";
-  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/";
+  if (typeof raw !== "string" || !raw.startsWith("/")) return "/";
+  // `//evil` is protocol-relative (another origin). ANY backslash is refused,
+  // not just a leading `/\`: special-scheme URLs treat `\` as `/`, and a
+  // backslash has no legitimate use in this app's paths.
+  if (raw.startsWith("//") || raw.includes("\\") || CONTROL_CHARS.test(raw)) return "/";
+  const pathEnd = raw.search(/[?#]/);
+  if (ENCODED_SEPARATOR.test(pathEnd === -1 ? raw : raw.slice(0, pathEnd))) return "/";
+  // Backstop: let the real URL parser resolve it and insist it stays on this
+  // origin. After the checks above no input is known to fail this; it guards
+  // against a browser parser diverging from the string rules.
+  try {
+    if (new URL(raw, SENTINEL).origin !== SENTINEL) return "/";
+  } catch {
+    return "/";
+  }
+  // Return the RAW value, never the `new URL()`-normalized form: dot-segment
+  // removal turns `/.//evil.com` into the pathname `//evil.com`, which would
+  // itself be a protocol-relative redirect. Raw `/.//evil.com` resolves safely
+  // to this origin's `//evil.com` path.
   return raw;
 }
 
+const PROVIDER_REJECTED =
+  "The sign-in request was rejected by the provider. Please retry; if the problem persists, contact support.";
+const PROVIDER_UNAVAILABLE =
+  "The sign-in provider is temporarily unavailable. Please retry in a moment.";
+const GENERIC_FAILURE =
+  "Sign-in failed. Please retry; if the problem persists, contact support.";
+
+/**
+ * The fixed set of messages `?error=` can select. The query value is only
+ * ever used as a LOOKUP KEY — never rendered — so a crafted link cannot put
+ * attacker-chosen text on this app's own sign-in page ("Your account is
+ * locked, call 555-…"). An unknown code gets the generic message.
+ *
+ * A `Map`, not an object literal, so keys like `__proto__` or `constructor`
+ * cannot resolve to inherited properties.
+ */
+const OAUTH_ERROR_MESSAGES: ReadonlyMap<string, string> = new Map([
+  ["access_denied", "Sign-in was cancelled. Click retry to try again."],
+  ["invalid_request", PROVIDER_REJECTED],
+  ["invalid_client", PROVIDER_REJECTED],
+  ["invalid_grant", PROVIDER_REJECTED],
+  ["unauthorized_client", PROVIDER_REJECTED],
+  ["unsupported_response_type", PROVIDER_REJECTED],
+  ["invalid_scope", PROVIDER_REJECTED],
+  ["server_error", PROVIDER_UNAVAILABLE],
+  ["temporarily_unavailable", PROVIDER_UNAVAILABLE],
+]);
+
 function describeOAuthError(code: string): string {
-  switch (code) {
-    case "access_denied":
-      return "Sign-in was cancelled. Click retry to try again.";
-    case "invalid_request":
-    case "invalid_client":
-    case "invalid_grant":
-    case "unauthorized_client":
-    case "unsupported_response_type":
-    case "invalid_scope":
-      return "The sign-in request was rejected by the provider. Please retry; if the problem persists, contact support.";
-    case "server_error":
-    case "temporarily_unavailable":
-      return "The sign-in provider is temporarily unavailable. Please retry in a moment.";
-    default:
-      return `Sign-in failed (${code}). Please retry; if the problem persists, contact support.`;
-  }
+  return OAUTH_ERROR_MESSAGES.get(code) ?? GENERIC_FAILURE;
 }
 
 export function SignInContent() {
@@ -164,7 +215,11 @@ export function SignInContent() {
     // If the URL arrived with ?error=..., don't auto-start OAuth — the user
     // just came back from a failed attempt and should see the retry UI.
     if (errorParam) {
-      console.error("SignIn: OAuth provider returned error=%s", errorParam);
+      // Log whether the code is one we recognise, not the free-text value.
+      console.error(
+        "SignIn: OAuth provider returned an error (known code: %s)",
+        OAUTH_ERROR_MESSAGES.has(errorParam)
+      );
       return;
     }
 
