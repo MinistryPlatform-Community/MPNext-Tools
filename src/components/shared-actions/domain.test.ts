@@ -8,6 +8,16 @@ const { mockGetMpTimezone, mockGetInstance } = vi.hoisted(() => {
   };
 });
 
+const { mockGetSession } = vi.hoisted(() => ({ mockGetSession: vi.fn() }));
+
+vi.mock('@/lib/auth', () => ({
+  auth: { api: { getSession: mockGetSession } },
+}));
+
+vi.mock('next/headers', () => ({
+  headers: vi.fn().mockResolvedValue(new Headers()),
+}));
+
 vi.mock('@/services/domainTimezoneService', () => ({
   DomainTimezoneService: {
     getInstance: mockGetInstance,
@@ -19,12 +29,28 @@ import { getMpTimezone } from './domain';
 /**
  * This action is one of the documented authorization carve-outs in CLAUDE.md
  * rule 12: it returns a single domain-wide configuration string (the IANA
- * time zone) and exposes no per-record data, so it is deliberately ungated.
+ * time zone) and exposes no per-record data, so it is not ROLE-gated — but it
+ * does require a session (F11), since a server action is a POST endpoint.
  */
 
 describe('getMpTimezone', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetSession.mockResolvedValue({ user: { id: 'ba-1' } });
+  });
+
+  it.each([
+    ['no session', null],
+    ['a session with no user', {}],
+    ['a user with no id', { user: {} }],
+  ])('REFUSES with %s and never touches MP (F11)', async (_label, session) => {
+    // Adversarial: before F11 this action had no check at all and answered
+    // an unauthenticated POST.
+    mockGetSession.mockResolvedValueOnce(session);
+
+    await expect(getMpTimezone()).rejects.toThrow('Authentication required');
+    expect(mockGetInstance).not.toHaveBeenCalled();
+    expect(mockGetMpTimezone).not.toHaveBeenCalled();
   });
 
   it('returns the IANA zone from DomainTimezoneService', async () => {
