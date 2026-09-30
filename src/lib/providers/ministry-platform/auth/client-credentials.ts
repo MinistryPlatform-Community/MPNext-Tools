@@ -1,8 +1,31 @@
 import { getMpBaseUrl } from "@/lib/env";
+import { readJsonResponse } from "../utils/http-client";
+import { errorName } from "../utils/logger";
 
 export type CredentialProfile = 'default' | 'dev';
 
-export async function getClientCredentialsToken(profile: CredentialProfile = 'default') {
+/**
+ * Shape of the OAuth2 client-credentials token response returned by MP's
+ * `/oauth/connect/token` endpoint. `expires_in` (seconds) is optional because
+ * the response is untrusted at the type level.
+ */
+export interface ClientCredentialsToken {
+  access_token: string;
+  token_type: string;
+  expires_in?: number;
+}
+
+/**
+ * Deadline for the token request. It gates every MP call, so a stalled token
+ * endpoint must fail fast rather than hold requests for undici's 300 s default.
+ */
+export const TOKEN_TIMEOUT_MS = 10_000;
+
+const ERROR_PREFIX = "Failed to get client credentials token";
+
+export async function getClientCredentialsToken(
+  profile: CredentialProfile = 'default'
+): Promise<ClientCredentialsToken> {
   // Validated (https, no credentials/query, no trailing slash): this request
   // carries the service-account client secret. See src/lib/env.ts.
   const mpBaseUrl = getMpBaseUrl();
@@ -17,19 +40,48 @@ export async function getClientCredentialsToken(profile: CredentialProfile = 'de
     scope: "http://www.thinkministry.com/dataplatform/scopes/all",
   });
 
-  const response = await fetch(`${mpOauthUrl}/connect/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get client credentials token: ${response.statusText}`);
+  let response: Response;
+  try {
+    response = await fetch(`${mpOauthUrl}/connect/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+      // A 307/308 would re-send the form body — client_secret included — to
+      // whatever origin it names. MP's token endpoint never redirects.
+      redirect: "error",
+      signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
+    });
+  } catch (error) {
+    // Name only (TypeError / TimeoutError): the raw error is not ours to log.
+    throw new Error(`${ERROR_PREFIX}: ${errorName(error)}`);
   }
 
-  return await response.json();
+  if (!response.ok) {
+    // Status first: statusText is empty over HTTP/2. Never the body.
+    throw new Error(`${ERROR_PREFIX}: ${response.status} ${response.statusText}`.trimEnd());
+  }
+
+  const token = await readJsonResponse<Partial<ClientCredentialsToken> | undefined>(
+    response,
+    ERROR_PREFIX
+  );
+
+  // A 200 without a usable bearer token would otherwise be cached and sent as
+  // "Authorization: Bearer undefined" until it expired.
+  if (
+    !token ||
+    typeof token !== "object" ||
+    typeof token.access_token !== "string" ||
+    token.access_token.trim() === "" ||
+    typeof token.token_type !== "string" ||
+    token.token_type.toLowerCase() !== "bearer"
+  ) {
+    throw new Error(`${ERROR_PREFIX}: invalid token response`);
+  }
+
+  return token as ClientCredentialsToken;
 }
 
 function resolveCredentials(profile: CredentialProfile): { clientId: string; clientSecret: string } {

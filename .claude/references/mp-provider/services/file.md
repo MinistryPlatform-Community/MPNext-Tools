@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/file.service.ts]
 symbols: [FileService, getFilesByRecord, uploadFiles, updateFile, deleteFile, getFileContentByUniqueId, getFileMetadata, getFileMetadataByUniqueId]
 related: [../README.md, table.md, communication.md]
-last_verified: 2026-04-17
+last_verified: 2026-09-30
 ---
 
 ## Purpose
@@ -130,7 +130,8 @@ const blob = await service.getFileContentByUniqueId('abc');
 
 ## Gotchas
 - **`isDefaultImage` → `$default`** — param name changes between the TS interface and the query string. Don't search for `$isDefaultImage`; it is always `$default` (`file.service.ts:69, :118`).
-- **`getFileContentByUniqueId` bypasses auth** — relies on MP's public blob endpoint. If MP changes this to require auth, this method will 401 silently (the raw `fetch` has no token refresh logic).
+- **`getFileContentByUniqueId` bypasses auth** — relies on MP's public blob endpoint (so the unique ID is a download capability: it never appears in logs or messages, which say `{uniqueId}`). Its raw `fetch` has its own `FILE_CONTENT_TIMEOUT_MS` (20 s) and `redirect: "error"`, but no token refresh.
+- **Every path segment is validated** before any token work: table name (`Invalid table name`), record/file ID (`Expected positive integer for record ID` / `file ID`), unique ID (`Invalid GUID format`).
 - **Duplicate param transmission** — `uploadFiles` and `updateFile` send the same optional values in both FormData AND query string. Intentional (MP API accepts either) but doubles the wire payload for large descriptions.
 - **`userId` is NOT put in FormData for uploads** — only the query string gets `$userId` (`file.service.ts:71`). Compare to other optional params which go to both.
 - **`$thumbnail` omitted when undefined** — only `thumbnail === true | false` sends it; implicit `undefined` skips (`file.service.ts:165-167`).

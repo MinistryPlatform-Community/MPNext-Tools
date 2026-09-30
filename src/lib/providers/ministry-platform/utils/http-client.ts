@@ -1,167 +1,146 @@
 import { QueryParams, RequestBody } from "../types/provider.types";
-import { logger } from "./logger";
+import { errorName, logger } from "./logger";
 
+/**
+ * Deadline for a JSON API call. Without one a stalled MP holds the request
+ * (and the serverless function running it) until undici's 300 s default.
+ */
+export const API_TIMEOUT_MS = 20_000;
+
+/** Multipart uploads carry file bodies, so they get a longer deadline. */
+export const UPLOAD_TIMEOUT_MS = 60_000;
+
+/**
+ * Endpoint content that could re-aim the service bearer at another API path
+ * once the URL parser runs: dot-segments, a query/fragment smuggled into the
+ * path, backslashes (treated as "/" for http(s)), their percent-encoded forms,
+ * and control characters (the parser silently strips tabs/newlines, so ".\t."
+ * would become "..").
+ */
+const UNSAFE_ENDPOINT = /\.\.|[?#\\]|%2e|%2f|%5c|[\u0000-\u001f\u007f]/i;
+
+/**
+ * MP file unique IDs are GUIDs, and MP serves `/files/{uniqueId}` without
+ * authentication, so the ID is a download capability: keep it out of logs and
+ * error messages.
+ */
+const GUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+const UNSAFE_ENDPOINT_MESSAGE = 'Refusing unsafe MP API endpoint';
+
+/** An endpoint safe to put in a log line or error message. */
+export function redactEndpoint(endpoint: string): string {
+    return endpoint.replace(GUID, '{uniqueId}');
+}
+
+/**
+ * Parses a successful response as JSON without letting a non-JSON body leak
+ * into an error: V8's `SyntaxError` message embeds a fragment of the input,
+ * and callers log errors. An empty body (204, or `Content-Length: 0`) yields
+ * `undefined`. Anything else must declare a JSON content-type.
+ *
+ * @param label prefix for thrown messages, e.g. "GET /tables/Contacts failed"
+ */
+export async function readJsonResponse<T>(response: Response, label: string): Promise<T> {
+    const headers = response.headers;
+    if (response.status === 204 || headers?.get('content-length') === '0') {
+        return undefined as T;
+    }
+
+    const contentType = (headers?.get('content-type') ?? '').trim().toLowerCase();
+    if (!/^application\/([\w.-]+\+)?json(\s*;|$)/.test(contentType)) {
+        throw new Error(`${label}: unexpected content-type`);
+    }
+
+    try {
+        return (await response.json()) as T;
+    } catch {
+        throw new Error(`${label}: invalid JSON response`);
+    }
+}
+
+/**
+ * Called on a 401 with the token that was rejected. Expected to invalidate it
+ * (if it is still current) and obtain a fresh one; the request is then retried
+ * exactly once.
+ */
+export type UnauthorizedHandler = (rejectedToken: string) => Promise<void>;
+
+interface RequestOptions {
+    queryParams?: QueryParams;
+    body?: BodyInit;
+    json?: boolean;
+    timeoutMs?: number;
+}
+
+/**
+ * HTTP client for the MP REST API. Every request is sent with the service
+ * account's bearer (`dataplatform/scopes/all`), so every request:
+ *
+ *  - carries a deadline (`AbortSignal.timeout`, fresh per attempt);
+ *  - refuses redirects (`redirect: "error"`) — a 307/308 would re-send the
+ *    body, i.e. member data, to wherever it points;
+ *  - goes through the path guard in {@link HttpClient.buildUrl};
+ *  - parses its response with {@link readJsonResponse};
+ *  - on a 401, asks the owner for a fresh token and retries once.
+ *
+ * Logs and thrown messages carry IDENTIFIERS AND SHAPE ONLY — method, redacted
+ * endpoint (path, GUIDs replaced), status, error name. Never the URL (its
+ * query string carries the `$filter`), a request body or a response body.
+ */
 export class HttpClient {
     private baseUrl: string;
     private getToken: () => string;
+    private onUnauthorized?: UnauthorizedHandler;
 
-    constructor(baseUrl: string, getToken: () => string) {
+    constructor(baseUrl: string, getToken: () => string, onUnauthorized?: UnauthorizedHandler) {
         this.baseUrl = baseUrl;
         this.getToken = getToken;
-    }
-
-    /**
-     * Shared error-handling for non-2xx responses.
-     *
-     * Logs and throws IDENTIFIERS AND SHAPE ONLY — method, endpoint, status,
-     * statusText. Deliberately NOT the response body and NOT the full URL:
-     *
-     *  - The body of a failed MP request routinely echoes back record content
-     *    (names, emails, notes) and the `$filter` string that produced it.
-     *  - `endpoint` is the path only; the query string carries the `$filter`.
-     *  - A thrown message propagates much further than a log line — into error
-     *    reporters, client-visible action results and, previously, into every
-     *    downstream log that stringified the error. Appending the body there
-     *    leaked it everywhere at once.
-     *
-     * All HTTP methods (GET/POST/POST FormData/PUT/PUT FormData/DELETE) route
-     * through this helper so callers get the same shape of error regardless of
-     * method.
-     */
-    private async handleFailedResponse(
-        method: string,
-        endpoint: string,
-        response: Response
-    ): Promise<never> {
-        logger.error('mp.request.failed', {
-            method,
-            endpoint,
-            status: response.status,
-            statusText: response.statusText,
-        });
-        throw new Error(
-            `${method} ${endpoint} failed: ${response.status} ${response.statusText}`
-        );
+        this.onUnauthorized = onUnauthorized;
     }
 
     async get<T = unknown>(endpoint: string, queryParams?: QueryParams): Promise<T> {
-        const url = this.buildUrl(endpoint, queryParams);
-
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.getToken()}`,
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            await this.handleFailedResponse('GET', endpoint, response);
-        }
-
-        return await response.json() as T;
+        return this.request<T>('GET', endpoint, { queryParams });
     }
 
     async post<T = unknown>(endpoint: string, body?: RequestBody, queryParams?: QueryParams): Promise<T> {
-        const url = this.buildUrl(endpoint, queryParams);
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.getToken()}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: body ? JSON.stringify(body) : undefined
+        return this.request<T>('POST', endpoint, {
+            queryParams,
+            body: body ? JSON.stringify(body) : undefined,
+            json: true,
         });
-
-        if (!response.ok) {
-            await this.handleFailedResponse('POST', endpoint, response);
-        }
-
-        return await response.json() as T;
     }
 
     async postFormData<T = unknown>(endpoint: string, formData: FormData, queryParams?: QueryParams): Promise<T> {
-        const url = this.buildUrl(endpoint, queryParams);
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.getToken()}`,
-                'Accept': 'application/json'
-                // Don't set Content-Type for FormData
-            },
-            body: formData
+        return this.request<T>('POST', endpoint, {
+            queryParams,
+            body: formData,
+            timeoutMs: UPLOAD_TIMEOUT_MS,
         });
-
-        if (!response.ok) {
-            await this.handleFailedResponse('POST', endpoint, response);
-        }
-
-        return await response.json() as T;
     }
 
     async put<T = unknown>(endpoint: string, body: RequestBody, queryParams?: QueryParams): Promise<T> {
-        const url = this.buildUrl(endpoint, queryParams);
-
-
-        const response = await fetch(url, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${this.getToken()}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(body)
+        return this.request<T>('PUT', endpoint, {
+            queryParams,
+            body: JSON.stringify(body),
+            json: true,
         });
-
-        if (!response.ok) {
-            await this.handleFailedResponse('PUT', endpoint, response);
-        }
-
-        return await response.json() as T;
     }
 
     async putFormData<T = unknown>(endpoint: string, formData: FormData, queryParams?: QueryParams): Promise<T> {
-        const url = this.buildUrl(endpoint, queryParams);
-
-        const response = await fetch(url, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${this.getToken()}`,
-                'Accept': 'application/json'
-                // Don't set Content-Type for FormData
-            },
-            body: formData
+        return this.request<T>('PUT', endpoint, {
+            queryParams,
+            body: formData,
+            timeoutMs: UPLOAD_TIMEOUT_MS,
         });
-
-        if (!response.ok) {
-            await this.handleFailedResponse('PUT', endpoint, response);
-        }
-
-        return await response.json() as T;
     }
 
     async delete<T = unknown>(endpoint: string, queryParams?: QueryParams): Promise<T> {
-        const url = this.buildUrl(endpoint, queryParams);
-
-        const response = await fetch(url, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${this.getToken()}`,
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            await this.handleFailedResponse('DELETE', endpoint, response);
-        }
-
-        return await response.json() as T;
+        return this.request<T>('DELETE', endpoint, { queryParams });
     }
 
     public buildUrl(endpoint: string, queryParams?: QueryParams): string {
+        this.assertSafeEndpoint(endpoint);
         const url = `${this.baseUrl}${endpoint}`;
         if (!queryParams) return url;
 
@@ -169,15 +148,129 @@ export class HttpClient {
         return queryString ? `${url}?${queryString}` : url;
     }
 
+    /**
+     * Central path guard. The endpoint is appended to the service account's
+     * base URL and sent with its bearer, so it must not be able to leave the
+     * API root or reach a different API path than the one it names. Services
+     * `encodeURIComponent` their path segments, but
+     * `encodeURIComponent("..") === ".."`, so the check has to live here too.
+     */
+    private assertSafeEndpoint(endpoint: string): void {
+        // Runtime check: types are erased, and endpoints can carry caller input.
+        if (typeof endpoint !== 'string' || !endpoint.startsWith('/') || UNSAFE_ENDPOINT.test(endpoint)) {
+            throw new Error(UNSAFE_ENDPOINT_MESSAGE);
+        }
+
+        let resolved: string;
+        let root: string;
+        try {
+            root = new URL(this.baseUrl).href.replace(/\/+$/, '') + '/';
+            resolved = new URL(`${this.baseUrl}${endpoint}`).href;
+        } catch {
+            throw new Error('Invalid MP API base URL');
+        }
+        // Defensive: the checks above already rule out every known way out.
+        if (!resolved.startsWith(root)) {
+            throw new Error(UNSAFE_ENDPOINT_MESSAGE);
+        }
+    }
+
     private buildQueryString(params: QueryParams): string {
         return Object.entries(params)
             .filter(([, value]) => value !== undefined && value !== null)
             .map(([key, value]) => {
+                const k = encodeQueryKey(key);
                 if (Array.isArray(value)) {
-                    return value.map(v => `${key}=${encodeURIComponent(String(v))}`).join('&');
+                    return value.map(v => `${k}=${encodeURIComponent(String(v))}`).join('&');
                 }
-                return `${key}=${encodeURIComponent(String(value))}`;
+                return `${k}=${encodeURIComponent(String(value))}`;
             })
             .join('&');
     }
+
+    private async request<T>(method: string, endpoint: string, options: RequestOptions): Promise<T> {
+        const url = this.buildUrl(endpoint, options.queryParams);
+        const safeEndpoint = redactEndpoint(endpoint);
+
+        let token = this.getToken();
+        let response = await this.send(method, url, safeEndpoint, token, options);
+
+        if (response.status === 401 && this.onUnauthorized) {
+            // The token may have been revoked server-side before its local
+            // expiry: drop it, fetch a new one, and retry exactly once. A
+            // failed refresh falls through to the ordinary 401 error below.
+            let refreshed = false;
+            try {
+                await this.onUnauthorized(token);
+                refreshed = true;
+            } catch (error) {
+                logger.error('mp.token.refresh_after_401_failed', {
+                    method,
+                    endpoint: safeEndpoint,
+                    error: errorName(error),
+                });
+            }
+            if (refreshed) {
+                token = this.getToken();
+                response = await this.send(method, url, safeEndpoint, token, options);
+            }
+        }
+
+        if (!response.ok) {
+            logger.error('mp.request.failed', {
+                method,
+                endpoint: safeEndpoint,
+                status: response.status,
+                statusText: response.statusText,
+            });
+            throw new Error(`${method} ${safeEndpoint} failed: ${response.status} ${response.statusText}`.trimEnd());
+        }
+
+        return readJsonResponse<T>(response, `${method} ${safeEndpoint} failed`);
+    }
+
+    private async send(
+        method: string,
+        url: string,
+        safeEndpoint: string,
+        token: string,
+        options: RequestOptions
+    ): Promise<Response> {
+        const headers: Record<string, string> = {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+        };
+        // Don't set Content-Type for FormData — fetch adds the boundary.
+        if (options.json) headers['Content-Type'] = 'application/json';
+
+        const init: RequestInit = {
+            method,
+            headers,
+            // The MP API has no legitimate redirects, and a 307/308 would
+            // re-send the body (member data) to wherever it points.
+            redirect: 'error',
+            // A fresh signal per attempt, so a 401 retry gets its own deadline.
+            signal: AbortSignal.timeout(options.timeoutMs ?? API_TIMEOUT_MS),
+        };
+        if (method === 'POST' || method === 'PUT') init.body = options.body;
+
+        try {
+            return await fetch(url, init);
+        } catch (error) {
+            // Network error, timeout, or refused redirect. Name only — never
+            // the URL (it carries the $filter) or the raw error.
+            const name = errorName(error);
+            logger.error('mp.request.failed', { method, endpoint: safeEndpoint, error: name });
+            throw new Error(`${method} ${safeEndpoint} failed: ${name}`);
+        }
+    }
+}
+
+/**
+ * Query keys are caller-shaped too. `$` (MP's `$filter`/`$top`/...) and `@`
+ * (stored-procedure parameters) are legal in a query component and MP expects
+ * them literally, so they are left unescaped.
+ */
+function encodeQueryKey(key: string): string {
+    return encodeURIComponent(key).replace(/%24/g, '$').replace(/%40/g, '@');
 }

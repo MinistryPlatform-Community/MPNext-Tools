@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/procedure.service.ts]
 symbols: [ProcedureService, getProcedures, executeProcedure, executeProcedureWithBody]
 related: [../README.md, table.md, ../../required-stored-procs.md]
-last_verified: 2026-04-17
+last_verified: 2026-09-30
 ---
 
 ## Purpose
@@ -62,8 +62,8 @@ function isDevProcedure(procedure: string): boolean {
 
 ## How it works
 - Both execute methods call `resolveHttpClient(procedure)` which branches on `isDevProcedure` and invokes the matching `ensureValid*Token` + `get*HttpClient` pair (`procedure.service.ts:87-95`).
-- Procedure name is URL-encoded on every call (`procedure.service.ts:45`, `:71`).
-- Errors from `HttpClient` propagate after `logger.error`.
+- Procedure name is validated with `sanitizeIdentifier` (`^[A-Za-z_][A-Za-z0-9_]*$`, ≤128) and then URL-encoded, before any token work; a bad name throws `Invalid procedure name`. There is **no** allowlist of callable procedures (held; see `.claude/TODO/2026-09-30-held-stored-procedure-allowlist.md`).
+- Errors propagate after `logger.error('mp.procs.execute_failed', { procedure, error: errorName(e) })`.
 
 ## Stored procedures called by this codebase
 
@@ -119,7 +119,7 @@ const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool',
 ## Gotchas
 - **Never pass `@DomainID`** — the MP API injects it from the authenticated domain context. Passing it manually causes a parameter mismatch. Comments in real callers repeat this: `// DomainID is automatically injected by MP API` (`src/services/toolService.ts:126`, `:178`).
 - **Every `api_*` procedure definition must declare `@DomainID INT` first** — MP API will not expose procedures that omit it (`.claude/commands/newstoredproc.md:171`). This is SQL-side, not TS-side.
-- **Dev-prefix match is trim+lowercase** — leading whitespace in the procedure name is tolerated; internal whitespace is URL-encoded and forwarded (`procedure.service.test.ts:105-112`).
+- **Dev-prefix match is case-insensitive** — whitespace anywhere in a procedure name is now refused by the identifier guard.
 - **Result shape is nested `unknown[][]`** — callers must guard for empty result sets and empty row arrays before indexing (`src/services/toolService.ts:132, :189`).
 
 ## Related docs

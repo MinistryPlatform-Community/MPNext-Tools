@@ -98,7 +98,6 @@ export interface GlobalFilterItem {
 }
 
 export interface GlobalFilterParams {
-  $ignorePermissions?: boolean;
   $userId?: number;
 }
 

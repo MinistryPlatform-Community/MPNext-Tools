@@ -1,6 +1,6 @@
 import { MinistryPlatformClient } from "../client";
 import { CommunicationInfo, Communication, MessageInfo, TableQueryParams, QueryParams } from "../types";
-import { logger } from "../utils/logger";
+import { errorName, logger } from "../utils/logger";
 
 type UserIdParams = Pick<TableQueryParams, '$userId'>;
 
@@ -35,7 +35,7 @@ export class CommunicationService {
                 return await this.client.getHttpClient().post<Communication>('/communications', { ...communication }, queryParams);
             }
         } catch (error) {
-            logger.error('Error creating communication:', error);
+            logger.error('mp.communication.create_failed', { error: errorName(error) });
             throw error;
         }
     }
@@ -58,7 +58,7 @@ export class CommunicationService {
                 return await this.client.getHttpClient().post<Communication>('/messages', { ...message }, queryParams);
             }
         } catch (error) {
-            logger.error('Error sending message:', error);
+            logger.error('mp.message.send_failed', { error: errorName(error) });
             throw error;
         }
     }

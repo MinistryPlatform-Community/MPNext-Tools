@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/domain.service.ts]
 symbols: [DomainService, getDomainInfo, getGlobalFilters]
 related: [../README.md, metadata.md]
-last_verified: 2026-04-17
+last_verified: 2026-09-30
 ---
 
 ## Purpose
@@ -17,7 +17,7 @@ Read domain-level configuration (display name, timezone, culture, MFA settings) 
 
 ## Key concepts
 - `getDomainInfo` hits `/domain` (no params). Authenticated; ties to the current access token's domain.
-- `getGlobalFilters` hits `/domain/filters` with optional `$userId` and `$ignorePermissions` params. Returns `{ Key, Value }[]` where `Key: 0` represents "records with no filter assigned."
+- `getGlobalFilters` hits `/domain/filters` forwarding **only** a validated `$userId` (an explicit allowlist; `$ignorePermissions` was removed 2026-09-30 and is dropped if smuggled in). Returns `{ Key, Value }[]` where `Key: 0` represents "records with no filter assigned."
 - The domain's global filter table name is in `DomainInfo.GlobalFilterTableName` (may be undefined on domains without global filters configured).
 
 ## API / Interface
@@ -35,7 +35,7 @@ public async getGlobalFilters(params?: GlobalFilterParams): Promise<GlobalFilter
 | Method | HTTP | Endpoint |
 |---|---|---|
 | `getDomainInfo` | GET | `/domain` |
-| `getGlobalFilters` | GET | `/domain/filters` (optional `$userId`, `$ignorePermissions`) |
+| `getGlobalFilters` | GET | `/domain/filters` (optional `$userId` only) |
 
 ### Type shapes
 
@@ -68,7 +68,6 @@ export interface GlobalFilterItem {
 
 // :100
 export interface GlobalFilterParams {
-  $ignorePermissions?: boolean;
   $userId?: number;
 }
 ```
@@ -76,7 +75,7 @@ export interface GlobalFilterParams {
 ## How it works
 - Both methods call `ensureValidToken()` then `getHttpClient().get(endpoint, params?)`.
 - No URL encoding needed — endpoints are static.
-- Errors propagate from `HttpClient` after `logger.error`.
+- Errors propagate from `HttpClient` after `logger.error(event, { error: errorName(e) })`.
 
 ## Usage
 
@@ -101,7 +100,7 @@ Also exposed via `MPHelper.getDomainInfo` / `.getGlobalFilters` (`src/lib/provid
 
 ## Gotchas
 - **`Key: 0` = unfiltered records** — documented in the JSDoc (`domain.service.ts:28-29`). Treat 0 as sentinel, not as a real filter id.
-- **`$ignorePermissions: true` bypasses per-user filter scoping** — only usable where caller has admin context. MP 403s otherwise.
+- **No `$ignorePermissions`** — requests already run as the admin-level service account; the flag could only widen that. A non-integer `$userId` throws `Expected positive integer for user ID` before any request.
 - **`GlobalFilterTableName` is optional** — on domains with no global filter configured, `DomainInfo.GlobalFilterTableName` is `undefined`, and `getGlobalFilters` still returns `[]` (not an error).
 - **Response type is loose where MP sends more fields** — test fixture `{ DomainName: 'Test', DomainId: 1 }` does not match `DomainInfo` (which uses `DisplayName`, no `DomainId`). The mock is intentionally loose; production MP returns the `DomainInfo` shape.
 

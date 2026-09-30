@@ -5,11 +5,11 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/table.service.ts]
 symbols: [TableService, getTableRecords, createTableRecords, updateTableRecords, deleteTableRecords, copyRecord, copyRecordWithSubpages]
 related: [../README.md, procedure.md, file.md, ../../services/README.md]
-last_verified: 2026-04-17
+last_verified: 2026-09-30
 ---
 
 ## Purpose
-HTTP-level wrapper around the Ministry Platform REST `/tables/{table}` endpoints. Stateless; each method calls `client.ensureValidToken()` then the underlying `HttpClient` verb. No validation at this layer — Zod `schema` validation lives one level up in `MPHelper` (see Gotchas).
+HTTP-level wrapper around the Ministry Platform REST `/tables/{table}` endpoints. Stateless; each method validates its path segments, calls `client.ensureValidToken()`, then the underlying `HttpClient` verb. No record-body validation at this layer — Zod `schema` validation lives one level up in `MPHelper` (see Gotchas).
 
 ## Files
 - `src/lib/providers/ministry-platform/services/table.service.ts` — implementation (150 lines)
@@ -19,7 +19,7 @@ HTTP-level wrapper around the Ministry Platform REST `/tables/{table}` endpoints
 - Constructor takes a `MinistryPlatformClient`; no singleton.
 - Every method: `ensureValidToken()` → `getHttpClient().{verb}()` → return typed result.
 - `TableQueryParams` include `$select`, `$filter`, `$orderby`, `$groupby`, `$having`, `$top`, `$skip`, `$distinct`, `$userId`, `$globalFilterId`, `$allowCreate` (see `src/lib/providers/ministry-platform/types/provider.types.ts:1`).
-- Table name is URL-encoded via `encodeURIComponent()` on every endpoint (`table.service.ts:22`, `:44`, `:63`, `:87`, `:116`, `:142`).
+- Table name is validated (`sanitizeIdentifier` via `tableEndpoint` in `services/guards.ts`) and then URL-encoded on every endpoint; `recordId` (copy methods) and each `ids` entry (delete) must be positive safe integers. All checks run before any token work and throw a fixed message naming the field.
 - **Partial vs full updates** are not parameters on `TableService` — they are a `MPHelper.updateTableRecords` concern (`partial: boolean`, default `true`; see `src/lib/providers/ministry-platform/helper.ts:266-267`).
 - **`schema` (Zod validation)** is also not a `TableService` parameter — it is a `MPHelper` concern (`src/lib/providers/ministry-platform/helper.ts:175`, `:256`). `TableService` itself does not validate.
 
@@ -79,7 +79,7 @@ public async deleteTableRecords<T extends TableRecord = TableRecord>(
 - `createTableRecords` / `updateTableRecords` pass `records` array as the body and `params` as query string.
 - `copyRecord` does NOT copy sub-pages or files; `copyRecordWithSubpages` can via `CopyParameters.SubpageIds` and `CopyParameters.CopyFiles`. Both create `dp_Sequences` entries for native MP series linkage (`table.service.ts:73-77`, `:100-105`).
 - `RecurrencePattern` and `CopyParameters` defined in `src/lib/providers/ministry-platform/types/provider.types.ts:221, :246`.
-- Errors from `HttpClient` propagate unchanged after a `logger.error` call.
+- Errors from `HttpClient` propagate unchanged after `logger.error('mp.table.<op>_failed', { table, recordId?, error: errorName(e) })`.
 
 ## Usage
 

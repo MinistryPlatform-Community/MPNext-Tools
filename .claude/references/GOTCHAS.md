@@ -134,17 +134,17 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 ### GOTCHA-008: First API call after cold boot fails with empty `Authorization: Bearer`
 
 **Symptom:** Fresh server boot, first MP call returns 401 with an empty Bearer.
-**Root cause:** Service method forgot to `await this.client.ensureValidToken()` before `getHttpClient().get()`. `HttpClient` has no auto-refresh hook — it just reads whatever `() => this.token` returns.
+**Root cause:** Service method forgot to `await this.client.ensureValidToken()` before `getHttpClient().get()`. Since 2026-09-30 (Step 5) the `HttpClient` 401 hook refreshes and retries once, so this now costs an extra round trip instead of failing — but it is still a bug; do not rely on the hook for a cold client.
 **Fix:** Every MP-provider service method that does a network call must start with `await this.client.ensureValidToken()` (or `ensureValidDevToken()` for `api_dev_*` procs).
-**Enforced where:** `src/lib/providers/ministry-platform/client.ts:49-68`. Seen correctly applied in e.g. `src/lib/providers/ministry-platform/services/file.service.ts:48`, `communication.service.ts:20,40`.
+**Enforced where:** `src/lib/providers/ministry-platform/client.ts` (`TokenPipeline.ensureValid`). Seen correctly applied in e.g. `src/lib/providers/ministry-platform/services/file.service.ts:48`, `communication.service.ts:20,40`.
 **Related:** [mp-provider/](mp-provider/)
 
-### GOTCHA-009: N concurrent MP calls on cold server trigger N OAuth token POSTs
+### GOTCHA-009: N concurrent MP calls on cold server trigger N OAuth token POSTs (RESOLVED)
 
 **Symptom:** Log shows many simultaneous `POST /oauth/connect/token` calls on a cold boot under load.
-**Root cause:** `ensureValidToken` has no in-flight promise de-duplication — each caller sees an expired token and each starts its own refresh.
-**Fix:** Cache an in-flight `refreshPromise` inside `MinistryPlatformClient` so concurrent callers all await the same pending refresh. TODO: `.claude/TODO/2026-04-17-mp-provider-token-refresh-no-dedup.md`.
-**Enforced where:** `src/lib/providers/ministry-platform/client.ts:49` (not currently enforced).
+**Root cause (historical):** `ensureValidToken` had no in-flight promise de-duplication — each caller sees an expired token and each starts its own refresh.
+**Fix:** Resolved. Each `TokenPipeline` in `client.ts` shares one in-flight refresh across concurrent callers, and after a failed refresh fails fast for 5–30 s (jittered negative cache) instead of stampeding the token endpoint.
+**Enforced where:** `src/lib/providers/ministry-platform/client.ts` (`TokenPipeline`); pinned by `client.test.ts` "Single-flight refresh and negative cache".
 **Related:** [mp-provider/](mp-provider/)
 
 ### GOTCHA-010: Callers can't `e instanceof ZodError` after validation failure
@@ -184,7 +184,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** The deploy-tool flow writes rows into the production `dp_Tools` table.
 **Root cause:** Procedures prefixed with `api_dev_` are routed to the dev credentials pipeline by the provider. Without that prefix, `DeployTool` would run under production credentials.
 **Fix:** Keep the `api_dev_` prefix on any proc that should stay out of prod. Ensure `MINISTRY_PLATFORM_DEV_CLIENT_ID` / `MINISTRY_PLATFORM_DEV_CLIENT_SECRET` are set in `.env.local`. Keep the dev-panel localhost-only (see GOTCHA-033). Never rename these procs without checking the ProcedureService routing.
-**Enforced where:** `src/services/toolService.ts:242-247`, `src/lib/providers/ministry-platform/client.ts:75-94` (dev pipeline).
+**Enforced where:** `src/services/toolService.ts:242-247`, `src/lib/providers/ministry-platform/client.ts` (`dev` `TokenPipeline`).
 **Related:** [mp-provider/client.md](mp-provider/client.md)
 
 ### GOTCHA-015: File uploaded but no `$userId` audit trail
