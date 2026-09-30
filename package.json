@@ -19,7 +19,8 @@
     "mp:generate:storedprocs": "tsx src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts",
     "mp:build:install": "tsx src/lib/providers/ministry-platform/scripts/build-sql-install.ts",
     "setup": "tsx scripts/setup.ts",
-    "setup:check": "tsx scripts/setup.ts --check"
+    "setup:check": "tsx scripts/setup.ts --check",
+    "prepare": "git config core.hooksPath .githooks || exit 0"
   },
   "dependencies": {
     "@dnd-kit/abstract": "^0.5.0",

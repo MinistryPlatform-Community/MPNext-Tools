@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Blocks commits that would land an environment file other than .env.example
+# (.env, .env.local, .env.production, sub/dir/.env.test.local, ...). These hold
+# the admin-level MP service-account secret and BETTER_AUTH_SECRET, and this
+# repo's forks are often public. .gitignore already ignores .env*, so this
+# catches `git add -f` and an edited .gitignore. Deleting a tracked one is
+# allowed (that is the fix, not the leak).
+#
+# Installed by the `prepare` script in package.json, which points
+# core.hooksPath at this directory. Ported from upstream MPNext.
+
+# -z + tr: NUL-separated names are never C-quoted (core.quotePath), so a
+# non-ASCII directory name cannot wrap the path in quotes and slip a trailing
+# .env past the anchored match below.
+staged_env_files=$(
+  git diff --cached --name-only --diff-filter=ACMR -z |
+    tr '\000' '\n' |
+    grep -E '(^|/)\.env[^/]*$' |
+    grep -Ev '(^|/)\.env\.example$'
+)
+if [ -n "$staged_env_files" ]; then
+  echo "Commit blocked: environment files are staged. They can hold secrets"
+  echo "(e.g. MINISTRY_PLATFORM_CLIENT_SECRET, BETTER_AUTH_SECRET) and must never be committed:"
+  echo "$staged_env_files" | sed 's/^/  /'
+  echo ""
+  echo "Unstage them with: git restore --staged <file>"
+  echo "Only .env.example (placeholder values only) may be committed."
+  exit 1
+fi
+
+exit 0
