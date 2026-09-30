@@ -10,6 +10,7 @@ import type { MPUserProfile } from "@/lib/providers/ministry-platform/types";
  *   2. Email_Address rendering including null-safe render.
  *   3. `handleItemClick` wiring: `onClose?.()` runs before `handleSignOut()`.
  *   4. Sign-out still works when `onClose` is omitted.
+ *   5. A failed sign-out is surfaced; Next's redirect signal is re-thrown.
  *
  * The Radix DropdownMenu primitives rely on a Portal plus pointer-event
  * gating that does not play nicely with jsdom, so we stub the UI barrel
@@ -17,8 +18,11 @@ import type { MPUserProfile } from "@/lib/providers/ministry-platform/types";
  * logic rather than Radix internals.
  */
 
-const { mockHandleSignOut } = vi.hoisted(() => ({
+const { mockHandleSignOut, clicks } = vi.hoisted(() => ({
   mockHandleSignOut: vi.fn(),
+  // What each menu item's onClick returned (the handler's promise), so a test
+  // can await a rejection instead of leaving it unhandled.
+  clicks: [] as unknown[],
 }));
 
 vi.mock("./actions", () => ({
@@ -44,7 +48,17 @@ vi.mock("@/components/ui/dropdown-menu", () => {
     DropdownMenuItem: function Item({ children, onClick, className }: any) {
       return React.createElement(
         "button",
-        { type: "button", onClick, className },
+        {
+          type: "button",
+          onClick: (e: unknown) =>
+            clicks.push(
+              Promise.resolve(onClick?.(e)).then(
+                () => ({ rejected: false }),
+                (error: unknown) => ({ rejected: true, error }),
+              ),
+            ),
+          className,
+        },
         children
       );
     },
@@ -163,5 +177,46 @@ describe("UserMenu", () => {
     });
 
     expect(mockHandleSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-throws Next's NEXT_REDIRECT signal instead of treating a successful sign-out as a failure", async () => {
+    const redirectSignal = Object.assign(new Error("NEXT_REDIRECT"), {
+      digest: "NEXT_REDIRECT;replace;https://mp.example.com/oauth/connect/endsession;307;",
+    });
+    mockHandleSignOut.mockRejectedValueOnce(redirectSignal);
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    clicks.length = 0;
+
+    render(
+      <UserMenu userProfile={makeProfile()}>
+        <button>trigger</button>
+      </UserMenu>
+    );
+    await act(async () => {
+      screen.getByRole("button", { name: /sign out/i }).click();
+    });
+
+    await expect(clicks[0]).resolves.toEqual({ rejected: true, error: redirectSignal });
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it("tells the user when sign-out genuinely fails, instead of swallowing it", async () => {
+    mockHandleSignOut.mockRejectedValueOnce(new Error("[env] MP_OIDC_CLIENT_ID and MP_OIDC_CLIENT_SECRET must be set together"));
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    clicks.length = 0;
+
+    render(
+      <UserMenu userProfile={makeProfile()}>
+        <button>trigger</button>
+      </UserMenu>
+    );
+    await act(async () => {
+      screen.getByRole("button", { name: /sign out/i }).click();
+    });
+
+    await expect(clicks[0]).resolves.toEqual({ rejected: false });
+    expect(alertSpy).toHaveBeenCalledWith(expect.stringMatching(/sign out did not complete/i));
+    // The raw error (which can name configuration) is not shown.
+    expect(alertSpy).not.toHaveBeenCalledWith(expect.stringContaining("MP_OIDC_CLIENT_ID"));
   });
 });
