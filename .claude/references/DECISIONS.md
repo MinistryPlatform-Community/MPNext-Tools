@@ -71,6 +71,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Context:** The tools suite is an internal app for MP staff. Adding a dedicated Postgres/Redis instance for session storage would be operational overhead disproportionate to the feature set. `auth.api.getSession()` is called on every authenticated server-component render, so the happy path must be fast.
 **Decision:** Enable `session.cookieCache` with `strategy: "jwt"` and a 1-hour `maxAge`, plus `account.storeAccountCookie: true` and `storeStateStrategy: "cookie"`. Do not configure a database adapter (`src/lib/auth.ts`).
 **Consequences:** Zero infrastructure beyond env vars. `getSession()` verifies the JWT cookie without a DB roundtrip. No server-side session list, no admin revocation, no cross-device logout. Sub-1-hour cookie TTL caps how long a stolen cookie is usable; refresh-token rotation behaviour in pure-cookie mode is unverified in this repo.
+**Amended 2026-09-30 (security Step 3):** the "sub-1-hour" claim was wrong — stateless better-auth defaults `cookieCache.refreshCache` to `true`, so a copied cookie re-signed itself for up to 7 days. Now: `expiresIn` 12 h, `disableSessionRefresh`, `strategy: "jwe"`, `refreshCache: false` (an unbacked cookie dies within 1 h), `storeAccountCookie: false` and no `offline_access`. Still no database. See `auth/sessions.md`.
 **Alternatives considered:**
 - **DB adapter (Postgres/SQLite via Drizzle)** — requires operating an auth DB and migration pipeline.
 - **Redis adapter** — another external dependency and another ops surface.

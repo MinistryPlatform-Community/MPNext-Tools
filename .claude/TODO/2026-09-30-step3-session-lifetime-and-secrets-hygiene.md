@@ -6,7 +6,7 @@ area: auth
 files: [src/lib/auth.ts, src/lib/env.ts, .gitignore, .claude/settings.local.json, src/lib/providers/ministry-platform/client.ts, src/lib/providers/ministry-platform/auth/client-credentials.ts]
 discovered: 2026-09-30
 discovered_by: playbook-audit (port-security-review-2026-09-28.md P2/P3/P6)
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -42,3 +42,33 @@ Follow `port-security-review-2026-09-28.md` Phases 2, 3 and the IP part of 6.
 ## Impact if not fixed
 A stolen cookie grants up to 7 days of access and carries a full-scope MP refresh token; mis-set env vars fail
 silently at runtime instead of at boot.
+
+## Resolution (2026-09-30)
+
+Branch `fix/step3-session-secrets`.
+
+1. **Session (P3)** — `src/lib/auth.ts`: `expiresIn` 12 h, `disableSessionRefresh`, `cookieCache`
+   `strategy: "jwe"` + `refreshCache: false` (explicit; better-auth 1.7.6 defaults it on when stateless),
+   `storeAccountCookie: false`, `databaseHooks.account.{create,update}.before` → `stripUserOAuthTokens`
+   (access/refresh + expiries nulled, `idToken` kept), `offline_access` dropped. `customSession` →
+   `enrichSession`, which keeps `firstName`/`lastName` (documented fork behaviour) and withholds
+   `token`/`ipAddress`/`userAgent`. Verified by decoding `session_data` with `symmetricDecodeJWT` in
+   `src/auth.session-config.test.ts` (no token material; no `account_data` cookie).
+2. **Boot guards (P2)** — `assertAuthEnvironment` (unset / default / < 32 chars / `BETTER_AUTH_SECRETS` /
+   `TEST` in production; skipped only under Vitest), `advanced.disableOriginCheck: false`, and
+   `src/lib/env.ts` (`getMpBaseUrl`, `getAuthBaseUrl`; `NEXTAUTH_*` fallbacks kept) used by `auth.ts`,
+   the MP client, client-credentials and the sign-out action. `test-setup.ts` secret lengthened to ≥ 32.
+3. **Secrets hygiene** — `.gitignore` → `.env*` / `!.env.example`, `.vercel`, `.claude/settings.local.json`,
+   `.claude/worktrees/`; `git rm --cached .claude/settings.local.json` (file kept locally);
+   `.githooks/pre-commit` + `prepare` script (no new dependency); `SECURITY.md`.
+4. **Client IP (P6)** — `parseIpAddressOptions` (`AUTH_IP_ADDRESS_HEADERS`, `AUTH_TRUSTED_PROXIES`, invalid
+   entries refuse startup). Default `x-vercel-forwarded-for,x-real-ip` **only when `VERCEL` is set**; off
+   Vercel those headers are client-controlled, so better-auth's default applies. Verified against
+   <https://vercel.com/docs/headers/request-headers> (2026-09-30). `.env.example` documents other edges.
+5. **Tests** — `src/auth.{session-lifetime,session-config,user-oauth-tokens,secret-guard,ip-address}.test.ts`,
+   `src/lib/env.test.ts`, via `src/test-utils/mock-oidc.ts` (excluded from coverage). Mutation-checked:
+   refreshCache, storeAccountCookie, token stripping, secret-length guard, module-level guard, jwe→jwt,
+   expiresIn, offline_access, Vercel default, withheld fields — each turns the suite red.
+
+Not done here: secret rotation itself (ops TODO, owner), GitHub repo security settings (held TODO).
+

@@ -50,6 +50,7 @@ export default defineConfig({
         'src/test-setup.ts',
         '**/*.d.ts',
         '**/*.{test,spec}.{ts,tsx}',
+        'src/test-utils/**', // Test-only helpers (mock OIDC server), imported only by tests
         'src/lib/providers/ministry-platform/models/**', // Auto-generated files
         'src/lib/providers/ministry-platform/scripts/**', // Build-time CLI scripts
         'src/components/ui/**', // Vendored shadcn/ui primitives
