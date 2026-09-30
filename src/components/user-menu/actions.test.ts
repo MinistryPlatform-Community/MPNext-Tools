@@ -64,7 +64,7 @@ describe('handleSignOut', () => {
     delete process.env.MINISTRY_PLATFORM_BASE_URL;
     mockSignOut.mockResolvedValueOnce(undefined);
 
-    await expect(handleSignOut()).rejects.toThrow('MINISTRY_PLATFORM_BASE_URL is not configured');
+    await expect(handleSignOut()).rejects.toThrow('MINISTRY_PLATFORM_BASE_URL is not set');
   });
 
   it('should throw when neither BETTER_AUTH_URL nor NEXTAUTH_URL is set', async () => {
@@ -72,7 +72,7 @@ describe('handleSignOut', () => {
     delete process.env.NEXTAUTH_URL;
     mockSignOut.mockResolvedValueOnce(undefined);
 
-    await expect(handleSignOut()).rejects.toThrow('BETTER_AUTH_URL (or NEXTAUTH_URL) is not configured');
+    await expect(handleSignOut()).rejects.toThrow('BETTER_AUTH_URL is not set (NEXTAUTH_URL is accepted as a fallback)');
     expect(mockRedirect).not.toHaveBeenCalled();
   });
 
@@ -85,6 +85,26 @@ describe('handleSignOut', () => {
 
     expect(mockRedirect).toHaveBeenCalledWith(
       expect.stringContaining('post_logout_redirect_uri=https%3A%2F%2Ffallback.example.com')
+    );
+  });
+
+  it('refuses a non-https MP URL rather than redirecting the browser to it', async () => {
+    process.env.MINISTRY_PLATFORM_BASE_URL = 'http://mp.example.com';
+    mockSignOut.mockResolvedValueOnce(undefined);
+
+    await expect(handleSignOut()).rejects.toThrow('MINISTRY_PLATFORM_BASE_URL must use https://');
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it('normalizes a trailing slash, so the URL never contains //oauth', async () => {
+    process.env.MINISTRY_PLATFORM_BASE_URL = 'https://mp.example.com/api/';
+    process.env.BETTER_AUTH_URL = 'https://myapp.example.com/';
+    mockSignOut.mockResolvedValueOnce(undefined);
+
+    await handleSignOut();
+
+    expect(mockRedirect).toHaveBeenCalledWith(
+      'https://mp.example.com/api/oauth/connect/endsession?post_logout_redirect_uri=https%3A%2F%2Fmyapp.example.com'
     );
   });
 });

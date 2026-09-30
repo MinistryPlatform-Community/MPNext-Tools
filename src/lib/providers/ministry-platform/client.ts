@@ -1,6 +1,7 @@
 import { getClientCredentialsToken } from "./auth/client-credentials";
 import { HttpClient } from "./utils/http-client";
 import { logger } from "./utils/logger";
+import { getMpBaseUrl } from "@/lib/env";
 
 // Token refresh interval - refresh 5 minutes before actual expiration for safety
 const TOKEN_LIFE = 5 * 60 * 1000; // 5 minutes
@@ -38,7 +39,8 @@ export class MinistryPlatformClient {
      * Initializes both the default and dev HTTP clients and sets up token management
      */
     constructor() {
-        this.baseUrl = process.env.MINISTRY_PLATFORM_BASE_URL!;
+        // Validated and normalized (see src/lib/env.ts); throws on a bad value.
+        this.baseUrl = getMpBaseUrl();
         this.httpClient = new HttpClient(this.baseUrl, () => this.token);
         this.devHttpClient = new HttpClient(this.baseUrl, () => this.devToken);
     }

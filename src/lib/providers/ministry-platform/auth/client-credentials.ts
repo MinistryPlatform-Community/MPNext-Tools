@@ -1,7 +1,11 @@
+import { getMpBaseUrl } from "@/lib/env";
+
 export type CredentialProfile = 'default' | 'dev';
 
 export async function getClientCredentialsToken(profile: CredentialProfile = 'default') {
-  const mpBaseUrl = process.env.MINISTRY_PLATFORM_BASE_URL!;
+  // Validated (https, no credentials/query, no trailing slash): this request
+  // carries the service-account client secret. See src/lib/env.ts.
+  const mpBaseUrl = getMpBaseUrl();
   const mpOauthUrl = `${mpBaseUrl}/oauth`;
 
   const { clientId, clientSecret } = resolveCredentials(profile);
