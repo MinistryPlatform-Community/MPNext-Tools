@@ -385,7 +385,6 @@ export class MPHelper {
    * Retrieves available global filters for the domain
    * Global filters provide domain-wide data filtering capabilities
    * @param params - Optional parameters for the global filters request
-   * @param params.$ignorePermissions - Whether to ignore user permissions when retrieving filters
    * @param params.$userId - User context for permission-based filter access
    * @returns Promise resolving to array of global filter items with keys and display values
    * @throws Error if authentication fails or filters are inaccessible

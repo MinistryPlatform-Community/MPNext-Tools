@@ -79,7 +79,7 @@ describe('DomainService', () => {
       const result = await service.getGlobalFilters();
 
       expect(mockClient.ensureValidToken).toHaveBeenCalledTimes(1);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/domain/filters', undefined);
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/domain/filters', {});
       expect(result).toEqual([]);
     });
 
@@ -91,6 +91,21 @@ describe('DomainService', () => {
 
       expect(mockHttpClient.get).toHaveBeenCalledWith('/domain/filters', { $userId: 123 });
       expect(result).toEqual(filters);
+    });
+
+    it('should drop a smuggled $ignorePermissions and forward only $userId', async () => {
+      (mockHttpClient.get as any).mockResolvedValueOnce([]);
+
+      await service.getGlobalFilters({ $ignorePermissions: true, $userId: 7, $filter: 'x' } as any);
+
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/domain/filters', { $userId: 7 });
+    });
+
+    it('should refuse a non-integer $userId before any token work', async () => {
+      await expect(service.getGlobalFilters({ $userId: '7 OR 1=1' } as any)).rejects.toThrow(
+        'Expected positive integer for user ID'
+      );
+      expect(mockClient.ensureValidToken).not.toHaveBeenCalled();
     });
 
     it('should propagate errors', async () => {

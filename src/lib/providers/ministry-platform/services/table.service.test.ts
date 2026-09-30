@@ -400,22 +400,15 @@ describe('TableService', () => {
       expect(result).toEqual(copiedRecords);
     });
 
-    it('should URL-encode table name with special characters', async () => {
+    it('should refuse a table name that is not a plain identifier', async () => {
       const pattern = {
         Type: 'Daily' as const,
         Interval: 1,
         StartDate: '2026-01-01',
       };
 
-      (mockHttpClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
-
-      await tableService.copyRecord('My Table', 42, pattern);
-
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/tables/My%20Table/42/copy',
-        pattern,
-        undefined
-      );
+      await expect(tableService.copyRecord('My Table', 42, pattern)).rejects.toThrow('Invalid table name');
+      expect(mockHttpClient.post).not.toHaveBeenCalled();
     });
 
     it('should pass $select and $userId query params', async () => {
@@ -526,6 +519,118 @@ describe('TableService', () => {
       await expect(
         tableService.copyRecordWithSubpages('Events', 1, copyParams)
       ).rejects.toThrow('500 Server Error');
+    });
+  });
+});
+
+describe('TableService - path and ID guards', () => {
+  let tableService: TableService;
+  let mockClient: MinistryPlatformClient;
+  let mockHttpClient: HttpClient;
+  const pattern = { Type: 'Daily' as const, Interval: 1, StartDate: '2026-01-01' };
+
+  beforeEach(() => {
+    mockHttpClient = {
+      get: vi.fn().mockResolvedValue([]),
+      post: vi.fn().mockResolvedValue([]),
+      put: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue([]),
+    } as unknown as HttpClient;
+    mockClient = {
+      ensureValidToken: vi.fn().mockResolvedValue(undefined),
+      getHttpClient: vi.fn().mockReturnValue(mockHttpClient),
+    } as unknown as MinistryPlatformClient;
+    tableService = new TableService(mockClient);
+  });
+
+  function expectNothingSent() {
+    expect(mockClient.ensureValidToken).not.toHaveBeenCalled();
+    expect(mockHttpClient.get).not.toHaveBeenCalled();
+    expect(mockHttpClient.post).not.toHaveBeenCalled();
+    expect(mockHttpClient.put).not.toHaveBeenCalled();
+    expect(mockHttpClient.delete).not.toHaveBeenCalled();
+  }
+
+  it.each([
+    '..',
+    '../procs/api_X',
+    'Contacts/../dp_Users',
+    '%2e%2e',
+    'Contacts?$select=Email_Address',
+    'Contacts#',
+    'a b',
+    '',
+  ])('should refuse the table name %j on every method, before any token work', async (table) => {
+    await expect(tableService.getTableRecords(table)).rejects.toThrow(/^Invalid table name$/);
+    await expect(tableService.createTableRecords(table, [])).rejects.toThrow(/^Invalid table name$/);
+    await expect(tableService.updateTableRecords(table, [])).rejects.toThrow(/^Invalid table name$/);
+    await expect(tableService.deleteTableRecords(table, [1])).rejects.toThrow(/^Invalid table name$/);
+    await expect(tableService.copyRecord(table, 1, pattern)).rejects.toThrow(/^Invalid table name$/);
+    await expect(tableService.copyRecordWithSubpages(table, 1, {} as never)).rejects.toThrow(/^Invalid table name$/);
+    expectNothingSent();
+  });
+
+  it.each([
+    ['a traversal string', '1/../../tables/Contacts'],
+    ['a numeric string', '42'],
+    ['zero', 0],
+    ['a negative', -1],
+    ['a fraction', 1.5],
+    ['NaN', NaN],
+    ['an unsafe integer', 2 ** 53],
+    ['an object', { toString: () => '1' }],
+  ])('should refuse %s as a record ID for copyRecord / copyRecordWithSubpages', async (_label, recordId) => {
+    await expect(tableService.copyRecord('Events', recordId as number, pattern)).rejects.toThrow(
+      /^Expected positive integer for record ID$/
+    );
+    await expect(
+      tableService.copyRecordWithSubpages('Events', recordId as number, {} as never)
+    ).rejects.toThrow(/^Expected positive integer for record ID$/);
+    expectNothingSent();
+  });
+
+  it('should never echo a refused value in the error message', async () => {
+    const err = await tableService
+      .copyRecord('Events', '7/../../procs/secret' as unknown as number, pattern)
+      .catch((e: Error) => e);
+    expect((err as Error).message).not.toContain('secret');
+  });
+
+  it('should refuse a non-array ids and any bad id for deleteTableRecords', async () => {
+    await expect(tableService.deleteTableRecords('Contacts', '1,2' as unknown as number[])).rejects.toThrow(
+      'Invalid record IDs'
+    );
+    await expect(tableService.deleteTableRecords('Contacts', [1, '2' as unknown as number])).rejects.toThrow(
+      'Expected positive integer for record ID'
+    );
+    expectNothingSent();
+  });
+
+  it('should log the table and error NAME only, never the raw error', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    (mockHttpClient.get as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new SyntaxError('Unexpected token "Jane Doe" is not valid JSON')
+    );
+
+    await expect(tableService.getTableRecords('Contacts')).rejects.toThrow();
+
+    expect(errorSpy).toHaveBeenCalledWith('[MP]', 'mp.table.get_failed', {
+      table: 'Contacts',
+      error: 'SyntaxError',
+    });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('Jane Doe');
+  });
+
+  it('should log the validated record ID on a failed copy', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    (mockHttpClient.post as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('POST failed: 500'));
+
+    await expect(tableService.copyRecordWithSubpages('Events', 42, {} as never)).rejects.toThrow();
+
+    expect(errorSpy).toHaveBeenCalledWith('[MP]', 'mp.table.copy_with_subpages_failed', {
+      table: 'Events',
+      recordId: 42,
+      error: 'Error',
     });
   });
 });
