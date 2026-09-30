@@ -18,6 +18,7 @@ later audit can re-check in one command instead of re-deriving the analysis.
 
 | Date | Summary |
 |---|---|
+| [2026-09-30](2026-09-30.md) | Cleared 1 high (`brace-expansion` DoS) via in-range updates. Adopted dotenv 18. Re-checked all 4 holds: still blocked. |
 | [2026-09-13](2026-09-13.md) | Cleared 14 advisories (1 critical). Vitest 5 / jsdom 30 / jest-dom 7 / chalk 6. Dropped 5 unused deps. Held TS 7, ESLint 10, GrapesJS 0.23. |
 
 ## Conventions
