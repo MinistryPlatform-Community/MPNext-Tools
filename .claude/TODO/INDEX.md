@@ -12,6 +12,7 @@ last_updated: 2026-09-30
 <!-- 2026-09-30: playbook audit (5 MPNext port playbooks) opened 14 TODOs: 9 remediation steps, 2 ops, 3 held. -->
 <!-- 2026-09-30: closed 1 critical TODO (step1 F12/F3b) — see fix/step1-f12-f3b-signin-hardening PR. -->
 <!-- 2026-09-30: closed 1 high TODO (step2 authz + input validation) — see fix/step2-authz-input-validation PR. -->
+<!-- 2026-09-30: closed 1 high TODO (step4 OIDC lazy discovery + sub binding + sign-out); opened 1 medium (require dedicated OIDC client) — see fix/step4-oidc-lazy-discovery PR. -->
 <!-- 2026-09-13: coverage push 49.67% -> 98.84% statements. Opened 8 TODOs, closed 2 (template-editor-missing-tests, coverage-report-masked-untested-files). -->
 
 
@@ -51,16 +52,16 @@ Total: **15 open TODOs**.
 ### Critical (0)
 _none open_
 
-### High (3)
+### High (2)
 | Area | Tags | Title | File |
 |---|---|---|---|
-| auth | security, missing-test, doc | Step 4 — OIDC lazy discovery, sub binding, dedicated OIDC client, sign-out | [→](2026-09-30-step4-oidc-lazy-discovery-and-sub-binding.md) |
 | auth | security, doc | Ops — Rotate BETTER_AUTH_SECRET; advise downstream clones | [→](2026-09-30-ops-rotate-better-auth-secret.md) |
 | auth | security, doc | Ops — Set MP_SECURITY_ROLES=* in every environment | [→](2026-09-30-ops-set-mp-security-roles-env.md) |
 
-### Medium (7)
+### Medium (8)
 | Area | Tags | Title | File |
 |---|---|---|---|
+| auth | security, doc | Make MP_OIDC_CLIENT_ID / _SECRET required (remove the service-account fallback) | [→](2026-09-30-require-dedicated-oidc-client.md) |
 | mp-provider | security, missing-test | Step 5 — MP HTTP client and provider hardening | [→](2026-09-30-step5-mp-http-client-and-provider-hardening.md) |
 | routing | security, drift | Step 6 — Headers, next.config, server-only, prerender + build in CI | [→](2026-09-30-step6-headers-csp-build-guards.md) |
 | services | drift, missing-test | Step 7 — Write-audit gaps and datetime drift cleanup | [→](2026-09-30-step7-write-audit-and-datetime-cleanup.md) |
@@ -83,7 +84,7 @@ _none open_
 ## By tag
 
 ### security (10)
-- all open 2026-09-30 step/ops/held items except step7 (step1, step2, step3 resolved)
+- all open 2026-09-30 step/ops/held items except step7 (step1–step4 resolved), plus require-dedicated-oidc-client
 
 ### bug (3)
 - components-template-editor-no-mp-persistence — medium
@@ -103,8 +104,8 @@ _none open_
 ### testing (0)
 _none open_
 
-### doc (0)
-_none open_
+### doc (1)
+- require-dedicated-oidc-client — medium
 
 ### perf (0)
 _none open_
@@ -118,7 +119,7 @@ _none open_
 | components | 4 |
 | testing | 0 |
 | services | 0 |
-| auth | 0 |
+| auth | 3 |
 | mp-provider | 0 |
 | utils | 0 |
 | routing | 0 |
@@ -133,6 +134,7 @@ _none open_
 
 | Date | Title | File |
 |---|---|---|
+| 2026-09-30 | Step 4 — OIDC lazy discovery (no MP call at boot), app-side id_token verification, sub binding, dedicated OIDC client, sign-out id_token_hint | [→](2026-09-30-step4-oidc-lazy-discovery-and-sub-binding.md) |
 | 2026-09-30 | Step 3 — 12 h session ceiling, JWE cookie, no user OAuth tokens, boot guards + env.ts, secrets hygiene, client-IP header | [→](2026-09-30-step3-session-lifetime-and-secrets-hygiene.md) |
 | 2026-09-30 | Step 2 — Fail-closed MP_SECURITY_ROLES, group-wizard mass assignment, page-metadata injection, F11, page self-gating, filter/error hygiene | [→](2026-09-30-step2-authorization-and-input-validation.md) |
 | 2026-09-30 | Step 1 — F12 id_token sign-in refused, F3b callbackUrl bypass closed, /sign-in/social boundary + no-store | [→](2026-09-30-step1-close-live-auth-holes-f12-f3b.md) |

@@ -15,8 +15,13 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 
 // Mock environment variables for tests
 vi.stubEnv('MINISTRY_PLATFORM_BASE_URL', 'https://test-mp.example.com');
-vi.stubEnv('MINISTRY_PLATFORM_CLIENT_ID', 'test-client-id');
+// The service account and the OIDC sign-in client are DIFFERENT clients, as
+// in production (see getOidcClient in src/lib/env.ts). `test-client-id` is the
+// id_token audience the mock OIDC providers sign for.
+vi.stubEnv('MINISTRY_PLATFORM_CLIENT_ID', 'test-service-client-id');
 vi.stubEnv('MINISTRY_PLATFORM_CLIENT_SECRET', 'test-client-secret');
+vi.stubEnv('MP_OIDC_CLIENT_ID', 'test-client-id');
+vi.stubEnv('MP_OIDC_CLIENT_SECRET', 'test-oidc-client-secret');
 vi.stubEnv('MINISTRY_PLATFORM_DEV_CLIENT_ID', 'test-dev-client-id');
 vi.stubEnv('MINISTRY_PLATFORM_DEV_CLIENT_SECRET', 'test-dev-client-secret');
 // >= 32 chars, so it would also pass assertAuthEnvironment (src/lib/auth.ts).

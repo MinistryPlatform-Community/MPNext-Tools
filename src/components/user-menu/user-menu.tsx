@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import { unstable_rethrow } from "next/navigation";
 import { MPUserProfile } from "@/lib/providers/ministry-platform/types";
 import {
   DropdownMenu,
@@ -32,7 +33,17 @@ export function UserMenu({ onClose, userProfile, children }: UserMenuProps) {
       onClose();
     }
     if (action === "signout") {
-      await handleSignOut();
+      try {
+        await handleSignOut();
+      } catch (err) {
+        // MUST stay first: a successful sign-out ends in `redirect()`, a
+        // NEXT_REDIRECT control-flow throw Next has to see, or the navigation
+        // to MP's logout would be swallowed here as an "error".
+        unstable_rethrow(err);
+        // A genuine failure. The app session is cleared before anything in
+        // `handleSignOut` can throw, so say so rather than fail silently.
+        alert("Sign out did not complete. Please close this browser window to finish signing out.");
+      }
     }
   };
 

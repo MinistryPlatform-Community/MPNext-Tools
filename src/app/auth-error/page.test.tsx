@@ -30,19 +30,25 @@ describe('AuthErrorPage', () => {
     expect(screen.getByText(/response from Ministry Platform was incomplete/i)).toBeInTheDocument();
   });
 
-  it('explains nonce_binding_missing as a configuration fault, not a user fault', async () => {
-    // MP never echoes the id_token nonce. Seeing this code in production means
-    // `disableIdTokenNonceBinding` regressed in src/lib/auth.ts, and it breaks
-    // sign-in for EVERY user — so it must not read as "try again".
+  it('no longer maps nonce_binding_missing (no nonce is sent since Step 4), so it falls back', async () => {
     await renderPage({ error: 'nonce_binding_missing' });
 
-    expect(screen.getByText(/isn't configured correctly/i)).toBeInTheDocument();
+    expect(screen.getByText(/couldn't complete sign-in/i)).toBeInTheDocument();
   });
 
-  it('explains oauth_provider_not_found, the boot-time discovery failure', async () => {
+  it('explains oauth_provider_not_found as a configuration fault, not an MP outage', async () => {
+    // Building the auth instance makes no MP call any more, so an MP outage
+    // can no longer unregister the provider.
     await renderPage({ error: 'oauth_provider_not_found' });
 
-    expect(screen.getByText(/couldn't reach Ministry Platform when it started/i)).toBeInTheDocument();
+    expect(screen.getByText(/isn't configured correctly/i)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/when it started/i);
+  });
+
+  it('invites a retry for unable_to_get_user_info, which is what an MP blip at the callback looks like', async () => {
+    await renderPage({ error: 'unable_to_get_user_info' });
+
+    expect(screen.getByText(/please try again in a moment/i)).toBeInTheDocument();
   });
 
   it('falls back for an unknown code', async () => {

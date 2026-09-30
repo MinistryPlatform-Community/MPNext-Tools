@@ -69,8 +69,8 @@ describe('user MP OAuth tokens are not requested or retained', () => {
       expect(account.refreshToken ?? null).toBeNull();
       expect(account.accessTokenExpiresAt ?? null).toBeNull();
       expect(account.refreshTokenExpiresAt ?? null).toBeNull();
-      // Kept deliberately: not an API bearer; needed for a future
-      // id_token_hint on MP logout (security Step 4). It lives ONLY in this
+      // Kept deliberately: not an API bearer; it is the id_token_hint on MP
+      // logout (src/components/user-menu/actions.ts). It lives ONLY in this
       // process's memory adapter — there is no cookie copy any more.
       expect(account.idToken).toBe(oidc.lastIdToken);
     }
@@ -84,11 +84,11 @@ describe('user MP OAuth tokens are not requested or retained', () => {
   });
 });
 
-describe('the retained id_token is still reachable for logout (security Step 4)', () => {
-  // Not used by the app yet: src/components/user-menu/actions.ts hand-builds
-  // the endsession URL. This pins that dropping the account cookie did NOT
-  // remove the id_token_hint source — on the instance that handled sign-in,
-  // better-auth's own sign-out returns it from the in-memory row.
+describe('the retained id_token is still reachable for logout', () => {
+  // src/components/user-menu/actions.ts takes the hint from exactly this
+  // URL. This pins that dropping the account cookie did NOT remove the
+  // id_token_hint source — on the instance that handled sign-in, better-auth's
+  // own sign-out returns it from the in-memory row.
   it('sign-out on the same instance returns MP endsession with id_token_hint', async () => {
     const { jar } = await signIn(auth as unknown as Instance);
     const result = (await auth.api.signOut({
