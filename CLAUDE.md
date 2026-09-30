@@ -281,6 +281,7 @@ condition that clears it. Do not re-derive that analysis.
 
 | Date | Advisories | Highlights | Record |
 |---|---|---|---|
+| 2026-09-30 | 1 → **0** | `brace-expansion` DoS (high) cleared by in-range updates; `next` → 16.3.7. Adopted dotenv 18. All 4 holds re-checked, still blocked. | [2026-09-30](.claude/packages/2026-09-30.md) |
 | 2026-09-13 | 14 → **0** | `next` 16.2.10 → 16.3.5 (**critical** RCE on Windows hosts, proxy bypass, SSRF). Adopted Vitest 5, jsdom 30, jest-dom 7, chalk 6. Dropped 5 unreferenced deps. Held TS 7, ESLint 10, GrapesJS 0.23. | [2026-09-13](.claude/packages/2026-09-13.md) |
 
 ### Current holds
