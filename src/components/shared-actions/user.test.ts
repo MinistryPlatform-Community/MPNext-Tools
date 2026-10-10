@@ -35,17 +35,10 @@ describe('getCurrentUserProfile', () => {
 
   it("should look up the profile using the session's userGuid", async () => {
     const mockProfile = {
-      User_ID: 1,
-      User_GUID: SESSION_GUID,
-      Contact_ID: 100,
       First_Name: 'John',
       Nickname: 'Johnny',
       Last_Name: 'Doe',
       Email_Address: 'john@example.com',
-      Mobile_Phone: null,
-      Image_GUID: null,
-      roles: ['Admin'],
-      userGroups: ['Staff'],
     };
     mockGetUserProfile.mockResolvedValueOnce(mockProfile);
 
