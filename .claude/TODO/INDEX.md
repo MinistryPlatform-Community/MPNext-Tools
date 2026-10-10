@@ -18,7 +18,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **4 open TODOs**.
+Total: **3 open TODOs**.
 
 > **`step6`** and **`step8`** are the remaining steps from the 2026-09-30 MPNext
 > playbook audit (one PR each). `held-*` items wait on an owner decision.
@@ -39,11 +39,10 @@ _none open_
 | routing | security, drift | Step 6 — Headers, next.config, server-only, prerender + build in CI | [→](2026-09-30-step6-headers-csp-build-guards.md) |
 | routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
 
-### Low (2)
+### Low (1)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | components | security, bug | Step 8 — Address-label caps, error boundaries, tool-params decode, codegen escaping | [→](2026-09-30-step8-fork-specific-low-risk-items.md) |
-| components | refactor, missing-test | Unreachable "empty STEP_FIELDS" branch in `GroupWizard.handleNext` | [→](2026-09-13-dead-empty-fields-branch-handlenext.md) |
 
 ---
 
@@ -60,11 +59,11 @@ _none open_
 ### drift (1)
 - step6-headers-csp-build-guards — medium
 
-### missing-test (1)
-- dead-empty-fields-branch-handlenext — low
+### missing-test (0)
+_none open_
 
-### refactor (1)
-- dead-empty-fields-branch-handlenext — low
+### refactor (0)
+_none open_
 
 ### doc (1)
 - held-csp-customer-deployments — medium
@@ -78,7 +77,7 @@ _none open_
 
 | Area | Count |
 |---|---|
-| components | 2 |
+| components | 1 |
 | routing | 2 |
 | services | 0 |
 | auth | 0 |
