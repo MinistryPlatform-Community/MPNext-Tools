@@ -1,7 +1,7 @@
 'use server';
 
 import { auth } from "@/lib/auth";
-import { getAuthBaseUrl, getMpBaseUrl, getOidcClient } from "@/lib/env";
+import { getAuthBaseUrl, getMpBaseUrl, getMpClient } from "@/lib/env";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -63,7 +63,7 @@ export async function handleSignOut() {
   // somewhere unexpected.
   const mpBaseUrl = getMpBaseUrl();
   const appUrl = getAuthBaseUrl();
-  const { clientId } = getOidcClient();
+  const { clientId } = getMpClient();
 
   const params = new URLSearchParams({
     post_logout_redirect_uri: appUrl,

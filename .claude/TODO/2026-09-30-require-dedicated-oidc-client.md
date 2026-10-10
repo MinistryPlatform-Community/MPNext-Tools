@@ -6,7 +6,7 @@ area: auth
 files: [src/lib/env.ts, src/lib/auth.ts, src/lib/env.test.ts, src/auth.secret-guard.test.ts, src/components/user-menu/actions.test.ts, .env.example, scripts/setup.ts, .claude/references/auth/oauth-flow.md]
 discovered: 2026-09-30
 discovered_by: step4-oidc-lazy-discovery (owner decision: the OIDC client must be for this app only)
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -37,3 +37,27 @@ client — redirect URI `<BETTER_AUTH_URL>/api/auth/callback/ministryplatform`, 
 ## Impact if not fixed
 Environments that never set the pair keep sharing one client between the service account and user
 sign-in indefinitely; the warning is easy to ignore.
+
+---
+
+## Resolution (2026-10-10) — superseded: the dedicated client was removed instead
+Owner decision: the app runs on **one** MP client. Instead of making the
+`MP_OIDC_*` pair required, it was deleted. Sign-in, the id_token audience and
+the sign-out `client_id` all use `MINISTRY_PLATFORM_CLIENT_ID` / `_SECRET`,
+read through `getMpClient()` in `src/lib/env.ts`, which refuses to start when
+either is unset. See ADR-027 in `.claude/references/DECISIONS.md`.
+
+Removed: `getOidcClient`, the `OidcClient` type, `warnIfSharedOidcClient` and
+the `auth.oidc.shared_client` event, the `MP_OIDC_*` entries in
+`.env.example` and `scripts/setup.ts`, and the tests for the fallback and
+half-pair cases. Regression tests now check that a stray `MP_OIDC_*` pair is
+ignored (`src/lib/env.test.ts`, `src/auth.secret-guard.test.ts`).
+
+Accepted risk (recorded in ADR-027 and the security README): one secret is
+both full MP data access and user sign-in.
+
+**Owner follow-up (no code):** in each environment, confirm the
+`MINISTRY_PLATFORM_CLIENT_ID` client's MP record lists the redirect URI
+`<BETTER_AUTH_URL>/api/auth/callback/ministryplatform` and the post-logout
+URI `<BETTER_AUTH_URL>`, and delete any `MP_OIDC_CLIENT_ID` / `_SECRET`
+values left in Vercel or `.env.local`.

@@ -187,67 +187,24 @@ describe('auth-critical URLs at module load', () => {
   });
 });
 
-describe('the OIDC sign-in client at module load (owner decision: dedicated client)', () => {
-  const sharedClientWarnings = () =>
-    vi.mocked(console.warn).mock.calls.flatMap(([line]) => {
-      try {
-        const event = JSON.parse(String(line)) as Record<string, unknown>;
-        return event.event === 'auth.oidc.shared_client' ? [event] : [];
-      } catch {
-        return [];
-      }
-    });
-
-  it('uses the dedicated MP_OIDC_CLIENT_ID / _SECRET, not the service account, and does not warn', async () => {
-    setEnv({ MP_OIDC_CLIENT_ID: 'oidc-app', MP_OIDC_CLIENT_SECRET: 'oidc-secret', MINISTRY_PLATFORM_CLIENT_ID: 'svc' });
-    const { ministryPlatformProviderConfig } = await importAuthAsIfNotVitest();
-    expect(ministryPlatformProviderConfig.clientId).toBe('oidc-app');
-    expect(ministryPlatformProviderConfig.clientSecret).toBe('oidc-secret');
-    expect(sharedClientWarnings()).toEqual([]);
-  });
-
-  it('falls back to the service-account client with ONE auth.oidc.shared_client warning per process', async () => {
+describe('the MP client at module load (owner decision: one client for the app)', () => {
+  it('signs in as MINISTRY_PLATFORM_CLIENT_ID / _SECRET and ignores the retired MP_OIDC_* pair', async () => {
     setEnv({
-      MP_OIDC_CLIENT_ID: undefined,
-      MP_OIDC_CLIENT_SECRET: undefined,
       MINISTRY_PLATFORM_CLIENT_ID: 'svc',
       MINISTRY_PLATFORM_CLIENT_SECRET: 'svc-secret',
+      MP_OIDC_CLIENT_ID: 'oidc-app',
+      MP_OIDC_CLIENT_SECRET: 'oidc-secret',
     });
-    const first = await importAuthAsIfNotVitest();
-    vi.resetModules();
-    const second = await importAuthAsIfNotVitest(); // another Next bundle layer
-
-    expect(second.auth).toBe(first.auth);
-    expect(first.ministryPlatformProviderConfig.clientId).toBe('svc');
-    expect(sharedClientWarnings()).toEqual([
-      { event: 'auth.oidc.shared_client', message: expect.any(String), source: 'fallback' },
-    ]);
-    // Identifiers only: never the client id or secret.
-    const logged = vi.mocked(console.warn).mock.calls.flat().join(' ');
-    expect(logged).not.toContain('svc-secret');
-    expect(logged).not.toMatch(/"svc"/);
+    const { ministryPlatformProviderConfig } = await importAuthAsIfNotVitest();
+    expect(ministryPlatformProviderConfig.clientId).toBe('svc');
+    expect(ministryPlatformProviderConfig.clientSecret).toBe('svc-secret');
   });
 
-  it('warns when the "dedicated" client is the service-account id', async () => {
-    setEnv({ MP_OIDC_CLIENT_ID: 'svc', MP_OIDC_CLIENT_SECRET: 'x', MINISTRY_PLATFORM_CLIENT_ID: 'svc' });
-    await importAuthAsIfNotVitest();
-    expect(sharedClientWarnings()).toEqual([expect.objectContaining({ source: 'same_as_service_account' })]);
-  });
-
-  it('stays silent during next build (NEXT_PHASE), whose workers are separate processes', async () => {
-    const { warnIfSharedOidcClient } = await import('@/lib/auth');
-    vi.mocked(console.warn).mockClear();
-    warnIfSharedOidcClient({ shared: 'fallback' }, { NEXT_PHASE: 'phase-production-build' });
-    expect(sharedClientWarnings()).toEqual([]);
-    warnIfSharedOidcClient({ shared: 'fallback' }, { NEXT_PHASE: 'phase-production-server' });
-    expect(sharedClientWarnings()).toHaveLength(1);
-    warnIfSharedOidcClient({ shared: null }, {});
-    expect(sharedClientWarnings()).toHaveLength(1);
-  });
-
-  it('refuses to import with only half of the dedicated pair set', async () => {
-    setEnv({ MP_OIDC_CLIENT_ID: 'oidc-app', MP_OIDC_CLIENT_SECRET: undefined });
-    await expect(importAuthAsIfNotVitest()).rejects.toThrow(/MP_OIDC_CLIENT_ID and MP_OIDC_CLIENT_SECRET must be set together/);
+  it('refuses to import without the client secret', async () => {
+    setEnv({ MINISTRY_PLATFORM_CLIENT_SECRET: undefined });
+    await expect(importAuthAsIfNotVitest()).rejects.toThrow(
+      /MINISTRY_PLATFORM_CLIENT_ID and MINISTRY_PLATFORM_CLIENT_SECRET must both be set/,
+    );
   });
 });
 

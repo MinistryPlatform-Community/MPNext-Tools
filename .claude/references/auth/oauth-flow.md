@@ -3,9 +3,9 @@ title: OAuth Flow (genericOAuth, lazy id_token verification, OIDC endsession)
 domain: auth
 type: reference
 applies_to: [src/lib/auth.ts, src/lib/env.ts, src/app/signin/page.tsx, src/app/api/auth/[...all]/route.ts, src/components/user-menu/actions.ts, src/components/user-menu/user-menu.tsx]
-symbols: [auth, ministryPlatformProviderConfig, lazyIdTokenVerifier, sharedInstance, getOidcClient, handleSignOut]
+symbols: [auth, ministryPlatformProviderConfig, lazyIdTokenVerifier, sharedInstance, getMpClient, handleSignOut]
 related: [sessions.md, user-identity.md, route-protection.md, ../security/README.md]
-last_verified: 2026-09-30
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -14,7 +14,7 @@ id_token verification, profile mapping, and RP-initiated logout via `endsession`
 
 ## Files
 - `src/lib/auth.ts` — provider config (`ministryPlatformProviderConfig`, `providerId: "ministryplatform"`), `lazyIdTokenVerifier`, `sharedInstance`
-- `src/lib/env.ts` — `getMpBaseUrl()`, `getAuthBaseUrl()`, `getOidcClient()` (validated env readers)
+- `src/lib/env.ts` — `getMpBaseUrl()`, `getAuthBaseUrl()`, `getMpClient()` (validated env readers)
 - `src/app/signin/sign-in-content.tsx` — calls `authClient.signIn.social({ provider: "ministryplatform", callbackURL })`
 - `src/app/api/auth/[...all]/route.ts` — deny-by-default allowlist in front of `toNextJsHandler(auth)`
 - `src/components/user-menu/actions.ts` — `handleSignOut()` server action
@@ -22,9 +22,9 @@ id_token verification, profile mapping, and RP-initiated logout via `endsession`
 
 ## Key concepts
 - **No boot-time discovery (security Step 4, upstream MPNext issue #101).** The provider has explicit `authorizationUrl`, `tokenUrl` and `endSessionEndpoint` and **no `discoveryUrl`**, so building the auth instance — `next build`, cold starts, every page's session check — makes **no MP call** and the provider always registers. With `discoveryUrl`, better-auth 1.7 fetched discovery once at boot with no timeout or retry: one MP blip left `/sign-in/social` answering `404 PROVIDER_NOT_FOUND` until a restart, and a hung MP stalled every request ~300 s.
-- **The id_token is still verified — by the app.** `getUserInfo` calls `verifyMpIdToken`: RS256 only (`ID_TOKEN_ALGORITHMS`, pinned), signature against MP's JWKS, `iss` = the discovered issuer, `aud` = the OIDC client id, `exp`/`nbf` when present. The issuer and `jwks_uri` come from MP's discovery document, loaded **lazily at the first callback** by `lazyIdTokenVerifier`: 5 s timeout (`OIDC_DISCOVERY_TIMEOUT_MS`), `redirect: "error"`, single-flight, cached on success, **never cached on failure**, fails closed on a document missing `issuer`/`jwks_uri`. The JWKS URL is **not** pinned (MP serves `/oauth/.well-known/jwks`, not the IdentityServer default).
+- **The id_token is still verified — by the app.** `getUserInfo` calls `verifyMpIdToken`: RS256 only (`ID_TOKEN_ALGORITHMS`, pinned), signature against MP's JWKS, `iss` = the discovered issuer, `aud` = the MP client id, `exp`/`nbf` when present. The issuer and `jwks_uri` come from MP's discovery document, loaded **lazily at the first callback** by `lazyIdTokenVerifier`: 5 s timeout (`OIDC_DISCOVERY_TIMEOUT_MS`), `redirect: "error"`, single-flight, cached on success, **never cached on failure**, fails closed on a document missing `issuer`/`jwks_uri`. The JWKS URL is **not** pinned (MP serves `/oauth/.well-known/jwks`, not the IdentityServer default).
 - **`getUserInfo` order** (every refusal returns `null`, never throws — better-auth's callback does not catch): missing id_token → verify → `sub` present → `exp` present / `azp` = us when `aud` is a list → userinfo fetch (10 s `USERINFO_TIMEOUT_MS`, `redirect: "error"`) → `extractUserGuid` → **userinfo `sub` must equal the id_token `sub`** (case-insensitive). The binding is F12's defence-in-depth layer. Returns `{ sub, email: <sub>@mp.invalid, mpEmail, name, image: undefined, emailVerified: <claim> }`.
-- **Dedicated OIDC client (owner decision).** Sign-in runs as `MP_OIDC_CLIENT_ID` / `MP_OIDC_CLIENT_SECRET`, not the service account (`MINISTRY_PLATFORM_CLIENT_ID`). Unset, `getOidcClient()` falls back to the service account and `auth.ts` logs `auth.oidc.shared_client` once per process; half a pair refuses to start. The fallback is slated for removal (`.claude/TODO/2026-09-30-require-dedicated-oidc-client.md`).
+- **One MP client (owner decision 2026-10-10, ADR-027).** Sign-in runs as `MINISTRY_PLATFORM_CLIENT_ID` / `MINISTRY_PLATFORM_CLIENT_SECRET` — the same client the service account uses — read through `getMpClient()`, which refuses to start when either is unset. The earlier dedicated `MP_OIDC_CLIENT_ID` / `_SECRET` pair and its `auth.oidc.shared_client` warning were removed; the variables are ignored if still set.
 - **PKCE is DISABLED** (`pkce: false`) — permanent. MP advertises `code_challenge_methods_supported: ["plain", "S256"]` but rejects the exchange with `invalid_grant` (verified 2026-09-13). **No nonce either**: with no id_token config better-auth neither sends nor requires one (`requiresIdTokenNonce: false`). `requireIdTokenVerification` and `disableIdTokenNonceBinding` are gone (the first throws without discovery; the second is a no-op). Accepted risk F8 — see `../security/README.md`.
 - MP requires a **`realm=realm`** authorization URL param (`authorizationUrlParams`).
 - **`accountSubject`** is `({ profile }) => typeof profile.sub === "string" ? profile.sub : ""`. Required: without discovery the provider is not recognised as OIDC and the default resolver would read `profile.id` (never returned), keying every account on `""`.
@@ -38,7 +38,7 @@ id_token verification, profile mapping, and RP-initiated logout via `endsession`
 1. Browser hits protected path → src/proxy.ts → 302 /signin?callbackUrl=<original>
 2. /signin → authClient.signIn.social({ provider: "ministryplatform", callbackURL })
    (POST /api/auth/sign-in/social — no MP call; the authorize URL is built locally)
-3. Browser → MP /oauth/connect/authorize?client_id=<MP_OIDC_CLIENT_ID>&realm=realm&...
+3. Browser → MP /oauth/connect/authorize?client_id=<MINISTRY_PLATFORM_CLIENT_ID>&realm=realm&...
 4. MP → ${APP_URL}/api/auth/callback/ministryplatform?code=...&state=...
 5. better-auth: state cookie check → token exchange (client secret) → getUserInfo(tokens):
    a. first callback on this process: fetch discovery (issuer, jwks_uri), then JWKS
@@ -59,7 +59,6 @@ id_token verification, profile mapping, and RP-initiated logout via `endsession`
 | `auth.userinfo.sub_mismatch` | `missing_id_token`, `missing_sub`, or `mismatch` (token substitution) |
 | `auth.userinfo.fetch_failed` | userinfo `http_status`, `request_failed`, `invalid_json`, `not_an_object` |
 | `auth.userinfo.invalid_sub` | userinfo `sub` missing or not a GUID |
-| `auth.oidc.shared_client` (warn) | sign-in is using the service-account client (`source`: `fallback` / `same_as_service_account`) |
 
 **What an MP outage looks like now:** `/signin` always starts. A callback during
 the outage lands on `/auth-error?error=unable_to_get_user_info` (retry copy),
@@ -92,12 +91,11 @@ session is cleared either way.
 | Variable | Required | Purpose |
 |---|---|---|
 | `MINISTRY_PLATFORM_BASE_URL` | yes | Root of the OIDC endpoints (authorize, token, userinfo, endsession, lazy discovery). Validated by `getMpBaseUrl()` |
-| `MP_OIDC_CLIENT_ID` / `MP_OIDC_CLIENT_SECRET` | recommended (both or neither) | Dedicated sign-in client: OAuth client, id_token audience, sign-out `client_id` |
-| `MINISTRY_PLATFORM_CLIENT_ID` / `_SECRET` | yes | Service account for MP data; deprecated sign-in fallback |
+| `MINISTRY_PLATFORM_CLIENT_ID` / `_SECRET` | yes | The app's one MP client: service account for MP data **and** the sign-in OAuth client, id_token audience, sign-out `client_id`. Read by `getMpClient()` |
 | `BETTER_AUTH_URL` | yes (fallback `NEXTAUTH_URL`) | App origin: callbacks + `post_logout_redirect_uri`. Validated by `getAuthBaseUrl()` |
 | `BETTER_AUTH_SECRET` | yes (fallback `NEXTAUTH_SECRET`) | Session signing/encryption secret |
 
-## MP OAuth client setup (the dedicated sign-in client)
+## MP OAuth client setup (`MINISTRY_PLATFORM_CLIENT_ID`)
 - **Redirect URI:** `${APP_URL}/api/auth/callback/ministryplatform`
 - **Post-logout redirect URI:** exactly `BETTER_AUTH_URL` (no trailing slash)
 

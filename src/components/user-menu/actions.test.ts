@@ -44,8 +44,8 @@ describe('handleSignOut', () => {
     process.env = { ...originalEnv };
     process.env.MINISTRY_PLATFORM_BASE_URL = 'https://mp.example.com';
     process.env.BETTER_AUTH_URL = 'https://myapp.example.com';
-    process.env.MP_OIDC_CLIENT_ID = 'app-oidc-client';
-    process.env.MP_OIDC_CLIENT_SECRET = 'app-oidc-secret';
+    process.env.MINISTRY_PLATFORM_CLIENT_ID = 'app-client';
+    process.env.MINISTRY_PLATFORM_CLIENT_SECRET = 'app-secret';
     mockSignOut.mockResolvedValue({ success: true });
   });
 
@@ -63,13 +63,13 @@ describe('handleSignOut', () => {
     expect(mockSignOut.mock.invocationCallOrder[0]).toBeLessThan(mockRedirect.mock.invocationCallOrder[0]);
   });
 
-  it('redirects to MP end-session with post_logout_redirect_uri and the OIDC client_id', async () => {
+  it('redirects to MP end-session with post_logout_redirect_uri and the MP client_id', async () => {
     await handleSignOut();
 
     const url = redirectedTo();
     expect(`${url.origin}${url.pathname}`).toBe('https://mp.example.com/oauth/connect/endsession');
     expect(url.searchParams.get('post_logout_redirect_uri')).toBe('https://myapp.example.com');
-    expect(url.searchParams.get('client_id')).toBe('app-oidc-client');
+    expect(url.searchParams.get('client_id')).toBe('app-client');
     expect(url.searchParams.has('id_token_hint')).toBe(false);
   });
 
@@ -85,7 +85,7 @@ describe('handleSignOut', () => {
     expect(url.searchParams.get('id_token_hint')).toBe('the.id.token');
     // Still rebuilt by us: exact registered redirect URI and client_id.
     expect(url.searchParams.get('post_logout_redirect_uri')).toBe('https://myapp.example.com');
-    expect(url.searchParams.get('client_id')).toBe('app-oidc-client');
+    expect(url.searchParams.get('client_id')).toBe('app-client');
   });
 
   it.each([
@@ -99,17 +99,6 @@ describe('handleSignOut', () => {
     await handleSignOut();
 
     expect(redirectedTo().searchParams.has('id_token_hint')).toBe(false);
-  });
-
-  it('uses the service-account client id as client_id when no dedicated OIDC client is set (fallback)', async () => {
-    delete process.env.MP_OIDC_CLIENT_ID;
-    delete process.env.MP_OIDC_CLIENT_SECRET;
-    process.env.MINISTRY_PLATFORM_CLIENT_ID = 'svc-client';
-    process.env.MINISTRY_PLATFORM_CLIENT_SECRET = 'svc-secret';
-
-    await handleSignOut();
-
-    expect(redirectedTo().searchParams.get('client_id')).toBe('svc-client');
   });
 
   it('still clears the session, then throws, when MINISTRY_PLATFORM_BASE_URL is missing', async () => {
@@ -128,10 +117,10 @@ describe('handleSignOut', () => {
     expect(mockRedirect).not.toHaveBeenCalled();
   });
 
-  it('throws on half a dedicated OIDC client rather than send the wrong client_id', async () => {
-    delete process.env.MP_OIDC_CLIENT_SECRET;
+  it('throws when the MP client secret is missing rather than send a half-configured client_id', async () => {
+    delete process.env.MINISTRY_PLATFORM_CLIENT_SECRET;
 
-    await expect(handleSignOut()).rejects.toThrow(/must be set together/);
+    await expect(handleSignOut()).rejects.toThrow(/must both be set/);
     expect(mockRedirect).not.toHaveBeenCalled();
   });
 
@@ -158,7 +147,7 @@ describe('handleSignOut', () => {
     await handleSignOut();
 
     expect(mockRedirect).toHaveBeenCalledWith(
-      'https://mp.example.com/api/oauth/connect/endsession?post_logout_redirect_uri=https%3A%2F%2Fmyapp.example.com&client_id=app-oidc-client',
+      'https://mp.example.com/api/oauth/connect/endsession?post_logout_redirect_uri=https%3A%2F%2Fmyapp.example.com&client_id=app-client',
     );
   });
 });

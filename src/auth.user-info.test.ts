@@ -30,7 +30,7 @@ import { MOCK_USERINFO_URL } from '@/test-utils/mock-oidc';
 // Captured before any test spies on `fetch`, so `stubUserinfo` can always
 // hand everything but userinfo to the mock MP (and never recurse).
 const mockMpFetch = globalThis.fetch;
-const CLIENT_ID = process.env.MP_OIDC_CLIENT_ID!;
+const CLIENT_ID = process.env.MINISTRY_PLATFORM_CLIENT_ID!;
 
 /**
  * Replaces ONLY the userinfo response. Returns a mock of just the userinfo
@@ -238,8 +238,6 @@ describe('id_token verification (verifyMpIdToken) and claim checks', () => {
     ['a non-numeric exp', { exp: 'tomorrow' }, { code: 'ERR_JWT_CLAIM_VALIDATION_FAILED', claim: 'exp' }],
     ['a foreign issuer', { iss: 'https://evil.example/oauth' }, { code: 'ERR_JWT_CLAIM_VALIDATION_FAILED', claim: 'iss' }],
     ['another client as the audience', { aud: 'some-other-client' }, { code: 'ERR_JWT_CLAIM_VALIDATION_FAILED', claim: 'aud' }],
-    // The service account's client id is NOT this app's sign-in audience.
-    ['the service-account client as the audience', { aud: process.env.MINISTRY_PLATFORM_CLIENT_ID }, { code: 'ERR_JWT_CLAIM_VALIDATION_FAILED', claim: 'aud' }],
   ])('jose refuses an id_token with %s', async (_label, claims, code) => {
     await expectRefusedBeforeUserinfo(oidc.signIdToken({ sub: GUID, ...claims }), {
       event: 'auth.userinfo.id_token_unverified',
@@ -270,9 +268,8 @@ describe('id_token verification (verifyMpIdToken) and claim checks', () => {
     ['not three segments', () => 'only.two', 'ERR_JWS_INVALID'],
     ['a five-segment JWE', () => 'a.b.c.d.e', 'ERR_JWS_INVALID'],
     ['a header that is not JSON', () => `x.${Buffer.from('{}').toString('base64url')}.y`, 'ERR_JWS_INVALID'],
-    // Algorithm confusion: neither client secret is a verification key here.
-    ['HS256 signed with the OIDC client secret', () => hs256(validClaims(), process.env.MP_OIDC_CLIENT_SECRET!), 'ERR_JOSE_ALG_NOT_ALLOWED'],
-    ['HS256 signed with the service-account secret', () => hs256(validClaims(), process.env.MINISTRY_PLATFORM_CLIENT_SECRET!), 'ERR_JOSE_ALG_NOT_ALLOWED'],
+    // Algorithm confusion: the client secret is not a verification key here.
+    ['HS256 signed with the client secret', () => hs256(validClaims(), process.env.MINISTRY_PLATFORM_CLIENT_SECRET!), 'ERR_JOSE_ALG_NOT_ALLOWED'],
     ['unsigned (alg: none)', () => unsigned(validClaims()), 'ERR_JOSE_ALG_NOT_ALLOWED'],
   ])('refuses a malformed or unverifiable id_token (%s)', async (_label, token, code) => {
     await expectRefusedBeforeUserinfo(token(), {

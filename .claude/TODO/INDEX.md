@@ -14,6 +14,7 @@ last_updated: 2026-10-10
 <!-- 2026-09-30: closed 1 high TODO (step2 authz + input validation) — see fix/step2-authz-input-validation PR. -->
 <!-- 2026-09-30: closed 1 high TODO (step4 OIDC lazy discovery + sub binding + sign-out); opened 1 medium (require dedicated OIDC client) — see fix/step4-oidc-lazy-discovery PR. -->
 <!-- 2026-09-30: closed 1 medium TODO (step5 MP HTTP client + provider hardening) — see fix/step5-mp-http-client-hardening PR. -->
+<!-- 2026-10-10: closed 1 medium TODO (require-dedicated-oidc-client) — superseded: MP_OIDC_* removed, one MP client for service account + sign-in (ADR-027, chore/single-mp-client). -->
 <!-- 2026-10-10: closed 2 medium TODOs (template-editor-no-mp-persistence, template-editor-merge-token-resolver) — won't fix, the template editor and all GrapesJS/MJML deps were removed (chore/remove-template-editor). -->
 <!-- 2026-09-13: coverage push 49.67% -> 98.84% statements. Opened 8 TODOs, closed 2 (template-editor-missing-tests, coverage-report-masked-untested-files). -->
 
@@ -28,7 +29,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **12 open TODOs**.
+Total: **11 open TODOs**.
 
 > **2026-09-30 — MPNext playbook audit.** The five `S:\MP\MPNext\.claude\playbooks`
 > port playbooks were audited against this fork. Remediation is split into nine
@@ -60,10 +61,9 @@ _none open_
 | auth | security, doc | Ops — Rotate BETTER_AUTH_SECRET; advise downstream clones | [→](2026-09-30-ops-rotate-better-auth-secret.md) |
 | auth | security, doc | Ops — Set MP_SECURITY_ROLES=* in every environment | [→](2026-09-30-ops-set-mp-security-roles-env.md) |
 
-### Medium (5)
+### Medium (4)
 | Area | Tags | Title | File |
 |---|---|---|---|
-| auth | security, doc | Make MP_OIDC_CLIENT_ID / _SECRET required (remove the service-account fallback) | [→](2026-09-30-require-dedicated-oidc-client.md) |
 | routing | security, drift | Step 6 — Headers, next.config, server-only, prerender + build in CI | [→](2026-09-30-step6-headers-csp-build-guards.md) |
 | services | drift, missing-test | Step 7 — Write-audit gaps and datetime drift cleanup | [→](2026-09-30-step7-write-audit-and-datetime-cleanup.md) |
 | routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
@@ -82,10 +82,9 @@ _none open_
 
 ## By tag
 
-### security (9)
+### security (8)
 - ops-rotate-better-auth-secret — high
 - ops-set-mp-security-roles-env — high
-- require-dedicated-oidc-client — medium
 - step6-headers-csp-build-guards — medium
 - held-csp-customer-deployments — medium
 - held-stored-procedure-allowlist — medium
@@ -111,10 +110,9 @@ _none open_
 ### testing (0)
 _none open_
 
-### doc (6)
+### doc (5)
 - ops-rotate-better-auth-secret — high
 - ops-set-mp-security-roles-env — high
-- require-dedicated-oidc-client — medium
 - held-csp-customer-deployments — medium
 - step9-ci-setup-and-docs — low
 - held-github-repo-security-settings — low
@@ -128,7 +126,7 @@ _none open_
 
 | Area | Count |
 |---|---|
-| auth | 3 |
+| auth | 2 |
 | components | 3 |
 | routing | 2 |
 | commands | 2 |
@@ -147,6 +145,7 @@ _none open_
 
 | Date | Title | File |
 |---|---|---|
+| 2026-10-10 | Require dedicated OIDC client — superseded: `MP_OIDC_*` removed, one MP client (ADR-027) | [→](2026-09-30-require-dedicated-oidc-client.md) |
 | 2026-10-10 | Template editor ignores pageID/recordID — won't fix, tool removed | [→](2026-04-17-components-template-editor-no-mp-persistence.md) |
 | 2026-10-10 | Merge tokens have no resolver — won't fix, tool removed | [→](2026-04-17-components-template-editor-merge-token-resolver.md) |
 | 2026-09-30 | Step 5 — MP HTTP client: timeouts, redirect:error, path guard, safe JSON, token validation, single-flight + negative cache, 401 retry; provider path guards, $ignorePermissions removed, identifier-only logging | [→](2026-09-30-step5-mp-http-client-and-provider-hardening.md) |
