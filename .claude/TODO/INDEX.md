@@ -14,6 +14,7 @@ last_updated: 2026-10-10
 <!-- 2026-09-30: closed 1 high TODO (step2 authz + input validation) — see fix/step2-authz-input-validation PR. -->
 <!-- 2026-09-30: closed 1 high TODO (step4 OIDC lazy discovery + sub binding + sign-out); opened 1 medium (require dedicated OIDC client) — see fix/step4-oidc-lazy-discovery PR. -->
 <!-- 2026-09-30: closed 1 medium TODO (step5 MP HTTP client + provider hardening) — see fix/step5-mp-http-client-hardening PR. -->
+<!-- 2026-10-10: opened 1 high TODO (owner-ops-checklist-before-release) — consolidated owner checklist for the next /release. -->
 <!-- 2026-10-10: closed 1 medium TODO (require-dedicated-oidc-client) — superseded: MP_OIDC_* removed, one MP client for service account + sign-in (ADR-027, chore/single-mp-client). -->
 <!-- 2026-10-10: closed 2 medium TODOs (template-editor-no-mp-persistence, template-editor-merge-token-resolver) — won't fix, the template editor and all GrapesJS/MJML deps were removed (chore/remove-template-editor). -->
 <!-- 2026-09-13: coverage push 49.67% -> 98.84% statements. Opened 8 TODOs, closed 2 (template-editor-missing-tests, coverage-report-masked-untested-files). -->
@@ -29,7 +30,10 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **11 open TODOs**.
+Total: **12 open TODOs**.
+
+> **Start here for owner (non-code) work:** [`2026-10-10-owner-ops-checklist-before-release.md`](2026-10-10-owner-ops-checklist-before-release.md)
+> collects every env-var, MP and GitHub setting to do before and right after the next `/release`.
 
 > **2026-09-30 — MPNext playbook audit.** The five `S:\MP\MPNext\.claude\playbooks`
 > port playbooks were audited against this fork. Remediation is split into nine
@@ -55,9 +59,10 @@ Total: **11 open TODOs**.
 ### Critical (0)
 _none open_
 
-### High (2)
+### High (3)
 | Area | Tags | Title | File |
 |---|---|---|---|
+| auth | security, doc | Owner checklist — settings to do before/after the next /release | [→](2026-10-10-owner-ops-checklist-before-release.md) |
 | auth | security, doc | Ops — Rotate BETTER_AUTH_SECRET; advise downstream clones | [→](2026-09-30-ops-rotate-better-auth-secret.md) |
 | auth | security, doc | Ops — Set MP_SECURITY_ROLES=* in every environment | [→](2026-09-30-ops-set-mp-security-roles-env.md) |
 
@@ -82,7 +87,8 @@ _none open_
 
 ## By tag
 
-### security (8)
+### security (9)
+- owner-ops-checklist-before-release — high
 - ops-rotate-better-auth-secret — high
 - ops-set-mp-security-roles-env — high
 - step6-headers-csp-build-guards — medium
@@ -110,7 +116,8 @@ _none open_
 ### testing (0)
 _none open_
 
-### doc (5)
+### doc (6)
+- owner-ops-checklist-before-release — high
 - ops-rotate-better-auth-secret — high
 - ops-set-mp-security-roles-env — high
 - held-csp-customer-deployments — medium
@@ -126,7 +133,7 @@ _none open_
 
 | Area | Count |
 |---|---|
-| auth | 2 |
+| auth | 3 |
 | components | 3 |
 | routing | 2 |
 | commands | 2 |
