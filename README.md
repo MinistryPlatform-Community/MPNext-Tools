@@ -230,7 +230,7 @@ npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o ./types
 npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -d --sample-size 10
 
 # See all options
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --help
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
 ```
 
 #### 4. Run the Development Server
@@ -543,7 +543,7 @@ npm run mp:generate:models
 npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -s "Contact"
 
 # See all options
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --help
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
 ```
 
 **CLI Options:**

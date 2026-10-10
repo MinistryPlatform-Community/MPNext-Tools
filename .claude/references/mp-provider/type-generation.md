@@ -154,7 +154,7 @@ npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o ./types
 npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -d --sample-size 10
 
 # Help
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --help
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
 ```
 
 The canonical npm script:

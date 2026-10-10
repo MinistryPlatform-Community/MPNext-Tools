@@ -48,6 +48,8 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 - GOTCHA-027: Next.js errors "sync dynamic API usage" or undefined `params`
 - GOTCHA-028: New public route redirects to `/signin` in a loop
 - GOTCHA-029: CI runs `next lint` and fails — command unknown
+- GOTCHA-046: `This module cannot be imported from a Client Component module` from `server-only`
+- GOTCHA-047: CI `check:prerender` fails — a route was statically prerendered
 
 ### Frontend / components
 - GOTCHA-030: `useUser()` throws "useUser must be used within a UserProvider"
@@ -322,6 +324,22 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Related:** CLAUDE.md "Next.js 16 Notes"
 
 ---
+
+### GOTCHA-046: `This module cannot be imported from a Client Component module` from `server-only`
+
+**Symptom:** One of three, depending on where the import runs: `next build` fails with *"You're importing a module that depends on "server-only""* and a `[Client Component Browser]` import trace; `npm run mp:generate*` (or a hand-run `tsx` on the codegen scripts) throws from `node_modules/server-only/index.js`; or a new Vitest file throws the same error.
+**Root cause:** Every service, `src/lib/auth.ts`, `src/lib/env.ts`, `src/lib/tool-params.server.ts` and the MP client/credentials modules start with `import 'server-only'`. That package throws unless resolved under the `react-server` export condition, which Next applies to server code only.
+**Fix:** In the build case the guard is doing its job — the trace names the client component that reached a server module; use `import type` or call a server action instead. Codegen scripts must run as `tsx --conditions=react-server …` (the `package.json` scripts already do). Vitest aliases `server-only` to the package's `empty.js` in `vitest.config.mts`; do not remove that alias.
+**Enforced where:** `next build` (CI `Build` step); `vitest.config.mts` `resolve.alias`; `package.json` `mp:generate*` scripts.
+**Related:** [security/README.md](security/README.md), GOTCHA-047
+
+### GOTCHA-047: CI `check:prerender` fails — a route was statically prerendered
+
+**Symptom:** The `Check prerendered routes` CI step lists a route; locally, the build table shows it as `○ (Static)`.
+**Root cause:** The CSP nonce is read from the request at render time. A prerendered page has none, so under the enforced CSP it never hydrates — and it also skips server-side session checks.
+**Fix:** Give the route a dynamic signal: a `headers()`/session read, or `export const dynamic = "force-dynamic"` in a **server** module (segment config is ignored in a `"use client"` file, the same trap as GOTCHA-032). Only Next's `/_not-found` and `/_global-error` may be static.
+**Enforced where:** `scripts/check-prerender.mjs`, run by CI after `npm run build`.
+**Related:** [security/README.md](security/README.md) § Nonces force dynamic rendering
 
 ## Frontend / components
 

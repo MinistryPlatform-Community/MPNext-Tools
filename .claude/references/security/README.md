@@ -167,8 +167,24 @@ Split across two files, and the split is not arbitrary:
 
 | Where | Headers | Why there |
 |---|---|---|
-| `next.config.ts` on `/(.*)` | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS (prod only) | Request-independent, and reaches `/api` plus the static paths the proxy matcher skips |
-| `src/proxy.ts` via `src/lib/security-headers.ts` | `Content-Security-Policy` | The nonce must be fresh per request; a build-time value is a constant an attacker reads off any page |
+| `next.config.ts` on `/(.*)` | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy` (`same-origin`), HSTS (prod only) | Request-independent, and reaches `/api` plus the static paths the proxy matcher skips |
+| `src/proxy.ts` via `src/lib/security-headers.ts` | `Content-Security-Policy`, plus `Reporting-Endpoints` when `CSP_REPORT_URI` is set | The nonce must be fresh per request; a build-time value is a constant an attacker reads off any page |
+
+`next.config.ts` also sets `poweredByHeader: false`, `images.unoptimized: true`
+(nothing uses `next/image`, so the optimizer was only SSRF surface) and
+`logging.serverFunctions: false` (otherwise `next dev` prints every server
+action's arguments, i.e. household records, to the terminal).
+
+COOP `same-origin` is safe only because sign-in is a **full-page redirect**. A
+popup-based OAuth flow would lose `window.opener` and break.
+
+### Proxy path matching
+
+The public-path check matches `/api/auth` **as a segment** (`=== '/api/auth'` or
+`startsWith('/api/auth/')`), so a future `/api/authz` is not public by accident.
+The matcher's exclusions are anchored (`_next/static/`, `_next/image$`,
+`favicon\.ico$`, `assets/`) so a look-alike path such as `/favicon.ico-admin`
+still gets the session check and the CSP. `src/proxy.test.ts` pins both.
 
 Anti-framing is expressed **twice on purpose** — `X-Frame-Options` reaches the
 routes the proxy skips, `frame-ancestors` covers the rest. They are not both CSP
@@ -195,6 +211,13 @@ a browser-vendor list and the deploying church's call, not a repo default.
    `form-action` to the **whole redirect chain**, not just its first hop.
 3. **`img-src` includes the MP origins**, for contact photos served from MP.
 
+Those MP origins are accepted only over `https:` (`http:` to a loopback host in
+dev). `data:`, `javascript:`, plain-http real hosts and credentialed URLs are
+**dropped** from the policy rather than trusted — `new URL('data:,x').origin`
+is the string `"null"`, which would otherwise land in the directive.
+`base-uri` is `'none'`: nothing emits a `<base>`, and `'self'` would still let
+an injected one re-root every relative URL.
+
 ### Nonces force dynamic rendering
 
 Next reads the nonce off the **incoming request headers** at render time, so the
@@ -210,8 +233,12 @@ in `sign-in-content.tsx` and its `page.tsx` is a server component.
 `src/app/signin/page.test.tsx` pins **both** halves — the export, and the absence
 of the directive.
 
-`/_not-found` remains static and nonce-less. Accepted: it is Next's built-in 404
-with no interactivity to lose.
+`/_not-found` and `/_global-error` remain static and nonce-less. Accepted: the
+404 has no interactivity to lose, and the global error shell renders client-side.
+
+**CI enforces this.** After `npm run build`, `npm run check:prerender`
+(`scripts/check-prerender.mjs`) fails if any other route was prerendered. Fix
+the route; widen its allowlist only with a written justification.
 
 ### `CSP_ENFORCE`
 
@@ -224,6 +251,32 @@ Report-only is a necessary step before enforcing, not a sufficient one: dev's
 policy can block things a clean report-only pass never flagged. Walk sign-in,
 sign-out, images and **every Radix surface** (dropdown, dialog, select, tooltip)
 against a production build before calling it done.
+
+Last walk: **2026-10-10**, enforced policy, production build — sign-in, every
+tool, Radix select/popover/command and dialog (scroll-lock `<style>` applied),
+zero violations. Sign-out could not be walked: `UserMenu` is not mounted
+anywhere, so no sign-out control is reachable in a production build.
+
+### `CSP_REPORT_URI` (opt-in reporting)
+
+This repo ships **no collector**. Each deployment that wants reports sets
+`CSP_REPORT_URI` to one it owns (Sentry's security endpoint, report-uri.com, or
+a small route that logs shape only). When set, the policy gains
+`report-uri <url>; report-to csp-endpoint` and responses carry
+`Reporting-Endpoints: csp-endpoint="<url>"` — both spellings, because Firefox
+still honours only `report-uri`. The value must be `https:` (loopback `http:` in
+dev only) and may not contain `;`, `,`, `"` or whitespace; anything else is
+ignored, never escaped.
+
+### Customer-deployed clones
+
+- **Adding an origin** (analytics, chat widget, an embedded MP widget): add it
+  to the specific directive, per deployment. Never `'unsafe-inline'` in
+  `script-src`, never a wildcard.
+- **Roll-out order:** set `CSP_REPORT_URI`, run `CSP_ENFORCE=false` for at least
+  one release cycle, read the reports, then enforce.
+- **After any CSP change:** `npm run build && npm start`, open the console, walk
+  every tool. Zero violations is the bar.
 
 ---
 

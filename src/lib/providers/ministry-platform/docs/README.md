@@ -170,7 +170,7 @@ npm run mp:generate
 npm run mp:generate:models
 
 # Or use directly with options
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --help
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
 ```
 
 See [scripts/README.md](../scripts/README.md) for full documentation.
