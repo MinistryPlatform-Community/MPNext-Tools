@@ -24,11 +24,10 @@ customer-deployed clone.
 
 ## Before the next `/release`
 
-- [ ] **1. Set `MP_SECURITY_ROLES=*` in every environment.**
+- [x] **1. Set `MP_SECURITY_ROLES=*` in every environment.** _Done 2026-10-10._
   It fails closed now: unset, blank or `","` means nobody can use any tool, so
   every user is redirected to `/no-access`. Use `*` (any MP security role) for
   now; a comma list of role names later.
-  Detail: [`2026-09-30-ops-set-mp-security-roles-env.md`](2026-09-30-ops-set-mp-security-roles-env.md).
 
 - [ ] **2. Check the redirect URIs on the MP client.**
   Sign-in now runs as `MINISTRY_PLATFORM_CLIENT_ID` (ADR-027). In each
@@ -45,12 +44,11 @@ customer-deployed clone.
   The app ignores them since #41, but the secret is still live. If a separate
   MP API Client was registered for sign-in, retire it in MP too.
 
-- [ ] **4. Rotate `BETTER_AUTH_SECRET`** (≥ 32 chars: `openssl rand -base64 32`)
+- [x] **4. Rotate `BETTER_AUTH_SECRET`** _Done 2026-10-10 (incl. audit-log review)._ (≥ 32 chars: `openssl rand -base64 32`)
   in every environment, at the same deploy that ships Step 3. Everyone is
   signed out once either way. Then review `dp_Audit_Log` for writes made
   through this app between 2026-07-09 and the date `e94e549` reached each
   environment, looking for `User_ID`s that don't match the signed-in person.
-  Detail: [`2026-09-30-ops-rotate-better-auth-secret.md`](2026-09-30-ops-rotate-better-auth-secret.md).
 
 ## Right after the release deploys
 

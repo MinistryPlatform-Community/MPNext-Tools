@@ -516,12 +516,11 @@ and no code-bearing URLs in logs.
 - **The enforced-CSP browser walk has not been done.** Headers and nonce
   coverage were verified against `next start`; a human still needs to click
   through every Radix surface under enforcement.
-- **`BETTER_AUTH_SECRET` must be rotated** (owner decision 2026-09-30) in every
+- **`BETTER_AUTH_SECRET` rotated** (done 2026-10-10; owner decision 2026-09-30) in every
   Vercel environment and `.env.local` — this deployment was exposed to
   F-UPDATE-USER from 2026-07-09 to 2026-09-13. Patching does not revoke sessions
   already forged, and with `refreshCache` on (fixed 2026-09-30) they could keep
   re-signing themselves; with no database there is no session table to clear.
-  Tracked in `.claude/TODO/2026-09-30-ops-rotate-better-auth-secret.md`.
 - **Repo settings**: GitHub private vulnerability reporting, secret scanning,
   push protection and Dependabot security updates were all **disabled** on
   2026-09-30 (public repo). `SECURITY.md` points reporters at private
