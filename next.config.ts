@@ -37,6 +37,16 @@ const hstsHeader = {
 };
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Default is 1 MB, which made the address-label mail merge's documented
+      // template limit unreachable. 4 MB stays under Vercel's 4.5 MB function
+      // request-body cap so Next rejects first, with a clear error. Sized
+      // with the limits in `src/components/address-labels/limits.ts` — change
+      // them together.
+      bodySizeLimit: "4mb",
+    },
+  },
   async headers() {
     return [
       {
