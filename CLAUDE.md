@@ -284,6 +284,7 @@ condition that clears it. Do not re-derive that analysis.
 
 | Date | Advisories | Highlights | Record |
 |---|---|---|---|
+| 2026-10-10 | 7 → **5** | `next` 16.3.7 → 16.4.0 (6 high: image-optimizer SSRF, ISR cache poisoning, info disclosure); `source-map-js` DoS cleared. Remaining 5 = one `braces` DoS with **no fix published**, lint-time only via `@next/eslint-plugin-next`. 3 holds still blocked; GrapesJS hold retired. | [2026-10-10](.claude/packages/2026-10-10.md) |
 | 2026-09-30 | 1 → **0** | `brace-expansion` DoS (high) cleared by in-range updates; `next` → 16.3.7. Adopted dotenv 18. All 4 holds re-checked, still blocked. | [2026-09-30](.claude/packages/2026-09-30.md) |
 | 2026-09-13 | 14 → **0** | `next` 16.2.10 → 16.3.5 (**critical** RCE on Windows hosts, proxy bypass, SSRF). Adopted Vitest 5, jsdom 30, jest-dom 7, chalk 6. Dropped 5 unreferenced deps. Held TS 7, ESLint 10, GrapesJS 0.23. | [2026-09-13](.claude/packages/2026-09-13.md) |
 
