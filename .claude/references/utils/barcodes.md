@@ -90,7 +90,7 @@ export function preEncodeBarcodes(
 // - barcodeFormat === 'none' → labels returned unchanged
 // - barcodeFormat === 'imb' && config.mailerId → try IMb
 //     on success: barStates = bars.join(''), barType = 'imb'
-//     on throw OR no mailerId: fall through to POSTNET
+//     on throw OR no mailerId: fall through to POSTNET (throw → console.warn { labelIndex, error: <name> })
 // - barcodeFormat === 'postnet' | 'imb' fallback:
 //     tries full routingCode, then retries with first 5 digits
 //     on success: barStates = JSON.stringify(bars), barType = 'postnet'
@@ -187,8 +187,8 @@ expect(imbEncode('0123456709498765432101234567891').join('')).toBe(
 ```
 
 ## Gotchas
-- **Fallback swallows IMb errors silently.** In `preEncodeBarcodes` (`src/lib/barcode-helpers.ts:48`), an IMb throw falls through to POSTNET with no logging. If a mailer config is subtly wrong (bad service type, bad mailer ID length), labels silently downgrade to POSTNET. See glossary candidate "IMb→POSTNET fallback".
-- **POSTNET `barStates` is JSON, IMb `barStates` is a raw string.** Consumers must branch on `barType` before rendering. Enforced at `src/lib/barcode-helpers.ts:47` (IMb) vs `:57,61` (POSTNET) and `src/lib/barcode-image.ts:64` (IMb expects plain string) vs `:98-103` (POSTNET parses JSON and silently falls back to a 1×1 BMP on parse failure).
+- **IMb → POSTNET fallback is logged, but without record content.** In `preEncodeBarcodes` (`src/lib/barcode-helpers.ts`), each encode failure emits `console.warn('[preEncodeBarcodes] IMb encode failed, falling back to POSTNET', { labelIndex, error })` (POSTNET retry adds `routingLength`; final failure logs `... no barcode will be rendered`). `error` is the error's **name** only (`describeFailure`) — label name, address, ZIP/routing digits and the error message are deliberately omitted (CLAUDE.md rule 14). Find the bad row by `labelIndex` in the request. Users still see POSTNET silently on a subtly wrong mailer config. See [GOTCHA-040](../GOTCHAS.md).
+- **POSTNET `barStates` is JSON, IMb `barStates` is a raw string.** Consumers must branch on `barType` before rendering. Enforced at `src/lib/barcode-helpers.ts:59` (IMb) vs `:70,78` (POSTNET) and `src/lib/barcode-image.ts:64` (IMb expects plain string) vs `:98-103` (POSTNET parses JSON and silently falls back to a 1×1 BMP on parse failure).
 - **`buildRoutingCode` treats DP `'00'` as absent.** Pass a real 1–2 digit delivery point; `'00'` returns a 5/9-digit routing, not 7/11-digit. See `src/lib/barcode-helpers.ts:13`.
 - **BMP invalid-input behavior differs.** `imbBarcodeToBmp` silently skips unknown bar chars; `postnetBarcodeToBmp` returns a 1×1 fallback on JSON parse failure — neither throws.
 

@@ -12,7 +12,7 @@ Application service layer — singletons that wrap `MPHelper` and expose domain 
 |------|---------|--------------|
 | `query-patterns.md` | MP REST query rules: `_TABLE_` FK traversal, ambiguous-column prefixing, quote escaping, `$userId` audit, batching | Before writing/modifying any MP query in a service |
 | `tool-service.md` | `ToolService` — pages, user tools, selection resolution, contact-ID resolver, dev-tool deploy | Editing `src/services/toolService.ts` or its callers |
-| `user-service.md` | `UserService` — profile fetch with roles + groups, GUID→ID lookup | Editing user profile/session code |
+| `user-service.md` | `UserService` — display-only profile fetch (names + email) | Editing user profile/session code |
 | `address-label-service.md` | `AddressLabelService` — Contacts→Households→Addresses multi-level FK join | Editing address-label feature |
 | `group-service.md` | `GroupService` — lookup fetching, contact/group search, group CRUD with date coercion | Editing group-wizard feature |
 | `field-management-service.md` | `FieldManagementService` — page field editor backing store, `api_MPNextTools_*` SPs | Editing field-management feature |

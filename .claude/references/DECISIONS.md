@@ -1,7 +1,7 @@
 ---
 title: Architectural Decisions
 type: adr
-last_updated: 2026-04-17
+last_updated: 2026-10-10
 ---
 
 # Architectural Decisions
@@ -84,6 +84,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Context:** A tempting design is to enrich the session object inside `customSession` with the user's full MP profile (roles, user groups, Contact_ID, Image_GUID). Every consumer would then read a single object. The downside is that `customSession` runs on every cache miss, and MP profile lookups require extra MP API calls (`dp_Users` + `dp_User_Roles` + `dp_User_User_Groups`).
 **Decision:** `customSession` in `src/lib/auth.ts:398-413` does only `firstName` / `lastName` splitting from `user.name` — no API calls. MP profile loading moves to the client, behind `UserProvider` (`src/contexts/user-context.tsx`), which calls the parameterless `getCurrentUserProfile()` server action on mount (the action re-derives the GUID from the session — a GUID parameter would be an IDOR) and exposes `useUser()`.
 **Consequences:** `getSession()` stays cheap. Sign-in does not break when MP is down. Client components that need roles/groups must mount under `UserProvider`; every page load incurs one extra round-trip. `UserService.getUserProfile()` issues three queries (profile + roles + groups).
+**Note (2026-10-10):** `MPUserProfile` is now display-only (`First_Name`, `Nickname`, `Last_Name`, `Email_Address`) and `getUserProfile()` issues **one** `dp_Users` query; roles and user groups are no longer sent to the client. Security-role checks use `AuthorizationService` server-side. See `services/user-service.md`.
 **Alternatives considered:**
 - **Enrich in `customSession`** — would hit MP API on every JWT refresh and couple sign-in availability to MP uptime.
 - **Load profile server-side in layout** — blocks TTFB on every page render.

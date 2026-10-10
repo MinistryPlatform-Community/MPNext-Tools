@@ -99,7 +99,7 @@ const result = await this.mp!.updateTableRecords('Groups', [apiData], {
   $userId: userId,
 });
 
-// src/services/userService.ts:82 — filtered read
+// src/services/userService.ts (getUserProfile) — filtered read
 const records = await this.mp!.getTableRecords<MPUserProfile>({ ... });
 ```
 

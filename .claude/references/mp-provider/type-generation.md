@@ -4,9 +4,13 @@ domain: mp-provider
 type: reference
 applies_to:
   - src/lib/providers/ministry-platform/scripts/generate-types.ts
+  - src/lib/providers/ministry-platform/scripts/codegen-escape.ts
   - src/lib/providers/ministry-platform/models/
 symbols:
   - generate-types
+  - commentText
+  - propertyKey
+  - positiveInt
 related:
   - architecture.md
   - ../mp-schema/README.md
@@ -18,6 +22,7 @@ last_verified: 2026-04-17
 
 ## Files
 - `src/lib/providers/ministry-platform/scripts/generate-types.ts` — CLI
+- `src/lib/providers/ministry-platform/scripts/codegen-escape.ts` — escaping helpers for MP metadata interpolated into generated source (+ `codegen-escape.test.ts`)
 - `src/lib/providers/ministry-platform/scripts/README.md` — human-facing usage
 - `src/lib/providers/ministry-platform/models/` — output: 603 `.ts` files (verified by snapshot: `.claude/references/_meta/facts/2026-04-17.md`)
 - `.claude/references/ministryplatform.schema.md` — schema doc written by the same script
@@ -29,7 +34,11 @@ last_verified: 2026-04-17
   - `npm run mp:generate:models` → `tsx .../generate-types.ts -o src/lib/providers/ministry-platform/models --zod --clean` (canonical)
 - **Data source:** MP `/tables` metadata endpoint via `MPHelper.getTables(search?)`, which hits `MetadataService`
 - **Column-driven typing is the default path;** `--detailed` falls back to record-sampling only if a table has no column metadata
-- **Field-name safety:** non-identifier field names are quoted (e.g. `"Allow_Check-in"`, `"SSN/EIN"`) — see `generate-types.ts:163-166`
+- **Field-name safety:** non-identifier field names are emitted as JSON string literals (e.g. `"Allow_Check-in"`, `"SSN/EIN"`) — `formatFieldName` → `propertyKey` (`codegen-escape.ts`), also applied to the `--detailed` fallback `${name}_ID` key
+- **All MP metadata is escaped before interpolation** (the output is committed and compiled, so a hostile/odd value must not become code). One helper per context in `codegen-escape.ts`:
+  - `propertyKey(name)` — bare if `/^[a-zA-Z_$][a-zA-Z0-9_$]*$/`, else `JSON.stringify(name)`
+  - `commentText(value)` — line terminators (CR, LF, U+2028, U+2029) → space, `*/` → `*\/`; used for FK target table/column, `SpecialPermissions`, `AccessLevel`, and the table name in the JSDoc header
+  - `positiveInt(value)` — positive safe integer (number or digit-only string) else `undefined`; gates every `Size` interpolation (`/* max N chars */`, `Max length: N`, Zod `.max(N)`) — a non-numeric size drops the constraint instead of emitting it
 - **Environment load order:** `.env.local` → `.env.development` → `.env` (each loaded via `dotenv.config`, later files don't override earlier ones because `dotenv` skips already-set keys — so `.env.local` wins) — `generate-types.ts:9-20`
 
 ## API / Interface
@@ -68,11 +77,11 @@ If missing, prints each missing var and `process.exit(1)`.
 
 ### TypeScript type mapping
 
-From `mapDataTypeToTypeScript` (`generate-types.ts:168-222`):
+From `mapDataTypeToTypeScript` (`generate-types.ts`):
 
 | MP `ParameterDataType` | TS (required) | Notes |
 |---|---|---|
-| `String`/`Text`/`LargeString` | `string /* max N chars */` | size comment if present |
+| `String`/`Text`/`LargeString` | `string /* max N chars */` | size comment only if `positiveInt(Size)` |
 | `Email` | `string /* email */` | |
 | `Phone` | `string /* phone number */` | |
 | `Url` | `string /* URL */` | |
@@ -92,11 +101,11 @@ From `mapDataTypeToTypeScript` (`generate-types.ts:168-222`):
 
 Non-required fields append ` | null` and use `?:` instead of `:`.
 
-Annotations emitted as inline comments (`generate-types.ts:359-365`): `Primary Key`, `Foreign Key -> {ReferencedTable}.{ReferencedColumn}`, `Read Only`, `Computed`, `Has Default`.
+Annotations emitted as inline comments (`generateDetailedTypeDefinition` in `generate-types.ts`; FK names pass through `commentText`): `Primary Key`, `Foreign Key -> {ReferencedTable}.{ReferencedColumn}`, `Read Only`, `Computed`, `Has Default`.
 
 ### Zod type mapping
 
-From `mapDataTypeToZod` (`generate-types.ts:224-287`):
+From `mapDataTypeToZod` (`generate-types.ts`; `N` = `positiveInt(col.Size)`, `.max` omitted when undefined):
 
 | MP type | Zod |
 |---|---|

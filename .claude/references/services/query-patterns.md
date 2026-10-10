@@ -30,7 +30,7 @@ Conventions for building safe MP REST queries inside service methods — FK trav
 | `TableName.ColumnName` | Disambiguate a column that appears in multiple joined tables | `Contacts.Contact_ID` |
 | `FKColumn_TABLE.ColumnName` | Follow one FK → pull a column from the related table | `Contact_ID_TABLE.First_Name` |
 | `FK1_TABLE_FK2_TABLE.ColumnName` | Multi-level FK traversal (underscores between levels, dot only before final field) | `Household_ID_TABLE_Address_ID_TABLE.City` |
-| `FKColumn_TABLE.Column AS Alias` | FK traversal with alias | `Contact_ID_TABLE.dp_fileUniqueId AS Image_GUID` |
+| `FKColumn_TABLE.Column AS Alias` | FK traversal with alias | `Parent_Group_TABLE.Group_Name AS Parent_Group_Name` |
 | `[Column/With-Special]` | Bracket notation for columns with `/`, `-`, space | `Household_ID_TABLE_Address_ID_TABLE.[State/Region]` |
 
 **Invalid:** `Building_ID_TABLE.Location_ID_TABLE.Column` (dots between intermediate FK levels). Use underscores: `Building_ID_TABLE_Location_ID_TABLE.Column`.
@@ -40,7 +40,7 @@ Conventions for building safe MP REST queries inside service methods — FK trav
 | Column | Appears in | Resolution |
 |--------|-----------|------------|
 | `Contact_ID` | Contacts, dp_Users, Participants, Group_Participants, Household_Care_Log, many more | Prefix with table, e.g., `Contacts.Contact_ID` |
-| `User_ID` | dp_Users, dp_User_Roles, dp_User_User_Groups | Prefix when joining, e.g., `dp_Users.User_ID` |
+| `User_ID` | dp_Users, dp_User_Roles | Prefix when joining, e.g., `dp_Users.User_ID` |
 | `Household_ID` | Contacts, Households | Prefix, e.g., `Contacts.Household_ID` |
 | `Display_Name` | Contacts, Groups, Ministries, etc. | Prefix when joining creates shadow |
 
@@ -48,11 +48,11 @@ Conventions for building safe MP REST queries inside service methods — FK trav
 
 ### 1-level FK traversal — `UserService.getUserProfile`
 ```typescript
-// src/services/userService.ts:81-87
+// src/services/userService.ts — UserService.getUserProfile
 const records = await this.mp!.getTableRecords<MPUserProfile>({
   table: "dp_Users",
   filter: `User_GUID = '${validateGuid(id)}'`,
-  select: "User_ID, User_GUID, Contact_ID_TABLE.First_Name,Contact_ID_TABLE.Nickname,Contact_ID_TABLE.Last_Name,Contact_ID_TABLE.Email_Address,Contact_ID_TABLE.Mobile_Phone,Contact_ID_TABLE.dp_fileUniqueId AS Image_GUID",
+  select: "Contact_ID_TABLE.First_Name,Contact_ID_TABLE.Nickname,Contact_ID_TABLE.Last_Name,Contact_ID_TABLE.Email_Address",
   top: 1
 });
 ```
@@ -78,19 +78,14 @@ const SELECT_FIELDS = [
 ].join(', ');
 ```
 
-### FK traversal in `$select` (role names) — `UserService`
+### FK traversal in `$select` (role names) — `AuthorizationService`
 ```typescript
-// src/services/userService.ts:93-102
-this.mp!.getTableRecords<{ Role_Name: string }>({
+// src/services/authorizationService.ts — loadSecurityRoles
+const records = await mp.getTableRecords<{ Role_Name: string }>({
   table: "dp_User_Roles",
-  filter: `User_ID = ${profile.User_ID}`,
   select: "Role_ID_TABLE.Role_Name",
-}),
-this.mp!.getTableRecords<{ User_Group_Name: string }>({
-  table: "dp_User_User_Groups",
-  filter: `User_ID = ${profile.User_ID}`,
-  select: "User_Group_ID_TABLE.User_Group_Name",
-}),
+  filter: `User_ID = ${userId}`,
+});
 ```
 
 ## Quote escaping (SQL-injection prevention)
@@ -140,7 +135,7 @@ export function validateColumnName(value: string): string { /* throws if ≠ /^[
 
 | Where | Call | Purpose |
 |-------|------|---------|
-| `userService.ts:72, 84` | `validateGuid(guid)` | Guard `User_GUID = '...'` filter |
+| `userService.ts` (`getUserProfile`), `authorizationService.ts` (`resolveUserId`) | `validateGuid(...)` | Guard `User_GUID = '...'` filter |
 | `toolService.ts:307-334` | `validateColumnName`, `validateFkPath`, `validatePositiveInt` | Guard `resolveContactIds` — rejects bad page-metadata table/PK/contact-id-field and record-ID values |
 | `addressLabelService.ts:76` | `batch.forEach(validatePositiveInt)` | Guard batched `Contact_ID IN (...)` |
 | `groupService.ts:176` | `validatePositiveInt(groupId)` | Guard `Group_ID = ${id}` in `getGroup` |

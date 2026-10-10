@@ -422,7 +422,7 @@ Retired 2026-10-10: applied only to the template editor's merge tokens; the edit
 **Symptom:** User configures IMb with a Mailer ID, prints labels, and sees POSTNET (or no barcode) on the output.
 **Root cause:** `preEncodeBarcodes` wraps `imbEncode` in a bare `try {} catch {}` with no logging, falling through to POSTNET. Also, if `config.mailerId` is empty (`''`), the `config.barcodeFormat === 'imb' && config.mailerId` guard skips IMb entirely and falls through silently.
 **Fix:** (a) Users: enter a valid 6- or 9-digit USPS Mailer ID. (b) Code: fixed — the fallback is logged (`console.warn`) and the Mailer ID is validated.
-**Enforced where:** `src/lib/barcode-helpers.ts` (logged fallback).
+**Enforced where:** `src/lib/barcode-helpers.ts` (logged fallback). Log payload is `{ labelIndex, error: <error name> }` — no label name, address, or routing digits (rule 14) — so locate the row by its index in the request.
 **Related:** [utils/](utils/), [components/address-labels.md](components/address-labels.md)
 
 ### GOTCHA-041: Avery label cells misaligned after adding new stock

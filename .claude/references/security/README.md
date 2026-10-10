@@ -434,7 +434,7 @@ segment, so one boundary cannot do every job:
 |---|---|---|
 | `src/app/(web)/error.tsx` | anything below the `(web)` layout | renders **inside** the shell, so the header and **sign-out survive** |
 | `src/app/error.tsx` | `/signin`, `/session-error`, `/auth-error` | those routes have no shell |
-| `src/app/global-error.tsx` | a throw in the root layout itself | replaces it; imports nothing from the app |
+| `src/app/global-error.tsx` | a throw in the root layout itself | replaces it; imports nothing from the app. Has a plain `<a href="/">` that works without JS, and "Try again" is disabled until hydration (`useSyncExternalStore`) so a pre-hydration click is not swallowed |
 
 Two details that bite:
 
