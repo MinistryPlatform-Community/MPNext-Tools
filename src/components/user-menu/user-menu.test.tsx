@@ -69,17 +69,10 @@ import { UserMenu } from "./user-menu";
 
 function makeProfile(overrides: Partial<MPUserProfile> = {}): MPUserProfile {
   return {
-    User_ID: 1,
-    User_GUID: "guid-1",
-    Contact_ID: 101,
     First_Name: "Jonathan",
     Nickname: "Jon",
     Last_Name: "Doe",
     Email_Address: "jon@example.com",
-    Mobile_Phone: null,
-    Image_GUID: null,
-    roles: [],
-    userGroups: [],
     ...overrides,
   };
 }

@@ -25,6 +25,20 @@ function parseIntOrUndefined(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+/**
+ * `decodeURIComponent` throws `URIError` on a malformed escape (a stray `%`,
+ * e.g. "50% off"), which used to crash the whole tool page. Fall back to the
+ * raw value: it is display text, and the raw string is the best rendering of
+ * whatever MP sent.
+ */
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export async function parseToolParams(searchParams: URLSearchParams | { [key: string]: string | string[] | undefined }): Promise<ToolParams> {
   const getValue = (key: string): string | undefined => {
     if (searchParams instanceof URLSearchParams) {
@@ -70,7 +84,7 @@ export async function parseToolParams(searchParams: URLSearchParams | { [key: st
     q: q || undefined,
     v: parseIntOrUndefined(v),
     recordID: parseIntOrUndefined(recordID),
-    recordDescription: recordDescription ? decodeURIComponent(recordDescription) : undefined,
+    recordDescription: recordDescription ? safeDecode(recordDescription) : undefined,
     addl: addl || undefined,
     pageData: pageData,
   };

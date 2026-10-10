@@ -145,6 +145,14 @@ describe('tool-params', () => {
       expect(params.recordDescription).toBe('Plain Text');
     });
 
+    it.each(['50% off', 'Smith %E0%A4%A', '%'])(
+      'keeps a malformed escape (%s) raw instead of throwing',
+      async (raw) => {
+        const params = await parseToolParams({ recordDescription: raw });
+        expect(params.recordDescription).toBe(raw);
+      },
+    );
+
     it('returns undefined when recordDescription absent', async () => {
       const params = await parseToolParams({});
       expect(params.recordDescription).toBeUndefined();

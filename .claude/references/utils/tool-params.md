@@ -84,8 +84,8 @@ export interface ToolParams {
 export async function parseToolParams(
   searchParams: URLSearchParams | { [key: string]: string | string[] | undefined }
 ): Promise<ToolParams>;
-// - Integer params parsed via parseInt(_, 10)
-// - recordDescription is decodeURIComponent()'d
+// - Integer params parsed via parseIntOrUndefined (NaN → undefined)
+// - recordDescription goes through safeDecode (decodeURIComponent, raw on URIError)
 // - pageData fetched via ToolService.getInstance().getPageData(pageID);
 //   failures are caught and logged (pageData stays undefined)
 
@@ -110,9 +110,9 @@ Standard shadcn helper for merging Tailwind class strings while deduplicating co
 ## How it works
 
 1. `parseToolParams` normalizes `searchParams` reads through a single `getValue(key)` shim (handles both `URLSearchParams` and Next.js's awaited object shape; arrays collapse to first element).
-2. Raw strings are converted: numeric fields via `parseInt(..., 10)`, `recordDescription` via `decodeURIComponent`.
+2. Raw strings are converted: numeric fields via `parseIntOrUndefined` (finite integer or `undefined`), `recordDescription` via `safeDecode` (`decodeURIComponent`, falling back to the raw string on a malformed escape such as a stray `%`).
 3. If `pageID` parsed as a number, `ToolService.getInstance()` + `getPageData(pageID)` is awaited.
-4. Any error fetching page data is swallowed with `console.warn('Could not fetch page data for pageID:', ..., '- Stored procedure may not exist yet')` and `pageData` remains `undefined` — **tools must handle that case**.
+4. Any error fetching page data is swallowed with `console.warn('tool_params.page_data_unavailable', { pageID })` and `pageData` remains `undefined` — **tools must handle that case**.
 5. `isNewRecord` / `isEditMode` are pure predicates.
 
 ## Usage
@@ -161,8 +161,8 @@ Client/UI (consume the `ToolParams` type and/or predicates):
 
 ## Gotchas
 - **`pageData` may be `undefined` even when `pageID` is set.** The fetch is wrapped in `try/catch` and swallowed — callers must guard. See `src/lib/tool-params.ts:54-60`.
-- **`recordDescription` is URI-decoded; other strings are not.** Only `recordDescription` passes through `decodeURIComponent`. `q` and `addl` come through raw.
-- **Integer parse errors silently produce `NaN` via `parseInt` semantics.** `parseInt('abc', 10)` returns `NaN` (note: `NaN === NaN` is `false` — use `Number.isNaN()` to test). The conditional `x ? parseInt(x, 10) : undefined` still assigns `NaN` back when `x` is a non-empty non-numeric string. Callers that check `typeof pageID === 'number'` see `NaN` (passes, since `typeof NaN === 'number'`), so pre-validation is the caller's responsibility.
+- **`recordDescription` is URI-decoded; other strings are not.** Only `recordDescription` passes through `safeDecode`. `q` and `addl` come through raw. A malformed escape (`50% off`) used to throw `URIError` and crash the tool page; it now comes through raw.
+- **Non-numeric integer params become `undefined`, not `NaN`.** `parseIntOrUndefined` returns `undefined` unless the parse is finite (GOTCHA-043). Callers still validate range (e.g. `> 0`) themselves.
 - **`searchParams` must be awaited first.** Next.js 16 dynamic APIs (`params`, `searchParams`) are `Promise`s; `await searchParams` in the page, then pass the result to `parseToolParams`.
 
 ## Related docs

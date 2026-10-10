@@ -1,7 +1,7 @@
 ---
 title: Glossary
 type: glossary
-last_updated: 2026-04-17
+last_updated: 2026-10-10
 ---
 
 # Glossary
@@ -238,7 +238,7 @@ Public-API facade class for Ministry Platform operations; normalizes friendly pa
 
 ## MPUserProfile
 
-Enriched client-side user profile combining `dp_Users` row + joined Contact fields + `roles[]` + `userGroups[]`; loaded via `UserService.getUserProfile(userGuid)` and cached in `UserContext`.
+Display-only client-side user profile: `First_Name`, `Nickname`, `Last_Name`, `Email_Address` (joined from the `dp_Users` row's Contact) — no IDs, phone, image, roles, or user groups; loaded via `getCurrentUserProfile()` → `UserService.getUserProfile(userGuid)` (single query) and cached in `UserContext`.
 
 **Not to be confused with:** Better Auth `session.user` (name/email/id only).
 **Defined in:** `src/lib/providers/ministry-platform/types/user-profile.types.ts:1`

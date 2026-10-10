@@ -19,9 +19,8 @@ Call site = one invocation of `getTableRecords`/`createTableRecords`/`updateTabl
 |---|---|---|
 | `Groups` | 4 | `src/services/groupService.ts:164` (searchGroups), `:174` (getGroup), `:232` (createGroup), `:245` (updateGroup) |
 | `Contacts` | 3 | `src/services/groupService.ts:153` (searchContacts), `src/services/addressLabelService.ts:79` (getAddressesForContacts), `:96` (getAddressForContact) |
-| `dp_Users` | 2 | `src/services/userService.ts:69` (getUserIdByGuid), `:82` (getUserProfile) |
-| `dp_User_Roles` | 1 | `src/services/userService.ts:93` (roles in getUserProfile) |
-| `dp_User_User_Groups` | 1 | `src/services/userService.ts:98` (user groups in getUserProfile) |
+| `dp_Users` | 2 | `src/services/authorizationService.ts` (`resolveUserId`), `src/services/userService.ts` (`getUserProfile`) |
+| `dp_User_Roles` | 1 | `src/services/authorizationService.ts` (`loadSecurityRoles`) |
 | `dp_Roles` | 1 | `src/services/toolService.ts:232` (listRoles) |
 | `Group_Types` | 1 | `src/services/groupService.ts:63` (fetchAllLookups) |
 | `Ministries` | 1 | `src/services/groupService.ts:68` |
@@ -38,7 +37,7 @@ Call site = one invocation of `getTableRecords`/`createTableRecords`/`updateTabl
 | `Group_Ended_Reasons` | 1 | `src/services/groupService.ts:127` |
 | `<dynamic>` | 1 | `src/services/toolService.ts:335` (resolveContactIds — table name supplied at runtime from `api_Tools_GetPageData` result) |
 
-Unique tables touched (excluding the dynamic case): **19**. Lookup tables at `groupService.fetchAllLookups` dominate the count but each fires once per wizard load.
+Unique tables touched (excluding the dynamic case): **18**. Lookup tables at `groupService.fetchAllLookups` dominate the count but each fires once per wizard load.
 
 ## FK traversals used
 
@@ -46,14 +45,11 @@ Scanned from `$select`/`orderBy` strings using the `_TABLE` suffix convention.
 
 | FK chain (in `$select`/`orderBy`) | Base table | Consumer (file:line) | Purpose |
 |---|---|---|---|
-| `Contact_ID_TABLE.First_Name` | `dp_Users` | `src/services/userService.ts:85` | User profile name (via linked Contact) |
-| `Contact_ID_TABLE.Nickname` | `dp_Users` | `src/services/userService.ts:85` | Preferred display name |
-| `Contact_ID_TABLE.Last_Name` | `dp_Users` | `src/services/userService.ts:85` | User profile surname |
-| `Contact_ID_TABLE.Email_Address` | `dp_Users` | `src/services/userService.ts:85` | User profile email |
-| `Contact_ID_TABLE.Mobile_Phone` | `dp_Users` | `src/services/userService.ts:85` | User profile phone |
-| `Contact_ID_TABLE.dp_fileUniqueId AS Image_GUID` | `dp_Users` | `src/services/userService.ts:85` | User avatar image GUID |
-| `Role_ID_TABLE.Role_Name` | `dp_User_Roles` | `src/services/userService.ts:96` | Role labels for the authenticated user |
-| `User_Group_ID_TABLE.User_Group_Name` | `dp_User_User_Groups` | `src/services/userService.ts:101` | User-group labels for the authenticated user |
+| `Contact_ID_TABLE.First_Name` | `dp_Users` | `src/services/userService.ts` (`getUserProfile`) | User profile name (via linked Contact) |
+| `Contact_ID_TABLE.Nickname` | `dp_Users` | `src/services/userService.ts` (`getUserProfile`) | Preferred display name |
+| `Contact_ID_TABLE.Last_Name` | `dp_Users` | `src/services/userService.ts` (`getUserProfile`) | User profile surname |
+| `Contact_ID_TABLE.Email_Address` | `dp_Users` | `src/services/userService.ts` (`getUserProfile`) | User profile email |
+| `Role_ID_TABLE.Role_Name` | `dp_User_Roles` | `src/services/authorizationService.ts` (`loadSecurityRoles`) | Security-role names for the authorization gate |
 | `Group_Type_ID_TABLE.Group_Type` | `Groups` | `src/services/groupService.ts:166` | Group search result badge |
 | `Household_ID_TABLE.Household_Name` | `Contacts` | `src/services/addressLabelService.ts:29` | Household label on mailing labels |
 | `Household_ID_TABLE.Bulk_Mail_Opt_Out` | `Contacts` | `src/services/addressLabelService.ts:30` | Opt-out filter for bulk mailings |
@@ -88,7 +84,7 @@ Cross-referenced with `required-procs.md`. All call via `MPHelper.executeProcedu
 - `Bookable = 1` — `Rooms` filter. `src/services/groupService.ts:113`.
 - `<Name> LIKE '<escaped>%'` — prefix search (user-provided term is passed through `escapeFilterString`). `src/services/groupService.ts:156` (contacts), `:167` (groups); `src/services/toolService.ts:229` uses `%term%` for roles.
 - `<PK> IN (<csv>)` — batched ID lookups (batch size 100). `src/services/addressLabelService.ts:82`, `src/services/toolService.ts:338`.
-- `User_GUID = '<validated>'` — GUID lookup on `dp_Users` (passed through `validateGuid`). `src/services/userService.ts:72`, `:84`.
+- `User_GUID = '<validated>'` — GUID lookup on `dp_Users` (passed through `validateGuid`). `src/services/userService.ts` (`getUserProfile`), `src/services/authorizationService.ts` (`resolveUserId`).
 - `<PK> = <validatedInt>` — single-record lookup (input through `validatePositiveInt`). `src/services/groupService.ts:176`.
 
 All user-supplied strings in filters are escaped via `escapeFilterString` or validated via `validateGuid`/`validatePositiveInt`/`validateColumnName` from `src/lib/validation.ts`.

@@ -9,14 +9,14 @@ last_verified: 2026-09-13
 ---
 
 ## Purpose
-Client context that watches the Better Auth session, extracts `userGuid` (OIDC `sub` → MP `User_GUID`), and loads the enriched `MPUserProfile` (roles + groups) via the `getCurrentUserProfile` server action. `userGuid` gates *whether* the load fires; the action re-derives it server-side and takes no argument.
+Client context that watches the Better Auth session, extracts `userGuid` (OIDC `sub` → MP `User_GUID`), and loads the display-only `MPUserProfile` (names + email; no IDs, roles, or groups) via the `getCurrentUserProfile` server action. `userGuid` gates *whether* the load fires; the action re-derives it server-side and takes no argument.
 
 ## Files
 - `src/contexts/user-context.tsx` — provider + hook + error handling
 - `src/contexts/user-context.test.tsx` — 6 test cases covering load/error/refresh/missing-guid
 - `src/app/providers.tsx` — mounts `<UserProvider>` at the app shell
 - `src/components/shared-actions/user.ts` — `getCurrentUserProfile()` server action (no parameters; derives the GUID from the session)
-- `src/services/userService.ts:81` — `UserService.getUserProfile(guid)` downstream lookup
+- `src/services/userService.ts` — `UserService.getUserProfile(guid)` downstream lookup
 - `src/lib/providers/ministry-platform/types/user-profile.types.ts` — `MPUserProfile` shape
 
 ## Key concepts
@@ -44,17 +44,10 @@ export function useUser(): UserContextValue;
 ```typescript
 // src/lib/providers/ministry-platform/types/user-profile.types.ts
 export interface MPUserProfile {
-  User_ID: number;
-  User_GUID: string;
-  Contact_ID: number;
   First_Name: string;
   Nickname: string;
   Last_Name: string;
   Email_Address: string | null;
-  Mobile_Phone: string | null;
-  Image_GUID: string | null;
-  roles: string[];
-  userGroups: string[];
 }
 ```
 
@@ -115,10 +108,8 @@ UserProvider mount
               └─ getCurrentUserProfile()                 (server action: src/components/shared-actions/user.ts:25)
                  └─ auth.api.getSession({ headers })     (re-verifies session; throws Unauthorized unless user.userGuid is a non-empty string)
                  └─ UserService.getInstance()
-                 └─ UserService.getUserProfile(userGuid) (src/services/userService.ts:81 — GUID from the session, never the caller)
-                    ├─ MP getTableRecords dp_Users (filter: User_GUID = '...')
-                    ├─ MP getTableRecords dp_User_Roles (filter: User_ID = ...)
-                    └─ MP getTableRecords dp_User_User_Groups (filter: User_ID = ...)
+                 └─ UserService.getUserProfile(userGuid) (src/services/userService.ts — GUID from the session, never the caller)
+                    └─ MP getTableRecords dp_Users (filter: User_GUID = '...'; single query, 4 Contact_ID_TABLE fields)
               └─ setUserProfile | setError
               └─ setIsLoading(false)
 ```

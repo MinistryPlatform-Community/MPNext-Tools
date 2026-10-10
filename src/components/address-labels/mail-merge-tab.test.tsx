@@ -103,14 +103,14 @@ describe('MailMergeTab', () => {
     expect(await screen.findByText('Please select a .docx file')).toBeInTheDocument();
   });
 
-  it('rejects a file over the 5MB limit', async () => {
+  it('rejects a file over the 2MB limit', async () => {
     render(<MailMergeTab printable={printable} skipped={skipped} config={baseConfig} />);
     const input = screen.getByLabelText(/upload your template/i);
-    const file = makeDocxFile('big.docx', 6 * 1024 * 1024);
+    const file = makeDocxFile('big.docx', 3 * 1024 * 1024);
 
     fireEvent.change(input, { target: { files: [file] } });
 
-    expect(await screen.findByText('Template file must be under 5MB')).toBeInTheDocument();
+    expect(await screen.findByText('Template file must be under 2MB')).toBeInTheDocument();
   });
 
   it('accepts a valid .docx file, shows its name, and enables Merge', async () => {

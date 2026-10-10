@@ -28,48 +28,48 @@ describe('UserService', () => {
   });
 
   describe('getUserProfile', () => {
-    it('should fetch user profile with roles and groups', async () => {
-      const mockProfile = {
-        User_ID: 1,
-        User_GUID: '550e8400-e29b-41d4-a716-446655440000',
-        Contact_ID: 100,
-        First_Name: 'John',
-        Nickname: 'Johnny',
-        Last_Name: 'Doe',
-        Email_Address: 'john@example.com',
-        Mobile_Phone: '555-1234',
-        Image_GUID: 'img-guid-456',
-      };
-      mockGetTableRecords
-        .mockResolvedValueOnce([mockProfile])
-        .mockResolvedValueOnce([{ Role_Name: 'Admin' }, { Role_Name: 'Editor' }])
-        .mockResolvedValueOnce([{ User_Group_Name: 'Staff' }]);
+    const row = {
+      First_Name: 'John',
+      Nickname: 'Johnny',
+      Last_Name: 'Doe',
+      Email_Address: 'john@example.com',
+    };
+
+    it('fetches only the display fields, in a single query', async () => {
+      mockGetTableRecords.mockResolvedValueOnce([row]);
 
       const service = await UserService.getInstance();
       const result = await service.getUserProfile('550e8400-e29b-41d4-a716-446655440000');
 
-      expect(mockGetTableRecords).toHaveBeenCalledTimes(3);
+      expect(mockGetTableRecords).toHaveBeenCalledTimes(1);
       expect(mockGetTableRecords).toHaveBeenCalledWith({
         table: 'dp_Users',
         filter: "User_GUID = '550e8400-e29b-41d4-a716-446655440000'",
-        select: expect.stringContaining('User_ID'),
+        select: 'Contact_ID_TABLE.First_Name,Contact_ID_TABLE.Nickname,Contact_ID_TABLE.Last_Name,Contact_ID_TABLE.Email_Address',
         top: 1,
       });
-      expect(mockGetTableRecords).toHaveBeenCalledWith({
-        table: 'dp_User_Roles',
-        filter: 'User_ID = 1',
-        select: 'Role_ID_TABLE.Role_Name',
-      });
-      expect(mockGetTableRecords).toHaveBeenCalledWith({
-        table: 'dp_User_User_Groups',
-        filter: 'User_ID = 1',
-        select: 'User_Group_ID_TABLE.User_Group_Name',
-      });
-      expect(result).toEqual({
-        ...mockProfile,
-        roles: ['Admin', 'Editor'],
-        userGroups: ['Staff'],
-      });
+      expect(result).toEqual(row);
+    });
+
+    it('never passes through fields beyond the profile DTO', async () => {
+      mockGetTableRecords.mockResolvedValueOnce([
+        { ...row, User_ID: 1, Mobile_Phone: '555-1234', roles: ['Administrators'] },
+      ]);
+
+      const service = await UserService.getInstance();
+      const result = await service.getUserProfile('550e8400-e29b-41d4-a716-446655440000');
+
+      expect(Object.keys(result!).sort()).toEqual(['Email_Address', 'First_Name', 'Last_Name', 'Nickname']);
+    });
+
+    it('normalizes a missing email to null', async () => {
+      const { Email_Address: _omit, ...noEmail } = row;
+      mockGetTableRecords.mockResolvedValueOnce([noEmail]);
+
+      const service = await UserService.getInstance();
+      const result = await service.getUserProfile('550e8400-e29b-41d4-a716-446655440000');
+
+      expect(result!.Email_Address).toBeNull();
     });
 
     it('should return undefined when user not found', async () => {
@@ -82,31 +82,10 @@ describe('UserService', () => {
       expect(mockGetTableRecords).toHaveBeenCalledTimes(1);
     });
 
-    it('should return empty arrays when user has no roles or groups', async () => {
-      const mockProfile = {
-        User_ID: 2,
-        User_GUID: '660e8400-e29b-41d4-a716-446655440001',
-        Contact_ID: 200,
-        First_Name: 'Jane',
-        Nickname: 'Jane',
-        Last_Name: 'Smith',
-        Email_Address: 'jane@example.com',
-        Mobile_Phone: null,
-        Image_GUID: null,
-      };
-      mockGetTableRecords
-        .mockResolvedValueOnce([mockProfile])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
-
+    it('rejects a malformed GUID before querying', async () => {
       const service = await UserService.getInstance();
-      const result = await service.getUserProfile('660e8400-e29b-41d4-a716-446655440001');
-
-      expect(result).toEqual({
-        ...mockProfile,
-        roles: [],
-        userGroups: [],
-      });
+      await expect(service.getUserProfile("x' OR 1=1 --")).rejects.toThrow();
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
     });
 
     it('should propagate errors from MPHelper', async () => {

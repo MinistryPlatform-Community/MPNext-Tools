@@ -45,47 +45,32 @@ export class UserService {
   }
 
   /**
-   * Retrieves a user profile by User GUID from Ministry Platform
-   * 
-   * Fetches user information including:
-   * - User GUID
-   * - Contact details (First Name, Nickname, Last Name)
-   * - Email Address
-   * - Mobile Phone
-   * - Profile Image GUID
-   * 
+   * Retrieves the profile shown to the signed-in user, by User GUID.
+   *
+   * Returns only the fields the UI renders (see `MPUserProfile`): names and
+   * email. The row is mapped explicitly so nothing else the query returns can
+   * reach the client.
+   *
    * @param id - The User GUID to search for
-   * @returns Promise<MPUserProfile> - The user profile data from Ministry Platform
+   * @returns Promise<MPUserProfile | undefined> - The profile, or undefined if no such user
    * @throws Will throw an error if the Ministry Platform query fails
    */
   public async getUserProfile(id: string): Promise<MPUserProfile | undefined> {
     const records = await this.mp!.getTableRecords<MPUserProfile>({
       table: "dp_Users",
       filter: `User_GUID = '${validateGuid(id)}'`,
-      select: "User_ID, User_GUID, Contact_ID_TABLE.First_Name,Contact_ID_TABLE.Nickname,Contact_ID_TABLE.Last_Name,Contact_ID_TABLE.Email_Address,Contact_ID_TABLE.Mobile_Phone,Contact_ID_TABLE.dp_fileUniqueId AS Image_GUID",
+      select: "Contact_ID_TABLE.First_Name,Contact_ID_TABLE.Nickname,Contact_ID_TABLE.Last_Name,Contact_ID_TABLE.Email_Address",
       top: 1
     });
 
-    const profile = records[0];
-    if (!profile) return undefined;
-
-    const [roleRecords, groupRecords] = await Promise.all([
-      this.mp!.getTableRecords<{ Role_Name: string }>({
-        table: "dp_User_Roles",
-        filter: `User_ID = ${profile.User_ID}`,
-        select: "Role_ID_TABLE.Role_Name",
-      }),
-      this.mp!.getTableRecords<{ User_Group_Name: string }>({
-        table: "dp_User_User_Groups",
-        filter: `User_ID = ${profile.User_ID}`,
-        select: "User_Group_ID_TABLE.User_Group_Name",
-      }),
-    ]);
+    const row = records[0];
+    if (!row) return undefined;
 
     return {
-      ...profile,
-      roles: roleRecords.map((r) => r.Role_Name),
-      userGroups: groupRecords.map((g) => g.User_Group_Name),
+      First_Name: row.First_Name,
+      Nickname: row.Nickname,
+      Last_Name: row.Last_Name,
+      Email_Address: row.Email_Address ?? null,
     };
   }
 }

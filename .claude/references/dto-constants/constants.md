@@ -2,8 +2,8 @@
 title: Shared Constants & Validation Helpers
 domain: dto-constants
 type: reference
-applies_to: [src/lib/dto/address-label.dto.ts, src/lib/label-stock.ts, src/lib/validation.ts, src/components/group-wizard/types.ts, src/services/addressLabelService.ts, src/services/toolService.ts]
-symbols: [SERVICE_TYPES, LABEL_STOCKS, LabelStockConfig, LabelPosition, WIZARD_STEPS, WizardStepIndex, validateGuid, validatePositiveInt, validateColumnName, escapeFilterString, BATCH_SIZE, MAX_TEMPLATE_SIZE, MAX_FILE_SIZE]
+applies_to: [src/lib/dto/address-label.dto.ts, src/lib/label-stock.ts, src/lib/validation.ts, src/components/group-wizard/types.ts, src/services/addressLabelService.ts, src/services/toolService.ts, src/components/address-labels/limits.ts]
+symbols: [SERVICE_TYPES, LABEL_STOCKS, LabelStockConfig, LabelPosition, WIZARD_STEPS, WizardStepIndex, validateGuid, validatePositiveInt, validateColumnName, escapeFilterString, BATCH_SIZE, MAX_TEMPLATE_BYTES, MAX_TEMPLATE_LABEL, MAX_LABELS, TEMPLATE_ZIP_LIMITS]
 related: [dtos.md, ../services/README.md, ../utils/README.md]
 last_verified: 2026-04-17
 ---
@@ -121,8 +121,10 @@ Items found in `src/` outside `src/lib/dto/` and `src/lib/validation.ts`:
 | Literal | Location | Meaning | Extraction candidate? |
 |---------|----------|---------|-----------------------|
 | `BATCH_SIZE = 100` | `src/services/addressLabelService.ts:21` (module) + `src/services/toolService.ts:283` (class static) | MP record fetch batch size | Yes — two independent copies, merge into single export (e.g. `src/lib/constants.ts`) |
-| `MAX_TEMPLATE_SIZE = 5 * 1024 * 1024` | `src/components/address-labels/actions.ts:203` | 5MB docx upload cap | Possibly |
-| `MAX_FILE_SIZE = 5 * 1024 * 1024` | `src/components/address-labels/mail-merge-tab.tsx:13` | 5MB docx upload cap (client mirror) | Yes — duplicated literal |
+| `MAX_TEMPLATE_BYTES = 2 * 1024 * 1024` / `MAX_TEMPLATE_LABEL = '2MB'` | `src/components/address-labels/limits.ts` | Mail-merge `.docx` template cap; one export used by client `mail-merge-tab.tsx` and server `actions.ts` (`mergeTemplate`) | Done — single shared constant |
+| `MAX_LABELS = 10_000` | `src/components/address-labels/limits.ts` | Labels per render request (`parseLabelInput` in `schemas.ts`) | Done |
+| `TEMPLATE_ZIP_LIMITS = { maxEntries: 1_000, maxTotalBytes: 64 MB }` | `src/components/address-labels/limits.ts` | Zip-bomb bounds passed to `assertZipWithinLimits` (`src/lib/zip-guard.ts`) | Done |
+| `bodySizeLimit: "4mb"` | `next.config.ts` (`experimental.serverActions`) | Server-action request cap; sized with `limits.ts` under Vercel's 4.5 MB body cap | Coupled config — change with `limits.ts` |
 | `'040'` default | `src/app/(web)/tools/addresslabels/address-labels.tsx:53` | Default USPS service type | Consider `DEFAULT_SERVICE_TYPE = SERVICE_TYPES[0].id` |
 | `serialLength = mailerId.length === 6 ? 9 : 6` | `src/lib/barcode-helpers.ts:23` | USPS IMb rule: 6-digit MID → 9-digit serial, 9-digit MID → 6-digit serial | Domain rule — documented in comment, OK |
 | `barcodeId = '00'` | `src/lib/barcode-helpers.ts:22` | IMb header byte | OK (domain constant, inline) |
@@ -144,10 +146,10 @@ filter: `Group_ID = ${validatePositiveInt(groupId)}`
 ```
 
 ```typescript
-// src/services/userService.ts:70-85
-return this.mp!.getTableRecords<User>({
-  table: 'dp_Users',
-  filter: `User_GUID = '${validateGuid(guid)}'`,
+// src/services/userService.ts — UserService.getUserProfile
+const records = await this.mp!.getTableRecords<MPUserProfile>({
+  table: "dp_Users",
+  filter: `User_GUID = '${validateGuid(id)}'`,
   // ...
 });
 ```
@@ -155,7 +157,7 @@ return this.mp!.getTableRecords<User>({
 ## Gotchas
 
 - **Two `BATCH_SIZE = 100` constants.** Module-local in `addressLabelService.ts:21`; class-static in `toolService.ts:283`. Drift risk if MP API limit changes. See TODO `2026-04-17-dto-constants-batchsize-duplication.md`.
-- **`MAX_TEMPLATE_SIZE` and `MAX_FILE_SIZE` are both 5MB** and mirror each other across server (`actions.ts:203`) and client (`mail-merge-tab.tsx:13`). Drift risk.
+- **Template size cap is one constant now.** The former duplicated 5 MB literals (`MAX_TEMPLATE_SIZE` in `actions.ts`, `MAX_FILE_SIZE` in `mail-merge-tab.tsx`) were replaced by `MAX_TEMPLATE_BYTES` (2 MB) in `src/components/address-labels/limits.ts`. Resolved. Raising it means re-checking `next.config.ts` `bodySizeLimit` and Vercel's 4.5 MB cap together.
 - **`escapeFilterString` escapes `%` + `_` + `'`** — not generic SQL escaping, specific to MP OData/LIKE. Do NOT use it as a universal SQL sanitizer.
 - **`validatePositiveInt` rejects 0** (strictly positive). If you need non-negative int accept `>= 0`, write a new helper.
 - **`validateGuid` accepts upper- or lower-case hex** but NOT braces (no `{xxx-xxx}` form). Confirmed by `src/lib/validation.test.ts:11-13`.

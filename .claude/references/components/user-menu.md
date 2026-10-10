@@ -26,7 +26,7 @@ Dropdown menu that displays the signed-in MP user's name + email and triggers RP
 
 ## Key concepts
 - `UserMenu` is a **client component** (`"use client"`) — wraps a caller-supplied trigger via `<DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>`.
-- `userProfile` prop is typed `MPUserProfile` (`src/lib/providers/ministry-platform/types/user-profile.types.ts:1-13`) — expects the enriched MP profile, typically supplied by `UserProvider` / `useUser()`.
+- `userProfile` prop is typed `MPUserProfile` (`src/lib/providers/ministry-platform/types/user-profile.types.ts`) — display-only DTO (`First_Name`, `Nickname`, `Last_Name`, `Email_Address`), typically supplied by `UserProvider` / `useUser()`. Every field it carries is rendered here.
 - Display name uses `Nickname || First_Name`, then `Last_Name` (`user-menu.tsx:49-50`).
 - Sign-out is the only menu item currently (`userMenuItems` array, `user-menu.tsx:21-27`). Icon is `@heroicons/react/24/outline`'s `ArrowRightOnRectangleIcon`.
 - `onClose?` optional callback fires before the action — used by callers that render the trigger inside a larger popover/sidebar to close the outer surface.

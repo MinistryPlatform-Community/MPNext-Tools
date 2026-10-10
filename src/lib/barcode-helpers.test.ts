@@ -101,7 +101,9 @@ describe('barcode-helpers', () => {
         expect(result[0].barStates).toBeDefined();
         expect(warnSpy).toHaveBeenCalledTimes(1);
         expect(warnSpy.mock.calls[0][0]).toContain('IMb encode failed');
-        expect(warnSpy.mock.calls[0][0]).toContain('Test');
+        // Identifiers and shape only — never the label's name or address (rule 14).
+        expect(warnSpy.mock.calls[0][1]).toEqual({ labelIndex: 0, error: 'Error' });
+        expect(JSON.stringify(warnSpy.mock.calls)).not.toContain(baseLabel.name);
       });
 
       it('should log warning and produce no barcode when IMb fails and POSTNET also fails (invalid ZIP)', () => {
@@ -124,6 +126,7 @@ describe('barcode-helpers', () => {
         expect(warnSpy.mock.calls[0][0]).toContain('IMb encode failed');
         expect(warnSpy.mock.calls[1][0]).toContain('POSTNET encode failed');
         expect(warnSpy.mock.calls[2][0]).toContain('POSTNET encode also failed');
+        expect(JSON.stringify(warnSpy.mock.calls)).not.toContain('ABCDE');
       });
 
       it('should log warning and fall back to 5-digit ZIP when full-routing POSTNET throws', () => {

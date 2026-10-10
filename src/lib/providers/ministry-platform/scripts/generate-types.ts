@@ -21,6 +21,7 @@ envFiles.forEach(file => {
 
 import { MPHelper } from "../helper";
 import type { TableMetadata, ParameterDataType } from "../types";
+import { commentText, positiveInt, propertyKey } from "./codegen-escape";
 
 interface ColumnMetadata {
   Name: string;
@@ -153,31 +154,27 @@ function sanitizeTypeName(name: string): string {
   return result;
 }
 
-function isValidIdentifier(name: string): boolean {
-  // Check if the name is a valid JavaScript identifier
-  // Must start with letter, underscore, or dollar sign
-  // Can contain letters, digits, underscores, or dollar signs
-  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name);
-}
-
+// Every MP metadata value interpolated into generated source goes through
+// ./codegen-escape: propertyKey() for keys, commentText() for comment text,
+// positiveInt() for sizes. See that file for why.
 function formatFieldName(name: string): string {
-  // Quote field names that aren't valid JavaScript identifiers
-  return isValidIdentifier(name) ? name : `"${name}"`;
+  return propertyKey(name);
 }
 
-function mapDataTypeToTypeScript(dataType: ParameterDataType, isRequired: boolean, size?: number): string {
+function mapDataTypeToTypeScript(dataType: ParameterDataType, isRequired: boolean, rawSize?: unknown): string {
+  const size = positiveInt(rawSize);
   const baseType = (() => {
     switch (dataType) {
       case "String":
       case "Text":
       case "LargeString":
-        return size && size > 0 ? `string /* max ${size} chars */` : "string";
+        return size ? `string /* max ${size} chars */` : "string";
       case "Email":
-        return size && size > 0 ? `string /* email, max ${size} chars */` : "string /* email */";
+        return size ? `string /* email, max ${size} chars */` : "string /* email */";
       case "Phone":
         return "string /* phone number */";
       case "Url":
-        return size && size > 0 ? `string /* URL, max ${size} chars */` : "string /* URL */";
+        return size ? `string /* URL, max ${size} chars */` : "string /* URL */";
       case "Integer16":
         return "number /* 16-bit integer */";
       case "Integer32":
@@ -223,20 +220,22 @@ function mapDataTypeToTypeScript(dataType: ParameterDataType, isRequired: boolea
 
 function mapDataTypeToZod(col: ColumnMetadata): string {
   let zodType = "";
-  
+  // `.max(${size})` is executable code in the generated schema, not a comment.
+  const size = positiveInt(col.Size);
+
   switch (col.DataType) {
     case "String":
     case "Text":
     case "LargeString":
       zodType = "z.string()";
-      if (col.Size > 0) {
-        zodType += `.max(${col.Size})`;
+      if (size) {
+        zodType += `.max(${size})`;
       }
       break;
     case "Email":
       zodType = "z.string().email()";
-      if (col.Size > 0) {
-        zodType += `.max(${col.Size})`;
+      if (size) {
+        zodType += `.max(${size})`;
       }
       break;
     case "Phone":
@@ -244,8 +243,8 @@ function mapDataTypeToZod(col: ColumnMetadata): string {
       break;
     case "Url":
       zodType = "z.string().url()";
-      if (col.Size > 0) {
-        zodType += `.max(${col.Size})`;
+      if (size) {
+        zodType += `.max(${size})`;
       }
       break;
     case "Integer16":
@@ -352,13 +351,13 @@ function generateDetailedTypeDefinition(
     const fields = table.Columns
       .filter(col => col.DataType !== "Separator") // Skip separator fields
       .map(col => {
-        const fieldType = mapDataTypeToTypeScript(col.DataType, col.IsRequired, col.Size > 0 ? col.Size : undefined);
+        const fieldType = mapDataTypeToTypeScript(col.DataType, col.IsRequired, col.Size);
         const optionalMarker = col.IsRequired ? "" : "?";
         const commentParts = [];
         
         if (col.IsPrimaryKey) commentParts.push("Primary Key");
         if (col.IsForeignKey && col.ReferencedTable) {
-          commentParts.push(`Foreign Key -> ${col.ReferencedTable}.${col.ReferencedColumn}`);
+          commentParts.push(`Foreign Key -> ${commentText(col.ReferencedTable)}.${commentText(col.ReferencedColumn)}`);
         }
         if (col.IsReadOnly) commentParts.push("Read Only");
         if (col.IsComputed) commentParts.push("Computed");
@@ -366,8 +365,9 @@ function generateDetailedTypeDefinition(
         
         // Add JSDoc comment for additional constraints
         let jsDocComment = "";
-        if (col.Size > 0 && ["String", "Text", "Email", "Url"].includes(col.DataType)) {
-          jsDocComment = `\n  /**\n   * Max length: ${col.Size} characters\n   */`;
+        const maxLength = positiveInt(col.Size);
+        if (maxLength && ["String", "Text", "Email", "Url"].includes(col.DataType)) {
+          jsDocComment = `\n  /**\n   * Max length: ${maxLength} characters\n   */`;
         }
         
         const inlineComment = commentParts.length > 0 ? ` // ${commentParts.join(", ")}` : "";
@@ -404,16 +404,17 @@ function generateDetailedTypeDefinition(
     fieldsDefinition = fields.join("\n");
   } else {
     // Basic fallback
-    fieldsDefinition = `  ${name}_ID?: number; // Primary key (assuming standard naming convention)
+    fieldsDefinition = `  ${formatFieldName(`${name}_ID`)}?: number; // Primary key (assuming standard naming convention)
   [key: string]: unknown; // Allow for additional fields`;
   }
   
-  const permissions = table.SpecialPermissions ? `Special Permissions: ${table.SpecialPermissions}` : "";
-  const accessLevel = `Access Level: ${table.AccessLevel}`;
-  
+  const permissions = table.SpecialPermissions ? `Special Permissions: ${commentText(table.SpecialPermissions)}` : "";
+  const accessLevel = `Access Level: ${commentText(table.AccessLevel)}`;
+  const nameInComment = commentText(name);
+
   return `/**
- * Interface for ${name}
-* Table: ${name}
+ * Interface for ${nameInComment}
+* Table: ${nameInComment}
  * ${accessLevel}
  * ${permissions}
  * ${sampleRecords ? `Generated from ${sampleRecords.length} sample records` : "Generated from column metadata"}
