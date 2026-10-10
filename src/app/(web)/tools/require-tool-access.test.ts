@@ -60,7 +60,7 @@ describe('requireToolAccess', () => {
  */
 describe('every tool page self-gates', () => {
   const toolsDir = path.resolve(__dirname);
-  const pages = ['addeditfamily', 'addresslabels', 'fieldmanagement', 'groupwizard', 'template', 'templateeditor'];
+  const pages = ['addeditfamily', 'addresslabels', 'fieldmanagement', 'groupwizard', 'template'];
 
   it('covers every tool directory', async () => {
     const { readdirSync, existsSync } = await import('node:fs');

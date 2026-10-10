@@ -9,7 +9,7 @@ files:
   - src/components/template-editor/actions.ts
 discovered: 2026-04-17
 discovered_by: components-template-editor
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -35,3 +35,13 @@ status: open
 - Silent data-quality bug: recipients receive emails with literal `{{First_Name}}`.
 - The "Merge Fields" feature is misleading — the picker implies substitution happens.
 - Adding a resolver later without tests will risk resolver ↔ picker drift (new tokens in the picker, none in the resolver).
+
+---
+
+## Resolution (2026-10-10) — won't fix: tool removed
+The owner removed the template editor entirely (it was a demo, not a supported
+tool): `src/components/template-editor/`, `src/app/(web)/tools/templateeditor/`,
+`src/styles/grapesjs-overrides.css`, the home-page card, and the
+`grapesjs`, `@grapesjs/react`, `grapesjs-mjml`, `mjml` and `@types/mjml`
+packages (about 200 lockfile entries). There is no code left for this defect to
+live in. If a template tool returns, start from the problem statement above.

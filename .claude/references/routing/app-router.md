@@ -14,11 +14,11 @@ Next.js 16 App Router tree. A `(web)` route group gates all authenticated pages 
 ## Files
 - `src/app/layout.tsx` — root layout, imports `globals.css`, renders `<html lang="en"><body>{children}</body></html>`
 - `src/app/(web)/layout.tsx` — group layout; wraps children in `AuthWrapper` then `Providers`, injects Geist fonts, sets `metadata` + `viewport`
-- `src/app/(web)/page.tsx` — dashboard `/` — 5 tool cards (Template, Template Editor, Address Labels, Group Wizard, Field Management)
+- `src/app/(web)/page.tsx` — dashboard `/` — 5 tool cards (Template, Address Labels, Group Wizard, Field Management, Add/Edit Family)
 - `src/app/(web)/home/page.tsx` — `/home` → `redirect('/')`
 - `src/app/(web)/tools/layout.tsx` — tools sub-layout, `flex flex-col h-screen bg-gray-50`; role-less users get a UX redirect to `/no-access` — **not** enforcement (a layout redirect does not stop a page segment rendering in Next 16)
 - `src/app/(web)/tools/require-tool-access.ts` — `requireToolAccess()`, the page-level enforcement every tool page awaits first
-- `src/app/(web)/tools/<tool>/page.tsx` — per-tool entry (`addresslabels`, `fieldmanagement`, `groupwizard`, `template`, `templateeditor`)
+- `src/app/(web)/tools/<tool>/page.tsx` — per-tool entry (`addeditfamily`, `addresslabels`, `fieldmanagement`, `groupwizard`, `template`)
 - `src/app/(web)/error.tsx` — `"use client"` error boundary for the group
 - `src/app/signin/page.tsx` — public OAuth redirect page
 - `src/app/api/auth/[...all]/route.ts` — Better Auth catch-all handler (`export const { GET, POST } = toNextJsHandler(auth)`)
@@ -39,7 +39,6 @@ Next.js 16 App Router tree. A `(web)` route group gates all authenticated pages 
 ├── /                    # (web)/page.tsx — dashboard
 ├── /home                # (web)/home/page.tsx — redirects to /
 ├── /tools/template
-├── /tools/templateeditor
 ├── /tools/addresslabels
 ├── /tools/groupwizard
 ├── /tools/fieldmanagement

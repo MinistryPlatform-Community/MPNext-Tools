@@ -153,12 +153,11 @@ Server-side (call `parseToolParams`):
 - `src/app/(web)/tools/fieldmanagement/page.tsx`
 - `src/app/(web)/tools/groupwizard/page.tsx`
 - `src/app/(web)/tools/template/page.tsx`
-- `src/app/(web)/tools/templateeditor/page.tsx`
 
 Client/UI (consume the `ToolParams` type and/or predicates):
 - `src/components/tool/tool-container.tsx`
 - `src/components/dev-panel/dev-panel.tsx` + `panels/*`
-- Each tool's root component (`group-wizard.tsx`, `field-management.tsx`, `template-tool.tsx`, `address-labels.tsx`, `template-editor.tsx`)
+- Each tool's root component (`group-wizard.tsx`, `field-management.tsx`, `template-tool.tsx`, `address-labels.tsx`)
 
 ## Gotchas
 - **`pageData` may be `undefined` even when `pageID` is set.** The fetch is wrapped in `try/catch` and swallowed — callers must guard. See `src/lib/tool-params.ts:54-60`.

@@ -20,7 +20,7 @@ status: open
 
 ## Proposed fix
 Port per the playbooks. Verify `server-only` by planting a client import that must break `next build`.
-**CSP enforcement walk and the GrapesJS Google Fonts decision are held** — see
+**The CSP enforcement walk is held** (the GrapesJS fonts question went away with the template editor, removed 2026-10-10) — see
 `2026-09-30-held-csp-customer-deployments.md`.
 
 ## Impact if not fixed

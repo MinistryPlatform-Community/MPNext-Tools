@@ -2,8 +2,8 @@
 title: Shared Constants & Validation Helpers
 domain: dto-constants
 type: reference
-applies_to: [src/lib/dto/address-label.dto.ts, src/lib/label-stock.ts, src/lib/validation.ts, src/components/group-wizard/types.ts, src/services/addressLabelService.ts, src/services/toolService.ts, src/components/template-editor/grapes-config.ts]
-symbols: [SERVICE_TYPES, LABEL_STOCKS, LabelStockConfig, LabelPosition, WIZARD_STEPS, WizardStepIndex, DEFAULT_MJML_TEMPLATE, validateGuid, validatePositiveInt, validateColumnName, escapeFilterString, BATCH_SIZE, MAX_TEMPLATE_SIZE, MAX_FILE_SIZE, MAX_MJML_SIZE]
+applies_to: [src/lib/dto/address-label.dto.ts, src/lib/label-stock.ts, src/lib/validation.ts, src/components/group-wizard/types.ts, src/services/addressLabelService.ts, src/services/toolService.ts]
+symbols: [SERVICE_TYPES, LABEL_STOCKS, LabelStockConfig, LabelPosition, WIZARD_STEPS, WizardStepIndex, validateGuid, validatePositiveInt, validateColumnName, escapeFilterString, BATCH_SIZE, MAX_TEMPLATE_SIZE, MAX_FILE_SIZE]
 related: [dtos.md, ../services/README.md, ../utils/README.md]
 last_verified: 2026-04-17
 ---
@@ -18,7 +18,6 @@ Inventory of module-level runtime constants and SQL-safety validation helpers. A
 - `src/lib/validation.ts` — 4 SQL-safety helpers + 2 regexes
 - `src/lib/validation.test.ts` — 19 test cases
 - `src/components/group-wizard/types.ts:51-60` — `WIZARD_STEPS`, `WizardStepIndex`
-- `src/components/template-editor/grapes-config.ts:5` — `DEFAULT_MJML_TEMPLATE`
 - `src/services/addressLabelService.ts:21` — `BATCH_SIZE = 100` (module-local)
 - `src/services/toolService.ts:283` — `BATCH_SIZE = 100` (class static)
 
@@ -124,7 +123,6 @@ Items found in `src/` outside `src/lib/dto/` and `src/lib/validation.ts`:
 | `BATCH_SIZE = 100` | `src/services/addressLabelService.ts:21` (module) + `src/services/toolService.ts:283` (class static) | MP record fetch batch size | Yes — two independent copies, merge into single export (e.g. `src/lib/constants.ts`) |
 | `MAX_TEMPLATE_SIZE = 5 * 1024 * 1024` | `src/components/address-labels/actions.ts:203` | 5MB docx upload cap | Possibly |
 | `MAX_FILE_SIZE = 5 * 1024 * 1024` | `src/components/address-labels/mail-merge-tab.tsx:13` | 5MB docx upload cap (client mirror) | Yes — duplicated literal |
-| `MAX_MJML_SIZE = 512_000` | `src/components/template-editor/actions.ts:13` | 500KB MJML cap | Feature-local, OK |
 | `'040'` default | `src/app/(web)/tools/addresslabels/address-labels.tsx:53` | Default USPS service type | Consider `DEFAULT_SERVICE_TYPE = SERVICE_TYPES[0].id` |
 | `serialLength = mailerId.length === 6 ? 9 : 6` | `src/lib/barcode-helpers.ts:23` | USPS IMb rule: 6-digit MID → 9-digit serial, 9-digit MID → 6-digit serial | Domain rule — documented in comment, OK |
 | `barcodeId = '00'` | `src/lib/barcode-helpers.ts:22` | IMb header byte | OK (domain constant, inline) |

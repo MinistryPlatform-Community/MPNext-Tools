@@ -179,4 +179,4 @@ Creates both tools and adds both cards to the homepage.
 
 - The `ToolContainer` renders a `DevPanel` above the title bar automatically on localhost in development builds — no manual scaffolding needed.
 - The `page.tsx` uses a default export (Next.js requirement), but the tool component uses a named export per project convention
-- Route names should be lowercase with no separators (matching existing pattern: `template`, `groupwizard`, `templateeditor`)
+- Route names should be lowercase with no separators (matching existing pattern: `template`, `groupwizard`, `addresslabels`)

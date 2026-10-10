@@ -37,7 +37,6 @@ const hstsHeader = {
 };
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['mjml', 'mjml-core', 'mjml-validator', 'uglify-js'],
   async headers() {
     return [
       {

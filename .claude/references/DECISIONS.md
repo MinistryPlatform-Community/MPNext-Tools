@@ -325,7 +325,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 ### ADR-023: Client-only GrapesJS via `next/dynamic(ssr: false)`
 
 **Date:** 2026-04-17
-**Status:** Accepted
+**Status:** Superseded (2026-10-10) — the template editor and every GrapesJS/MJML dependency were removed. Kept for numbering; nothing in `src/` follows this decision any more.
 **Context:** GrapesJS and `@grapesjs/react` depend on DOM globals and cannot run under Node SSR.
 **Decision:** `src/components/template-editor/template-editor-form.tsx:12` wraps the editor canvas in `next/dynamic(..., { ssr: false })` with a `Skeleton` fallback. All editor files carry `"use client"`.
 **Consequences:** No SSR for the template editor; initial paint shows a skeleton and hydrates. The rest of the `/tools` route stays server-rendered.

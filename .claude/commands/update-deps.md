@@ -112,8 +112,8 @@ npm view <pkg>@<target> peerDependencies engines --json
 
 Then confirm the rest of the tree can satisfy those peers — especially any
 wrapper package. A wrapper's peer range on its wrapped library is the usual
-blocker (`@grapesjs/react` → `grapesjs`, `eslint-config-next` →
-`eslint-plugin-react`). Check whether the wrapper's **latest** release supports
+blocker (`eslint-config-next` → `eslint-plugin-react`,
+`typescript-eslint` → `typescript`). Check whether the wrapper's **latest** release supports
 the target; if it does not, the upgrade is blocked upstream and no override fixes
 it — record it as a hold.
 
@@ -170,8 +170,7 @@ const all=[...seen.values()];
 **Triage every hit before reporting it.** OSV ranges are sometimes malformed —
 fetch `https://api.osv.dev/v1/vulns/<ID>` and read `affected[].ranges` directly.
 A record with `{"introduced":"0"}` and no `fixed` event matches every version and
-is almost always a false positive. Known standing false positive: `grapesjs` /
-GHSA-589f-c66p-hxr4.
+is almost always a false positive.
 
 For richer context on a specific library's breaking changes, `context7` is
 available (`resolve-library-id` then `query-docs`).

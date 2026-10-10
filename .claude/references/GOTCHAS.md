@@ -58,8 +58,8 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 - GOTCHA-035: Dev-panel `UserToolsPanel` always shows "NOT AUTHORIZED"
 - GOTCHA-036: Edit-mode Review screen shows "ID: &lt;n&gt;" for Primary Contact / Parent Group
 - GOTCHA-037: Renaming `Secure_Check-in` breaks compilation in non-obvious places
-- GOTCHA-038: SSR/build error "window is not defined" when loading `/tools/templateeditor`
-- GOTCHA-039: Merge tokens like `{{First_Name}}` appear verbatim in sent emails
+- GOTCHA-038: _Retired 2026-10-10 (template editor removed)_
+- GOTCHA-039: _Retired 2026-10-10 (template editor removed)_
 
 ### Utils / labels
 - GOTCHA-040: IMb barcode silently becomes POSTNET (or disappears) with no log
@@ -387,21 +387,13 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Enforced where:** `src/components/group-wizard/schema.ts:43` (declaration).
 **Related:** [components/group-wizard.md](components/group-wizard.md)
 
-### GOTCHA-038: SSR/build error "window is not defined" when loading `/tools/templateeditor`
+### GOTCHA-038: _Retired_
 
-**Symptom:** Route errors during SSR or production build: `ReferenceError: window is not defined`.
-**Root cause:** GrapesJS touches `window` / `document` at import time. Any server-side import of a GrapesJS module blows up.
-**Fix:** Import `EditorCanvas` (or anything that imports `grapesjs`) via `next/dynamic` with `ssr: false`. Keep `"use client"` at the top of every file that imports from `grapesjs`.
-**Enforced where:** `src/components/template-editor/template-editor-form.tsx:6-15` (canonical pattern).
-**Related:** [components/template-editor.md](components/template-editor.md)
+Retired 2026-10-10: applied only to the GrapesJS template editor, which was removed along with its dependencies.
 
-### GOTCHA-039: Merge tokens like `{{First_Name}}` appear verbatim in sent emails
+### GOTCHA-039: _Retired_
 
-**Symptom:** A template authored in the editor with `{{First_Name}}` tokens gets sent to recipients with the literal text `{{First_Name}}` visible.
-**Root cause:** The template-editor has no token resolver. Tokens are emitted literally by the MJML compile step; the downstream send pipeline is responsible for substitution but does not yet exist.
-**Fix:** Resolve tokens in the downstream send/render pipeline before emitting the final HTML. TODO: `.claude/TODO/2026-04-17-components-template-editor-merge-token-resolver.md`.
-**Enforced where:** `src/components/template-editor/merge-fields.ts:9-28` (defines tokens but no resolver exists).
-**Related:** [components/template-editor.md](components/template-editor.md)
+Retired 2026-10-10: applied only to the template editor's merge tokens; the editor was removed.
 
 ---
 
