@@ -18,7 +18,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **13 open TODOs**.
+Total: **11 open TODOs**.
 
 > **Start here for owner (non-code) work:** [`2026-10-10-owner-ops-checklist-before-release.md`](2026-10-10-owner-ops-checklist-before-release.md)
 > collects every env-var, MP and GitHub setting to do before and right after the next `/release`.
@@ -33,12 +33,10 @@ Total: **13 open TODOs**.
 ### Critical (0)
 _none open_
 
-### High (3)
+### High (1)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | auth | security, doc | Owner checklist — settings to do before/after the next /release | [→](2026-10-10-owner-ops-checklist-before-release.md) |
-| auth | security, doc | Ops — Rotate BETTER_AUTH_SECRET; advise downstream clones | [→](2026-09-30-ops-rotate-better-auth-secret.md) |
-| auth | security, doc | Ops — Set MP_SECURITY_ROLES=* in every environment | [→](2026-09-30-ops-set-mp-security-roles-env.md) |
 
 ### Medium (4)
 | Area | Tags | Title | File |
@@ -62,10 +60,8 @@ _none open_
 
 ## By tag
 
-### security (10)
+### security (8)
 - owner-ops-checklist-before-release — high
-- ops-rotate-better-auth-secret — high
-- ops-set-mp-security-roles-env — high
 - step6-headers-csp-build-guards — medium
 - held-csp-customer-deployments — medium
 - held-stored-procedure-allowlist — medium
@@ -89,10 +85,8 @@ _none open_
 ### refactor (1)
 - dead-empty-fields-branch-handlenext — low
 
-### doc (6)
+### doc (4)
 - owner-ops-checklist-before-release — high
-- ops-rotate-better-auth-secret — high
-- ops-set-mp-security-roles-env — high
 - held-csp-customer-deployments — medium
 - step9-ci-setup-and-docs — low
 - held-github-repo-security-settings — low
@@ -107,7 +101,7 @@ _none open_
 | Area | Count |
 |---|---|
 | components | 3 |
-| auth | 3 |
+| auth | 1 |
 | routing | 2 |
 | commands | 2 |
 | services | 2 |
