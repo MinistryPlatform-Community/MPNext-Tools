@@ -47,6 +47,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 ### Testing
 - [ADR-025: Vitest (not Jest) as the test runner](#adr-025-vitest-not-jest-as-the-test-runner)
 - [ADR-026: jsdom (not happy-dom) as the DOM environment](#adr-026-jsdom-not-happy-dom-as-the-dom-environment)
+- [ADR-027: One MP OAuth client for the service account and user sign-in](#adr-027-one-mp-oauth-client-for-the-service-account-and-user-sign-in)
 
 ---
 
@@ -365,3 +366,13 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Consequences:** Slightly slower than happy-dom on pure-DOM tests, but compatibility is higher for edge APIs (`Headers`, `Storage`, `fetch` mocks).
 **Alternatives considered:**
 - **happy-dom** — faster, but historically has gaps around `Headers`, `fetch`, and `Storage` mocks that affect MP client tests.
+
+### ADR-027: One MP OAuth client for the service account and user sign-in
+
+**Date:** 2026-10-10
+**Status:** Accepted (reverses security Step 4's dedicated OIDC client)
+**Context:** Step 4 (2026-09-30) added `MP_OIDC_CLIENT_ID` / `MP_OIDC_CLIENT_SECRET` so user sign-in would run as its own MP client, with a fallback to the service account while environments were split. That meant two MP client registrations and two secrets per deployment, plus a fallback path and a warning to maintain.
+**Decision:** The app has exactly one MP OAuth client, `MINISTRY_PLATFORM_CLIENT_ID` / `MINISTRY_PLATFORM_CLIENT_SECRET`, read through `getMpClient()` in `src/lib/env.ts`. It is the client-credentials service account and the OIDC sign-in client; its id is the id_token audience and the sign-out `client_id`. The `MP_OIDC_*` variables, `getOidcClient`, `warnIfSharedOidcClient` and the `auth.oidc.shared_client` event were removed.
+**Consequences:** One registration and one secret per deployment, and no half-configured state. Accepted risk: that one secret is both full MP data access and user sign-in, and an id_token minted for the service account's client is a valid sign-in token. The MP client record must carry the sign-in redirect URIs (`<BETTER_AUTH_URL>/api/auth/callback/ministryplatform`, post-logout `<BETTER_AUTH_URL>`) and nothing broader.
+**Alternatives considered:**
+- **Dedicated OIDC client (Step 4)** — narrower blast radius per secret, but double the client management for every deployment and customer clone.

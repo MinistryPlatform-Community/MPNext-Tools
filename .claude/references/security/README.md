@@ -310,10 +310,12 @@ detail in [`../auth/oauth-flow.md`](../auth/oauth-flow.md).
   config (better-auth then neither sends nor requires a nonce). Re-adding
   `discoveryUrl` would also turn nonce binding back on, which MP cannot satisfy
   — `src/auth.oidc-discovery.test.ts` keeps that negative control.
-- **Dedicated OIDC client** (owner decision): `MP_OIDC_CLIENT_ID` /
-  `MP_OIDC_CLIENT_SECRET`, separate from the service account. Falls back to the
-  service account with `auth.oidc.shared_client` until every environment is
-  split (`.claude/TODO/2026-09-30-require-dedicated-oidc-client.md`).
+- **One MP client** (owner decision 2026-10-10, reversing Step 4's dedicated
+  client; ADR-027): sign-in runs as `MINISTRY_PLATFORM_CLIENT_ID` /
+  `_SECRET`, the service account's client. Accepted consequence: one leaked
+  secret is both full MP data access and user sign-in, and the id_token
+  audience is the service account's client id. Mitigation is keeping that
+  secret out of reach and its MP redirect URIs exact.
 - **One auth instance per process** (`sharedInstance`), so sign-out finds the
   id_token (`id_token_hint`) and deletes the session row. Sign-out always sends
   `client_id`; on another serverless instance there is no hint and MP may
@@ -497,8 +499,8 @@ Stated plainly: with neither PKCE nor a nonce, **nothing binds an
 authorization code to the browser that started the flow** — the `state` check
 does not stop an attacker injecting a stolen code into their own flow, and the
 client secret does not help because the app redeems the injected code itself
-(RFC 9700 §4.5). What remains keeps codes out of reach: a dedicated MP OIDC
-client with exact redirect URIs (`MP_OIDC_CLIENT_ID`, Step 4), `Referrer-Policy`,
+(RFC 9700 §4.5). What remains keeps codes out of reach: exact redirect URIs
+registered on the MP client (`MINISTRY_PLATFORM_CLIENT_ID`), `Referrer-Policy`,
 and no code-bearing URLs in logs.
 
 ### Still open — needs a human
@@ -524,11 +526,11 @@ and no code-bearing URLs in logs.
   push protection and Dependabot security updates were all **disabled** on
   2026-09-30 (public repo). `SECURITY.md` points reporters at private
   vulnerability reporting, so it needs enabling.
-- **Register a dedicated MP OIDC client** and set `MP_OIDC_CLIENT_ID` /
-  `MP_OIDC_CLIENT_SECRET` in every environment (redirect URI
-  `<BETTER_AUTH_URL>/api/auth/callback/ministryplatform`, post-logout redirect
-  URI `<BETTER_AUTH_URL>`). Until then sign-in shares the service-account
-  client and logs `auth.oidc.shared_client`.
+- **Check the MP client's redirect URIs** in every environment:
+  `MINISTRY_PLATFORM_CLIENT_ID`'s MP record must list exactly
+  `<BETTER_AUTH_URL>/api/auth/callback/ministryplatform` and post-logout
+  `<BETTER_AUTH_URL>`. Remove `MP_OIDC_CLIENT_ID` / `_SECRET` from any
+  environment that set them (ignored now, but stale secrets).
 - **Real-MP smoke test of Step 4 not yet done** (a real sign-in): sign in,
   confirm `/api/auth/get-session` has a `userGuid`, no
   `auth.oidc.discovery_failed` / `auth.userinfo.id_token_unverified` in the

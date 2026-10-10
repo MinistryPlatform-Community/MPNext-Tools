@@ -9,7 +9,7 @@ import { customSession } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { isIP } from "node:net";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from "jose";
-import { getAuthBaseUrl, getMpBaseUrl, getOidcClient, type OidcClient } from "@/lib/env";
+import { getAuthBaseUrl, getMpBaseUrl, getMpClient } from "@/lib/env";
 import { validateGuid } from "@/lib/validation";
 
 /**
@@ -102,10 +102,10 @@ if (!process.env.VITEST) {
 const mpBaseUrl = getMpBaseUrl();
 const authBaseUrl = getAuthBaseUrl();
 
-// The OIDC client user sign-in runs as — dedicated (`MP_OIDC_CLIENT_ID` /
-// `_SECRET`), or the service-account client as a deprecated fallback. See
-// `getOidcClient` in src/lib/env.ts and `warnIfSharedOidcClient` below.
-const oidcClient = getOidcClient();
+// The app's one MP OAuth client (`MINISTRY_PLATFORM_CLIENT_ID` / `_SECRET`):
+// the service account AND the client user sign-in runs as. See `getMpClient`
+// in src/lib/env.ts.
+const mpClient = getMpClient();
 
 /**
  * Default client-IP headers, used only when the process runs on Vercel
@@ -672,7 +672,7 @@ async function verifyMpIdToken(idToken: string): Promise<JWTPayload | null> {
   try {
     const { payload } = await jwtVerify(idToken, verifier.jwks, {
       issuer: verifier.issuer,
-      audience: oidcClient.clientId,
+      audience: mpClient.clientId,
       algorithms: ID_TOKEN_ALGORITHMS,
     });
     return payload;
@@ -686,32 +686,6 @@ async function verifyMpIdToken(idToken: string): Promise<JWTPayload | null> {
     });
     return null;
   }
-}
-
-/**
- * Logs `auth.oidc.shared_client` (once per auth instance, i.e. once per
- * process outside Vitest — see `sharedInstance`) when sign-in is not running
- * as a dedicated OIDC client. A warning, not a refusal, until every
- * environment has `MP_OIDC_CLIENT_ID` / `MP_OIDC_CLIENT_SECRET`; see
- * `.claude/TODO/2026-09-30-require-dedicated-oidc-client.md`.
- *
- * Silent during `next build` (`NEXT_PHASE`), whose page-data workers are
- * separate processes and would each print it; the running server logs it.
- * Exported for tests.
- */
-export function warnIfSharedOidcClient(
-  client: Pick<OidcClient, "shared">,
-  env: Readonly<Record<string, string | undefined>> = process.env,
-): void {
-  if (!client.shared || env.NEXT_PHASE === "phase-production-build") return;
-  console.warn(
-    JSON.stringify({
-      event: "auth.oidc.shared_client",
-      message:
-        "User sign-in is using the MP service-account client; register a dedicated MP OIDC client and set MP_OIDC_CLIENT_ID / MP_OIDC_CLIENT_SECRET",
-      source: client.shared,
-    }),
-  );
 }
 
 /**
@@ -749,8 +723,8 @@ export const ministryPlatformProviderConfig: GenericOAuthConfig = {
   // its own session without a "log out?" prompt. (`userInfoUrl` is not set:
   // the custom `getUserInfo` below fetches `mpOidc.userinfo` itself.)
   endSessionEndpoint: mpOidc.endSession,
-  clientId: oidcClient.clientId,
-  clientSecret: oidcClient.clientSecret,
+  clientId: mpClient.clientId,
+  clientSecret: mpClient.clientSecret,
   /**
    * No `offline_access`: this app never uses the user's own MP tokens (all MP
    * data access goes through the client-credentials service account), so it
@@ -783,8 +757,8 @@ export const ministryPlatformProviderConfig: GenericOAuthConfig = {
    * injects the victim's code into it), and being a confidential client does
    * not help either (the app redeems the injected code with its own secret) —
    * authorization-code injection, RFC 9700 §4.5. What remains keeps codes out
-   * of an attacker's reach: a dedicated MP OIDC client with exact redirect
-   * URIs (`MP_OIDC_CLIENT_ID`), `Referrer-Policy`, and no code-bearing URLs in
+   * of an attacker's reach: exact redirect URIs registered on the MP client
+   * (`MINISTRY_PLATFORM_CLIENT_ID`), `Referrer-Policy`, and no code-bearing URLs in
    * logs. What IS still checked: the id_token's signature against MP's JWKS,
    * its issuer and audience (`verifyMpIdToken`).
    */
@@ -829,7 +803,7 @@ export const ministryPlatformProviderConfig: GenericOAuthConfig = {
       logSubBindingFailure("missing_sub");
       return null;
     }
-    const claimFailure = idTokenClaimFailure(claims, oidcClient.clientId);
+    const claimFailure = idTokenClaimFailure(claims, mpClient.clientId);
     if (claimFailure) {
       logIdTokenClaimFailure(claimFailure);
       return null;
@@ -1134,7 +1108,6 @@ const options = {
 } satisfies BetterAuthOptions;
 
 function createAuth() {
-  warnIfSharedOidcClient(oidcClient);
   return betterAuth({
     ...options,
     plugins: [

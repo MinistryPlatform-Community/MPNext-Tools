@@ -120,7 +120,7 @@ describe('MP down or hanging while the app starts', () => {
     const { authorizeUrl } = await startSignIn(auth, ORIGIN);
     expect(authorizeUrl.searchParams.has('nonce')).toBe(false);
     expect(authorizeUrl.searchParams.has('code_challenge')).toBe(false);
-    expect(authorizeUrl.searchParams.get('client_id')).toBe(process.env.MP_OIDC_CLIENT_ID);
+    expect(authorizeUrl.searchParams.get('client_id')).toBe(process.env.MINISTRY_PLATFORM_CLIENT_ID);
   });
 });
 

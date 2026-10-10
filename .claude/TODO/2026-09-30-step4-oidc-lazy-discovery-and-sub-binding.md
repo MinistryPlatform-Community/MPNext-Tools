@@ -87,3 +87,10 @@ Branch `fix/step4-oidc-lazy-discovery`. State was **B** (`discoveryUrl`, no faca
    `/sign-in/social` (200, authorize URL, no nonce/PKCE), `/signin` answer in ≤ 35 ms with **0** MP
    connections; against mpi the same, and `lazyIdTokenVerifier` loads mpi's discovery + JWKS (RS256 key found).
 10. **Not done** — real-MP sign-in smoke test (needs a person and a real login).
+
+## Update (2026-10-10)
+Item 4 (dedicated OIDC client) was reversed by owner decision. Sign-in now
+uses `MINISTRY_PLATFORM_CLIENT_ID` / `_SECRET` through `getMpClient()`, and
+the `MP_OIDC_*` pair and the `auth.oidc.shared_client` warning are gone. See
+ADR-027 and `2026-09-30-require-dedicated-oidc-client.md`. Everything else in
+this resolution still holds.

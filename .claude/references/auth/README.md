@@ -5,12 +5,12 @@ domain: auth
 ---
 
 ## What's in this domain
-Better Auth (`1.7.x`) wired to Ministry Platform OIDC via the `genericOAuth` plugin — explicit endpoints (no boot-time discovery), the id_token verified by the app against lazily loaded discovery + JWKS, a dedicated OIDC client (`MP_OIDC_CLIENT_ID`, falling back to the service account with a warning), and one auth instance per process — with stateless sessions (12 h ceiling, encrypted `session_data` cookie, no user OAuth tokens), boot-time secret/URL refusals, a `customSession` name-splitter, and dual-layer route protection (proxy + `AuthWrapper`).
+Better Auth (`1.7.x`) wired to Ministry Platform OIDC via the `genericOAuth` plugin — explicit endpoints (no boot-time discovery), the id_token verified by the app against lazily loaded discovery + JWKS, one MP client for both the service account and sign-in (`MINISTRY_PLATFORM_CLIENT_ID`), and one auth instance per process — with stateless sessions (12 h ceiling, encrypted `session_data` cookie, no user OAuth tokens), boot-time secret/URL refusals, a `customSession` name-splitter, and dual-layer route protection (proxy + `AuthWrapper`).
 
 ## File map
 | File | Purpose | When to read |
 |------|---------|--------------|
-| `oauth-flow.md` | `genericOAuth` config, lazy id_token verification, `getUserInfo` + sub binding, dedicated OIDC client, log events, `endsession` logout | Wiring the MP OAuth client, debugging callbacks, outages or logout |
+| `oauth-flow.md` | `genericOAuth` config, lazy id_token verification, `getUserInfo` + sub binding, the single MP client, log events, `endsession` logout | Wiring the MP OAuth client, debugging callbacks, outages or logout |
 | `sessions.md` | Session lifetime, JWE `cookieCache`, no OAuth tokens, boot refusals (`assertAuthEnvironment`, `src/lib/env.ts`), client-IP headers, `customSession`, session shape | Reading/modifying session data, any `getSession()` call |
 | `route-protection.md` | `src/proxy.ts` + `AuthWrapper` dual-layer pattern, `x-pathname` forwarding, `callbackUrl` preservation | Touching route guards or sign-in redirect behavior |
 | `user-identity.md` | `session.user.id` (Better Auth internal) vs `session.user.userGuid` (MP `User_GUID`) — gotcha | Before any MP API lookup keyed by the signed-in user |
@@ -20,7 +20,7 @@ Better Auth (`1.7.x`) wired to Ministry Platform OIDC via the `genericOAuth` plu
 |------|------|
 | `src/lib/auth.ts` | Server Better Auth config (plugins: `genericOAuth`, `customSession`, `nextCookies`) |
 | `src/lib/auth-client.ts` | Client `authClient` (`customSessionClient`) |
-| `src/lib/env.ts` | `getMpBaseUrl()`, `getAuthBaseUrl()`, `getOidcClient()` — validated env readers |
+| `src/lib/env.ts` | `getMpBaseUrl()`, `getAuthBaseUrl()`, `getMpClient()` — validated env readers |
 | `src/app/api/auth/[...all]/route.ts` | Route handler (`toNextJsHandler(auth)`) |
 | `src/app/signin/page.tsx` | Sign-in page — auto-redirects via `authClient.signIn.social({ provider: "ministryplatform" })` |
 | `src/proxy.ts` | Route protection (session-cookie presence check + `x-pathname` forwarding) |

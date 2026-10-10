@@ -201,7 +201,7 @@ describe("UserMenu", () => {
   });
 
   it("tells the user when sign-out genuinely fails, instead of swallowing it", async () => {
-    mockHandleSignOut.mockRejectedValueOnce(new Error("[env] MP_OIDC_CLIENT_ID and MP_OIDC_CLIENT_SECRET must be set together"));
+    mockHandleSignOut.mockRejectedValueOnce(new Error("[env] MINISTRY_PLATFORM_CLIENT_ID and MINISTRY_PLATFORM_CLIENT_SECRET must both be set"));
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
     clicks.length = 0;
 
@@ -217,6 +217,6 @@ describe("UserMenu", () => {
     await expect(clicks[0]).resolves.toEqual({ rejected: false });
     expect(alertSpy).toHaveBeenCalledWith(expect.stringMatching(/sign out did not complete/i));
     // The raw error (which can name configuration) is not shown.
-    expect(alertSpy).not.toHaveBeenCalledWith(expect.stringContaining("MP_OIDC_CLIENT_ID"));
+    expect(alertSpy).not.toHaveBeenCalledWith(expect.stringContaining("MINISTRY_PLATFORM_CLIENT_ID"));
   });
 });

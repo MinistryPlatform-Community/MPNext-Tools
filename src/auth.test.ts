@@ -167,11 +167,9 @@ describe('Auth - OAuth Configuration', () => {
     expect(config.authorizationUrlParams).toEqual({ realm: 'realm' });
   });
 
-  it('signs in as the dedicated OIDC client, not the service account', () => {
-    // test-setup.ts stubs the two as different clients.
-    expect(ministryPlatformProviderConfig.clientId).toBe(process.env.MP_OIDC_CLIENT_ID);
-    expect(ministryPlatformProviderConfig.clientSecret).toBe(process.env.MP_OIDC_CLIENT_SECRET);
-    expect(ministryPlatformProviderConfig.clientId).not.toBe(process.env.MINISTRY_PLATFORM_CLIENT_ID);
+  it("signs in as the app's one MP client (MINISTRY_PLATFORM_CLIENT_ID / _SECRET)", () => {
+    expect(ministryPlatformProviderConfig.clientId).toBe(process.env.MINISTRY_PLATFORM_CLIENT_ID);
+    expect(ministryPlatformProviderConfig.clientSecret).toBe(process.env.MINISTRY_PLATFORM_CLIENT_SECRET);
   });
 
   /**
