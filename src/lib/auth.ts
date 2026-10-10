@@ -1,3 +1,4 @@
+import "server-only";
 import { betterAuth, BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import {

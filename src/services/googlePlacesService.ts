@@ -1,3 +1,4 @@
+import "server-only";
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { GooglePlacesProvider } from "@/lib/providers/google-places";
 import type { PlacePrediction, PlaceDetails } from "@/lib/providers/google-places";

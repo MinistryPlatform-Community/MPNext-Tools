@@ -6,6 +6,7 @@ This guide provides essential information for AI assistants (like Claude) workin
 
 - **Dev**: `npm run dev` (Next.js dev server)
 - **Build**: `npm run build` (builds SQL install script, then production build with Turbopack + type checking)
+- **Prerender check**: `npm run check:prerender` (after a build; fails if any route besides `/_not-found`/`/_global-error` was statically prerendered — such a page has no CSP nonce)
 - **Lint**: `npm run lint` (ESLint CLI — `next lint` was removed in Next.js 16)
 - **Type check**: `npm run typecheck` (`tsc --noEmit`; enforced in CI)
 - **Generate MP Types**: `npm run mp:generate:models` (generates TypeScript types + Zod schemas from Ministry Platform API, cleans output directory first)
@@ -18,7 +19,7 @@ This guide provides essential information for AI assistants (like Claude) workin
 
 - Generated types automatically quote field names with special characters (e.g., `"Allow_Check-in"`)
 - The `mp:generate:models` script uses `--clean` flag to remove old files before regenerating
-- Manual generation with options: `tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --help`
+- Manual generation with options: `tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help`
 
 ## Branching & Release
 
@@ -191,8 +192,9 @@ export default MyComponent;            // ❌ Avoid
 12. **Authorize, don't just authenticate** — feature server actions **and** service methods that touch MP data call `AuthorizationService` (`requireSecurityRole`, for **reads** as well as writes), never a bare `auth.api.getSession()` check. MP's OIDC endpoint authenticates *any* `dp_Users` record, and this app reads MP with its own service account, so MP's per-user record security never applies to what it returns — "a session exists" proves nothing. Documented carve-outs, each justified in-file: `layout/auth-wrapper.tsx` (it *is* the session gate), `shared-actions/user.ts` (the user's own profile), `shared-actions/domain.ts` (one domain-wide config string), `dev-panel/panels/require-dev-session.ts` (dev-only, and the services it calls gate anyway). A fifth needs the same justification, in the file, in writing.
 13. **Write attribution has exactly one source** — `$userId` comes from the gate's return value, assembled in the **service**, never passed in by an action and never read from a caller-supplied payload. Two layers stamping it can drift, and a caller value can slip past whichever was checked second.
 14. **No debug logging in `src/`** — `no-console` is enforced by ESLint (`warn`/`error` only). Errors log **identifiers and shape** (table, IDs, HTTP status), never record content, `$filter` strings, request bodies, or response bodies — including inside thrown error messages, which travel further than logs do.
-15. **`src/lib/tool-params.ts` must stay client-safe** — it is imported by client components. Importing a service from it drags `next/headers` into the client graph and fails the Turbopack build. Server-side parsing lives in `tool-params.server.ts`; a dynamic `import()` is *not* sufficient, it still creates a graph edge.
-16. **Convert all date/time values at the MP boundary** - use `DomainTimezoneService` (never raw `new Date(x).toISOString()`, `` `${date}T00:00:00Z` ``, or `getFullYear()`) when sending or receiving datetime fields, since MP stores wall-clock values in the domain's time zone, not UTC. See **[Date/Time Handling Reference](.claude/references/ministryplatform.datetimehandling.md)**.
+15. **Server modules start with `import 'server-only'`** — every service, `auth.ts`, `env.ts`, `tool-params.server.ts` and the MP client/credentials modules. A client import then fails `next build` instead of shipping server code (or secrets) to the browser. Add it to any new service. Vitest aliases it away; codegen runs `tsx --conditions=react-server` (GOTCHA-046).
+16. **`src/lib/tool-params.ts` must stay client-safe** — it is imported by client components. Importing a service from it drags `next/headers` into the client graph and fails the Turbopack build. Server-side parsing lives in `tool-params.server.ts`; a dynamic `import()` is *not* sufficient, it still creates a graph edge.
+17. **Convert all date/time values at the MP boundary** - use `DomainTimezoneService` (never raw `new Date(x).toISOString()`, `` `${date}T00:00:00Z` ``, or `getFullYear()`) when sending or receiving datetime fields, since MP stores wall-clock values in the domain's time zone, not UTC. See **[Date/Time Handling Reference](.claude/references/ministryplatform.datetimehandling.md)**.
 
 ## Validation Best Practices
 
@@ -267,13 +269,15 @@ condition that clears it. Do not re-derive that analysis.
   with <https://vercel.com/docs/functions/runtimes/node-js/node-js-versions>,
   then bump `engines.node`, `.nvmrc`, `@types/node`, and `REQUIRED_NODE_MAJOR`
   in `scripts/setup.ts` together.
-- **CI gates lint, types and tests** — `.github/workflows/test.yml` runs
-  `npm run lint`, `npm run typecheck` and `npm run test:coverage`, in that
+- **CI gates lint, types, tests and the build** — `.github/workflows/test.yml`
+  runs `npm run lint`, `npm run typecheck`, `npm run test:coverage`,
+  `npm run build` (with placeholder env) and `npm run check:prerender`, in that
   order, as steps of the single `test` job. They are steps rather than separate
   jobs on purpose: branch protection requires the check named `test`, so extra
   jobs would be green-but-unrequired until someone also edited the protection
-  rules. CI still does not run `npm run build`, but `typecheck` now covers the
-  part of it that used to break.
+  rules. The build step is what catches a `server-only` module reaching a
+  client component (GOTCHA-046); the prerender check catches a route that lost
+  its dynamic signal and would ship without a CSP nonce (GOTCHA-047).
 - **CI installs with `npm ci`**, not `npm install` — it installs exactly what
   `package-lock.json` pins and fails if the lockfile and `package.json`
   disagree, instead of silently resolving new versions inside CI.

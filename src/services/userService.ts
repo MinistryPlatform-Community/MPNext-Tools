@@ -1,3 +1,4 @@
+import "server-only";
 import { MPUserProfile } from "@/lib/providers/ministry-platform/types";
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { validateGuid } from "@/lib/validation";

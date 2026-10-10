@@ -1,6 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
-import { buildCsp, cspHeaderName, generateNonce } from '@/lib/security-headers';
+import {
+  buildCsp,
+  cspHeaderName,
+  cspReportUri,
+  generateNonce,
+  reportingEndpointsHeader,
+} from '@/lib/security-headers';
 
 /**
  * Paths reachable without a session.
@@ -19,7 +25,10 @@ import { buildCsp, cspHeaderName, generateNonce } from '@/lib/security-headers';
  */
 function isPublicPath(pathname: string): boolean {
   return (
-    pathname.startsWith('/api/auth') ||
+    // Exact segment match: a bare `startsWith('/api/auth')` would also make a
+    // future `/api/authz` or `/api/auth-admin` route public by accident.
+    pathname === '/api/auth' ||
+    pathname.startsWith('/api/auth/') ||
     pathname === '/signin' ||
     pathname === '/auth-error'
   );
@@ -32,10 +41,13 @@ export async function proxy(request: NextRequest) {
   const isDev = process.env.NODE_ENV !== 'production';
   const headerName = cspHeaderName();
   const nonce = generateNonce();
+  const reportUri = cspReportUri(process.env.CSP_REPORT_URI, isDev);
+  const reportingEndpoints = reportingEndpointsHeader(reportUri);
   const csp = buildCsp({
     nonce,
     isDev,
     reportOnly: headerName === 'Content-Security-Policy-Report-Only',
+    reportUri,
   });
 
   // Forward the original URL (pathname + search) to downstream server
@@ -56,6 +68,9 @@ export async function proxy(request: NextRequest) {
 
   const withCsp = (response: NextResponse) => {
     response.headers.set(headerName, csp);
+    if (reportingEndpoints) {
+      response.headers.set('Reporting-Endpoints', reportingEndpoints);
+    }
     return response;
   };
 
@@ -90,8 +105,16 @@ export async function proxy(request: NextRequest) {
   }
 }
 
+/**
+ * Every path except Next's static chunks, the image endpoint, the favicon and
+ * `public/assets/`. Each exclusion is ANCHORED — to a trailing `/` for the
+ * directories and to end-of-path (`$`) for the two single files — so a page
+ * named `/favicon.ico-admin` or `/_next/imagery` cannot slip past the session
+ * check and the CSP by sharing a prefix with an exempt path. The `.` in
+ * `favicon.ico` is escaped for the same reason.
+ */
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|assets/).*)',
+    '/((?!_next/static/|_next/image$|favicon\\.ico$|assets/).*)',
   ],
 };

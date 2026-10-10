@@ -18,10 +18,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **2 open TODOs**.
-
-> **`step6`** is the remaining step from the 2026-09-30 MPNext playbook audit.
-> `held-*` items wait on an owner decision.
+Total: **0 open TODOs**.
 
 ---
 
@@ -33,11 +30,8 @@ _none open_
 ### High (0)
 _none open_
 
-### Medium (2)
-| Area | Tags | Title | File |
-|---|---|---|---|
-| routing | security, drift | Step 6 — Headers, next.config, server-only, prerender + build in CI | [→](2026-09-30-step6-headers-csp-build-guards.md) |
-| routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
+### Medium (0)
+_none open_
 
 ### Low (0)
 _none open_
@@ -46,15 +40,14 @@ _none open_
 
 ## By tag
 
-### security (2)
-- step6-headers-csp-build-guards — medium
-- held-csp-customer-deployments — medium
+### security (0)
+_none open_
 
 ### bug (0)
 _none open_
 
-### drift (1)
-- step6-headers-csp-build-guards — medium
+### drift (0)
+_none open_
 
 ### missing-test (0)
 _none open_
@@ -62,8 +55,8 @@ _none open_
 ### refactor (0)
 _none open_
 
-### doc (1)
-- held-csp-customer-deployments — medium
+### doc (0)
+_none open_
 
 ### perf (0)
 _none open_
@@ -75,7 +68,7 @@ _none open_
 | Area | Count |
 |---|---|
 | components | 0 |
-| routing | 2 |
+| routing | 0 |
 | services | 0 |
 | auth | 0 |
 | commands | 0 |

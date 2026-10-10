@@ -107,6 +107,24 @@ describe('proxy', () => {
       expect(mockNext).not.toHaveBeenCalled();
     });
 
+    it.each(['/api/authz', '/api/auth-admin', '/api/authorize'])(
+      'does NOT treat %s as public just because it shares the /api/auth prefix',
+      async (path) => {
+        mockGetSessionCookie.mockReturnValueOnce(null);
+
+        await proxy(createMockRequest(path));
+
+        expect(mockGetSessionCookie).toHaveBeenCalled();
+        expect(mockRedirect).toHaveBeenCalled();
+      },
+    );
+
+    it('treats the bare /api/auth path as public', async () => {
+      await proxy(createMockRequest('/api/auth'));
+
+      expect(mockGetSessionCookie).not.toHaveBeenCalled();
+    });
+
     it('should allow /signin path without session check', async () => {
       const request = createMockRequest('/signin');
 
@@ -230,8 +248,34 @@ describe('proxy', () => {
       const pattern = config.matcher[0];
       expect(pattern).toContain('_next/static');
       expect(pattern).toContain('_next/image');
-      expect(pattern).toContain('favicon.ico');
+      expect(pattern).toContain('favicon\\.ico');
       expect(pattern).toContain('assets/');
+    });
+
+    // Next compiles the matcher with path-to-regexp, which anchors it at both
+    // ends; a plain anchored RegExp is a faithful stand-in for the custom group.
+    const matches = (path: string) =>
+      new RegExp(`^${config.matcher[0]}$`).test(path);
+
+    it.each([
+      '/_next/static/chunks/main.js',
+      '/_next/image',
+      '/favicon.ico',
+      '/assets/logo.png',
+    ])('skips the exempt path %s', (path) => {
+      expect(matches(path)).toBe(false);
+    });
+
+    it.each([
+      '/',
+      '/tools/addresslabels',
+      '/favicon.ico-admin',
+      '/faviconXico',
+      '/_next/imagery',
+      '/_next/staticky',
+      '/assets-admin',
+    ])('still runs on %s, which only shares a prefix with an exempt path', (path) => {
+      expect(matches(path)).toBe(true);
     });
   });
 });
@@ -290,6 +334,30 @@ describe('proxy - Content Security Policy', () => {
         .match(/'nonce-([^']+)'/)![1];
 
     expect(nonceOf(a)).not.toBe(nonceOf(b));
+  });
+
+  it('sends no Reporting-Endpoints header when CSP_REPORT_URI is unset', async () => {
+    vi.stubEnv('CSP_REPORT_URI', '');
+    const result = await proxy(createMockRequest('/a'));
+    const headers = (result as unknown as { headers: Headers }).headers;
+
+    expect(headers.get('Reporting-Endpoints')).toBeNull();
+    expect(headers.get('Content-Security-Policy')).not.toContain('report-');
+    vi.unstubAllEnvs();
+  });
+
+  it('wires CSP_REPORT_URI into the policy and the Reporting-Endpoints header', async () => {
+    vi.stubEnv('CSP_REPORT_URI', 'https://reports.example.org/csp');
+    const result = await proxy(createMockRequest('/a'));
+    const headers = (result as unknown as { headers: Headers }).headers;
+
+    expect(headers.get('Reporting-Endpoints')).toBe(
+      'csp-endpoint="https://reports.example.org/csp"',
+    );
+    expect(headers.get('Content-Security-Policy')).toContain(
+      'report-uri https://reports.example.org/csp; report-to csp-endpoint',
+    );
+    vi.unstubAllEnvs();
   });
 
   it('sets the CSP on redirects as well', async () => {

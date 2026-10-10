@@ -1,3 +1,4 @@
+import "server-only";
 import { getMpBaseUrl } from "@/lib/env";
 import { readJsonResponse } from "../utils/http-client";
 import { errorName } from "../utils/logger";

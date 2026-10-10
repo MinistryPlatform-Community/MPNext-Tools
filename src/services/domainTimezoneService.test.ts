@@ -158,7 +158,7 @@ describe('DomainTimezoneService', () => {
  *
  * These are the fail-fast paths that keep a bad time zone or an unparseable MP
  * datetime from silently drifting to the server's local zone — the exact class
- * of bug CLAUDE.md rule 16 exists to prevent, so they are pinned explicitly.
+ * of bug CLAUDE.md rule 17 exists to prevent, so they are pinned explicitly.
  */
 describe('DomainTimezoneService guard clauses', () => {
   const NEWLINE = String.fromCharCode(10);

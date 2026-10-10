@@ -1,3 +1,4 @@
+import "server-only";
 import { MinistryPlatformProvider } from "./provider";
 import {
   TableQueryParams,
