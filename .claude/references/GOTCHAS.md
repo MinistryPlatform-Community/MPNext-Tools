@@ -112,7 +112,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** Clicking sign-out in prod lands the user at `http://localhost:3000` (or some other wrong base URL).
 **Root cause:** `handleSignOut` uses `process.env.BETTER_AUTH_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'`. If both env vars are unset in prod, the literal fallback fires silently.
 **Fix:** Fixed — `handleSignOut` reads the origin through `getAuthBaseUrl()`, which throws when unset; there is no localhost fallback.
-**Enforced where:** `src/components/user-menu/actions.ts` (`getAuthBaseUrl()` / `getMpBaseUrl()`), `src/lib/env.ts`.
+**Enforced where:** `src/components/shared-actions/sign-out.ts` (`getAuthBaseUrl()` / `getMpBaseUrl()`), `src/lib/env.ts`.
 **Related:** [auth/](auth/)
 
 ### GOTCHA-006: User appears to sign out but is silently re-authenticated (logout loop)
@@ -120,7 +120,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** Clicking sign-out clears the cookie, but the OAuth IDP immediately re-signs-in the user because the redirect back bounces into `/signin` which rehydrates the session.
 **Root cause:** The `post_logout_redirect_uri` value sent by `handleSignOut` is not registered on the MP OAuth client's allow-list, so MP ignores it and issues a fresh session.
 **Fix:** Register the exact value of `BETTER_AUTH_URL` as a post-logout redirect URI on the MP OAuth client. The value must match byte-for-byte (no trailing slash drift).
-**Enforced where:** `src/components/user-menu/actions.ts:18-23`.
+**Enforced where:** `src/components/shared-actions/sign-out.ts` (`handleSignOut`).
 **Related:** [auth/oauth-flow.md](auth/oauth-flow.md)
 
 ### GOTCHA-007: MP audit columns show wrong user (or Better Auth nanoid) in created_by/modified_by

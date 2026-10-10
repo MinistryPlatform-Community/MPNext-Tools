@@ -8,6 +8,7 @@ applies_to:
   - src/components/layout/index.ts
   - src/components/shared-actions/user.ts
   - src/components/shared-actions/user.test.ts
+  - src/components/shared-actions/sign-out.ts
   - src/components/shared-actions/README.md
 symbols: [AuthWrapper, getCurrentUserProfile]
 related:
@@ -19,7 +20,7 @@ last_verified: 2026-09-13
 ---
 
 ## Purpose
-`AuthWrapper` is the server-side session gate used at the app-shell level; it redirects unauthenticated requests to `/signin` while preserving the original path+query as `callbackUrl`. `shared-actions/` holds server actions used across multiple features (currently just `getCurrentUserProfile`).
+`AuthWrapper` is the server-side session gate used at the app-shell level; it redirects unauthenticated requests to `/signin` while preserving the original path+query as `callbackUrl`. `shared-actions/` holds server actions used across multiple features (`getCurrentUserProfile`, `getMpTimezone` in `domain.ts`, and `handleSignOut`).
 
 ## Files
 - `src/components/layout/auth-wrapper.tsx` — server component, 31 lines
@@ -27,6 +28,7 @@ last_verified: 2026-09-13
 - `src/components/layout/index.ts` — barrel: `AuthWrapper`
 - `src/components/shared-actions/user.ts` — `getCurrentUserProfile` server action
 - `src/components/shared-actions/user.test.ts` — unit tests for the action
+- `src/components/shared-actions/sign-out.ts` — `handleSignOut` server action (see `auth/oauth-flow.md` § Sign-out flow)
 - `src/components/shared-actions/README.md` — when-to-shard-vs-colocate guidelines
 
 ## Key concepts

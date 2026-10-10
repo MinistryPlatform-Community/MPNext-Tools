@@ -23,9 +23,11 @@ policy. Read this before changing anything under `src/lib/auth.ts`,
 
 Sign-in is deliberately **not** role-gated — no check in `getUserInfo`,
 `mapProfileToUser`, `customSession` or `AuthWrapper` — so a role-less user still
-gets a session, the header, the user menu and a **working sign-out**. Refusing
-at sign-in would strand them in the app with no way out. They are redirected
-from `/tools/*` to `/no-access`, which renders inside the shell.
+gets a session and the app shell. They are redirected from `/tools/*` to
+`/no-access`, which renders inside the shell. **There is no sign-out control on
+`/no-access`** — the only one in the app is the `/session-error` form (the
+dropdown `UserMenu` was removed 2026-10-10). Such a session ends at the 12 h
+hard lifetime or when the browser drops the cookie.
 
 ### Why authentication is not enough
 
@@ -254,8 +256,9 @@ against a production build before calling it done.
 
 Last walk: **2026-10-10**, enforced policy, production build — sign-in, every
 tool, Radix select/popover/command and dialog (scroll-lock `<style>` applied),
-zero violations. Sign-out could not be walked: `UserMenu` is not mounted
-anywhere, so no sign-out control is reachable in a production build.
+zero violations. Sign-out was not walked: its only control is on
+`/session-error`, which a healthy session never reaches. `form-action` still
+allows the MP origin for that form's redirect chain.
 
 ### `CSP_REPORT_URI` (opt-in reporting)
 
@@ -382,8 +385,8 @@ type error.
 
 As of Better Auth 1.6, `parseAdditionalUserInputFromProviderProfile` strips any
 additional field declared `input: false` **before** the user record is created —
-so `input: false` silently drops `userGuid` and breaks every MP lookup (avatar,
-user menu, `User_ID` resolution). But `input: true` also means the field is
+so `input: false` silently drops `userGuid` and breaks every MP lookup (`UserProvider`,
+`User_ID` resolution). But `input: true` also means the field is
 writable through `/update-user`.
 
 **No value of `input` satisfies both.** The control is at the endpoint layer

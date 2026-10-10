@@ -221,17 +221,19 @@ npm run mp:generate:storedprocs
 **Advanced options:**
 ```bash
 # Generate types for specific tables only
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -s "Contact"
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -s "Contact"
 
 # Generate without Zod schemas
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o ./types
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -o ./types
 
 # Generate with detailed mode (samples records for better type inference)
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -d --sample-size 10
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -d --sample-size 10
 
 # See all options
 npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
 ```
+
+> **Running the generators directly?** Pass `--conditions=react-server` to `tsx`, as above. The MP client modules start with `import 'server-only'`, which throws under plain Node without that condition. The `npm run mp:generate*` scripts already include it, so `npm run mp:generate -- -s "Contact"` is the shorter equivalent.
 
 #### 4. Run the Development Server
 
@@ -322,7 +324,6 @@ MPNext-Tools/
 │   │   ├── shared-actions/               # Cross-feature server actions
 │   │   ├── tool/                         # Tool framework (Container, Header, Footer)
 │   │   ├── ui/                           # 22 shadcn/ui components
-│   │   ├── user-menu/                    # User dropdown with OIDC sign-out
 │   │   └── dev-panel/                    # Unified dev panel (localhost-only)
 │   │
 │   ├── contexts/                         # React Context providers
@@ -540,11 +541,13 @@ Generate TypeScript interfaces and Zod schemas from your Ministry Platform datab
 npm run mp:generate:models
 
 # Generate for specific tables
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -s "Contact"
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -s "Contact"
 
 # See all options
 npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
 ```
+
+> **Running the generators directly?** Pass `--conditions=react-server` to `tsx`, as above. The MP client modules start with `import 'server-only'`, which throws under plain Node without that condition. The `npm run mp:generate*` scripts already include it, so `npm run mp:generate -- -s "Contact"` is the shorter equivalent.
 
 **CLI Options:**
 | Flag | Description | Default |
@@ -584,9 +587,8 @@ Alert, Alert Dialog, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Command,
 
 - **address-labels/** — 12 components for address label printing, barcode generation, and mail merge
 - **field-management/** — Drag-and-drop editor for MP page field order and flags (`PageSearch`, `FieldOrderEditor`, sortable group/field items, `useFieldOrderState`)
-- **user-menu/** — User dropdown with profile display and OIDC sign-out action
 - **dev-panel/** — Unified developer overlay (localhost-only) showing parsed URL params, MP selection data, contact records, and authorized tools
-- **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile()` — returns the *calling* user's MP profile; the `User_GUID` comes from the session, never from a parameter)
+- **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile()` — returns the *calling* user's MP profile; the `User_GUID` comes from the session, never from a parameter); `handleSignOut()` — app sign-out plus MP RP-initiated logout, used by `/session-error`
 
 All components use kebab-case file naming, PascalCase component names, and named exports with barrel index files.
 
@@ -818,7 +820,6 @@ src/components/
 ├── shared-actions/       # Cross-feature server actions
 ├── tool/                 # Tool framework (Container, Header, Footer)
 ├── ui/                   # shadcn/ui components (22)
-├── user-menu/            # User dropdown + sign-out action
 └── dev-panel/            # Unified dev panel (localhost-only)
 ```
 

@@ -333,8 +333,8 @@ export const refuseIdTokenSignIn = createAuthMiddleware(async (ctx) => {
  * OAuth profile via `mapProfileToUser`, and as of better-auth 1.6
  * `parseAdditionalUserInputFromProviderProfile` strips any additional field
  * declared `input: false` BEFORE the user record is created — so `input: false`
- * silently drops the value, which breaks every MP profile lookup (avatar, user
- * menu, User_ID resolution). `src/auth.test.ts` guards this.
+ * silently drops the value, which breaks every MP profile lookup (UserProvider,
+ * User_ID resolution). `src/auth.test.ts` guards this.
  *
  * `input: true` also means these fields are writable through Better Auth's
  * `/update-user` endpoint. That endpoint is closed at the route layer (see
@@ -387,7 +387,7 @@ export function extractUserGuid(profile: unknown): string | null {
  * resolved name is empty, so this must always return a non-empty string. The
  * previous template-literal form produced the string "undefined undefined"
  * whenever MP omitted the name claims, which satisfied that check by accident
- * while rendering as literal "undefined undefined" in the user menu.
+ * while rendering as literal "undefined undefined" wherever the name is shown.
  */
 export function buildDisplayName(profile: unknown, fallbackEmail: string | null): string {
   const p = (profile ?? {}) as Record<string, unknown>;
@@ -966,7 +966,7 @@ export const SESSION_COOKIE_CACHE_MAX_AGE_SECONDS = 60 * 60;
  * already used the access token by the time the row is written.
  *
  * The `idToken` is KEPT: it is not an API bearer, and an RP-initiated logout
- * `id_token_hint` needs it (`src/components/user-menu/actions.ts`). Exported
+ * `id_token_hint` needs it (`src/components/shared-actions/sign-out.ts`). Exported
  * for tests.
  */
 export function stripUserOAuthTokens<T extends object>(account: T): T {

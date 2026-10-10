@@ -188,32 +188,29 @@ last_verified: 2026-04-17
 
 ## Flow 6: Sign-out (OIDC logout)
 
-**Trigger:** user clicks "Sign out" in user menu.
-**Entry point:** `src/components/user-menu/user-menu.tsx:35` calls `handleSignOut()` server action.
+**Trigger:** user submits the "Sign out" form on `/session-error` — the only sign-out control in the app (the dropdown `UserMenu` was removed 2026-10-10).
+**Entry point:** `src/app/session-error/page.tsx` — `<form action={handleSignOut}>`.
 
 **Stack trace:**
-1. `src/components/user-menu/user-menu.tsx:30-37` — `handleItemClick('signout')` → `await handleSignOut()`.
-2. `src/components/user-menu/actions.ts:7` — `handleSignOut` (`'use server'`).
-3. `src/components/user-menu/actions.ts:9-11` — `auth.api.signOut({ headers: await headers() })` — clears Better Auth JWT cookie (via `nextCookies()` plugin at `src/lib/auth.ts:113`).
-4. `src/components/user-menu/actions.ts:13-15` — read `MINISTRY_PLATFORM_BASE_URL`; throw `'MINISTRY_PLATFORM_BASE_URL is not configured'` if missing.
-5. `src/components/user-menu/actions.ts:18-22` — build `${baseUrl}/oauth/connect/endsession?post_logout_redirect_uri=${APP_URL}`.
-6. `src/components/user-menu/actions.ts:23` — `redirect(...)` (Next.js server redirect).
-7. Browser follows to MP endsession URL; MP clears its session and 302s back to `APP_URL`.
-8. Subsequent request → proxy (`src/proxy.ts:24`) sees no cookie → redirects to `/signin` (see Flow 1).
+1. `src/components/shared-actions/sign-out.ts` — `handleSignOut` (`'use server'`).
+2. `auth.api.signOut({ headers, body: { disableRedirect: true } })` — clears the Better Auth session cookie **first** (via the `nextCookies()` plugin), and returns better-auth's provider logout URL.
+3. `idTokenHintFrom(...)` — takes `id_token_hint` from that URL only if its origin is the MP origin.
+4. Rebuilds `${getMpBaseUrl()}/oauth/connect/endsession?post_logout_redirect_uri=<getAuthBaseUrl()>&client_id=<getMpClient().clientId>[&id_token_hint=…]`.
+5. `redirect(...)` — a `NEXT_REDIRECT` throw that Next turns into the navigation.
+6. Browser follows to MP endsession; MP clears its session and 302s back to `BETTER_AUTH_URL`.
+7. Next request → proxy sees no cookie → `/signin` (see Flow 1).
 
 **Side effects:**
-- Cookie cleared: Better Auth session cookie (`better-auth.session_token`, set via `nextCookies()` plugin).
-- HTTP 302 to MP `/oauth/connect/endsession?post_logout_redirect_uri=<APP_URL>`.
-- **Note:** no `id_token_hint` is sent (verified by reading action — `post_logout_redirect_uri` is the only query param, `src/components/user-menu/actions.ts:19-21`).
+- Cookie cleared: Better Auth session cookie.
+- HTTP redirect to MP `/oauth/connect/endsession` with `post_logout_redirect_uri` and `client_id`, plus `id_token_hint` when this process still holds the id_token (see `../auth/oauth-flow.md` § Limitation).
 
 **Error paths:**
-- `MINISTRY_PLATFORM_BASE_URL` unset → `Error('MINISTRY_PLATFORM_BASE_URL is not configured')` at `src/components/user-menu/actions.ts:15`; Better Auth cookie is already cleared at this point.
-- `auth.api.signOut` failure → propagates out of action; cookie state depends on Better Auth implementation.
+- Bad/missing `MINISTRY_PLATFORM_BASE_URL`, `BETTER_AUTH_URL` or MP client env → `src/lib/env.ts` readers throw (values never echoed). The app session is already cleared by then.
+- `auth.api.signOut` failure → propagates out of the action.
 
 **Return shape:** `never` (always redirects or throws).
 
 **Related:**
-- `../components/user-menu.md` — user-menu component
 - `../auth/oauth-flow.md` — sign-out section
 - `../auth/sessions.md` — what `auth.api.signOut` clears
 

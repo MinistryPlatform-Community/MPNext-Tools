@@ -18,7 +18,7 @@ Every error thrown in `src/**` categorized by origin layer. Useful for debugging
 | Type | Thrown at | Caught at | User-facing | Logged |
 |---|---|---|---|---|
 | `getUserInfo` userinfo fetch non-OK → returns `null` (no throw) | `src/lib/auth.ts:59-65` | Better Auth internals abort user creation on `null` | sign-in silently fails, OAuth loop repeats | yes, `console.error("getUserInfo - Failed to fetch user info:", status)` |
-| `Error('MINISTRY_PLATFORM_BASE_URL is not configured')` | `src/components/user-menu/actions.ts:15` | propagates (uncaught) | server-action error surfaces to caller | no |
+| `Error('MINISTRY_PLATFORM_BASE_URL is not configured')` | `src/components/shared-actions/sign-out.ts` (now thrown by `src/lib/env.ts` readers) | propagates (uncaught) | server-action error surfaces to caller | no |
 | `authClient.getSession()` rejection on /signin | `src/app/signin/page.tsx:16` (promise) | `src/app/signin/page.tsx:30-40` | falls through to `signIn.oauth2()` redirect | yes, `console.error("Failed to check session:", err)` |
 | Proxy `getSessionCookie` throw (cookie parse error) | `src/proxy.ts:24` | `src/proxy.ts:36-41` | redirect to `/signin?callbackUrl=...` | yes, `console.error('Proxy: Error checking session:', error)` |
 | No session cookie (control-flow, not throw) | `src/proxy.ts:26` check | `src/proxy.ts:26-31` | redirect to `/signin?callbackUrl=...` | yes, `console.log("Proxy: Redirecting to signin - no session cookie")` |

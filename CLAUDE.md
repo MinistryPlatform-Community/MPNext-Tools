@@ -114,7 +114,6 @@ src/components/
 ├── shared-actions/       # Shared actions used across features
 ├── tool/                 # Tool framework (Container, Header, Footer)
 ├── ui/                   # shadcn/ui components (22)
-├── user-menu/            # User dropdown with OIDC sign-out
 └── feature-name/         # Feature components (kebab-case)
     ├── feature-name.tsx
     ├── actions.ts        # Feature-specific server actions

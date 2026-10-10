@@ -24,7 +24,7 @@ import { toNextJsHandler } from "better-auth/next-js";
  * behaviour to want, but it is still an outage.
  *
  * `/sign-out` is deliberately absent too: sign-out runs server-side through
- * `auth.api.signOut` in `src/components/user-menu/actions.ts`, which calls the
+ * `auth.api.signOut` in `src/components/shared-actions/sign-out.ts`, which calls the
  * handler directly and never crosses this HTTP boundary. If a future change
  * moves sign-out to `authClient.signOut()` in the browser, it will 404 here —
  * loudly, which is the point.

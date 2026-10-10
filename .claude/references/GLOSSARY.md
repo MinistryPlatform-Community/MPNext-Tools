@@ -127,8 +127,8 @@ Hand-written TypeScript interface/type shaping data between layers (e.g. `LabelD
 MP OAuth endpoint at `/oauth/connect/endsession` that ends the SSO session and redirects to a pre-registered `post_logout_redirect_uri`. The app always sends `client_id` (the OIDC sign-in client) and adds `id_token_hint` when the process that handled sign-in still holds the id_token.
 
 **Not to be confused with:** Better Auth's local `signOut` (only clears the BA cookie).
-**Defined in:** `src/components/user-menu/actions.ts` (`handleSignOut`)
-**See:** `components/user-menu.md`
+**Defined in:** `src/components/shared-actions/sign-out.ts` (`handleSignOut`)
+**See:** `auth/oauth-flow.md` § Sign-out flow
 
 ## escapeFilterString (aliases: MP filter quote escape)
 

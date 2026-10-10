@@ -12,7 +12,7 @@ const { mockHandleSignOut } = vi.hoisted(() => ({
   mockHandleSignOut: vi.fn(),
 }));
 
-vi.mock('@/components/user-menu/actions', () => ({
+vi.mock('@/components/shared-actions/sign-out', () => ({
   handleSignOut: mockHandleSignOut,
 }));
 
