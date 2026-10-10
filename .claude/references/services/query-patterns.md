@@ -141,7 +141,7 @@ export function validateColumnName(value: string): string { /* throws if ≠ /^[
 | Where | Call | Purpose |
 |-------|------|---------|
 | `userService.ts:72, 84` | `validateGuid(guid)` | Guard `User_GUID = '...'` filter |
-| `toolService.ts:307-334` | `validateColumnName`, `validatePositiveInt` | Guard `resolveContactIds` — rejects bad table/PK/contact-id-field/record-ID values |
+| `toolService.ts:307-334` | `validateColumnName`, `validateFkPath`, `validatePositiveInt` | Guard `resolveContactIds` — rejects bad page-metadata table/PK/contact-id-field and record-ID values |
 | `addressLabelService.ts:76` | `batch.forEach(validatePositiveInt)` | Guard batched `Contact_ID IN (...)` |
 | `groupService.ts:176` | `validatePositiveInt(groupId)` | Guard `Group_ID = ${id}` in `getGroup` |
 

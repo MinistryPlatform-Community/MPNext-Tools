@@ -40,7 +40,7 @@ export class ToolService {
 | `getPageData(pageID: number)` | `PageData \| null` | SP `api_Tools_GetPageData` |
 | `getSelectionRecordIds(selectionId, userId, pageId)` | `number[]` | SP `api_Common_GetSelection` |
 | `getUserTools(userId: number)` | `string[]` (tool paths) | SP `api_Tools_GetUserTools` |
-| `resolveContactIds(tableName, primaryKey, contactIdField, recordIds)` | `ContactRecordResult` | `getTableRecords` on `{tableName}` in batches of 100 |
+| `resolveContactIds(pageId, recordIds)` | `ContactRecordResult \| null` | `getPageData(pageId)`, then `getTableRecords` on the page's table in batches of 100 |
 | `listPages(search?: string)` | `PageLookup[]` (max 100) | SP `api_MPNextTools_GetPages`, filtered in-memory |
 | `listRoles(search?: string)` | `RoleLookup[]` (max 100) | `getTableRecords('dp_Roles')` |
 | `deployTool(input: DeployToolInput)` | `DeployToolResult` | SP `api_dev_DeployTool` (dev credentials) |
@@ -101,61 +101,33 @@ return [];
 
 ## resolveContactIds
 
-Resolves record IDs (from a selection) to their associated Contact IDs. Works for direct Contact_ID columns AND FK traversal paths like `Participant_ID_Table.Contact_ID`.
+Resolves record IDs on an MP page (a single record or a selection) to their associated Contact IDs. Works for direct Contact_ID columns AND FK traversal paths like `Participant_ID_Table.Contact_ID`.
+
+Takes a **page ID, not table/column names**. The page's `Table_Name`, `Primary_Key` and `Contact_ID_Field` are looked up server-side through `getPageData(pageId)` and validated before interpolation, so no caller chooses what the service account reads. `FamilyService.resolveContactIdFromPage` gets the same treatment from its action.
 
 ```typescript
-// src/services/toolService.ts:299-350
+// src/services/toolService.ts — resolveContactIds
 public async resolveContactIds(
-  tableName: string, primaryKey: string, contactIdField: string, recordIds: number[]
-): Promise<ContactRecordResult> {
-  const envelope = { tableName, primaryKey, contactIdField };
+  pageId: number, recordIds: number[]
+): Promise<ContactRecordResult | null> {
+  validatePositiveInt(pageId, 'pageId');
+  await AuthorizationService.getInstance().requireSecurityRole({ table: 'Contacts', operation: 'read' });
 
-  validateColumnName(primaryKey);
-  validateColumnName(tableName);
-  if (contactIdField.includes('.')) {
-    contactIdField.split('.').forEach(validateColumnName);
-  } else {
-    validateColumnName(contactIdField);
-  }
+  const page = await this.getPageData(pageId);
+  if (!page?.Table_Name || !page.Primary_Key || !page.Contact_ID_Field?.trim()) return null;
 
-  if (recordIds.length === 0) return { ...envelope, records: [] };
-
-  if (contactIdField === primaryKey) {
-    // e.g., Contacts table — PK IS the contact ID
-    return {
-      ...envelope,
-      records: recordIds.map(id => ({ recordId: id, contactId: id })),
-    };
-  }
-
-  const contactIdResponseKey = contactIdField.includes('.')
-    ? contactIdField.split('.').pop()!
-    : contactIdField;
-
-  const allRecords: ContactRecord[] = [];
-  for (let i = 0; i < recordIds.length; i += ToolService.BATCH_SIZE) {
-    const batch = recordIds.slice(i, i + ToolService.BATCH_SIZE);
-    batch.forEach(validatePositiveInt);
-    const rows = await this.mp!.getTableRecords<Record<string, number>>({
-      table: tableName,
-      select: `${primaryKey}, ${contactIdField}`,
-      filter: `${primaryKey} IN (${batch.join(',')})`,
-    });
-    for (const row of rows) {
-      allRecords.push({
-        recordId: row[primaryKey],
-        contactId: row[contactIdResponseKey],
-      });
-    }
-  }
-
-  return { ...envelope, records: allRecords };
+  const tableName = validateColumnName(page.Table_Name);
+  const primaryKey = validateColumnName(page.Primary_Key);
+  const contactIdField = validateFkPath(page.Contact_ID_Field.trim(), 'Contact_ID_Field');
+  // ...short-circuit when contactIdField === primaryKey, else
+  // getTableRecords in batches of MP_FETCH_BATCH_SIZE (100)
 }
 ```
 
+- **Returns `null`** when the page is unknown or lacks `Table_Name` / `Primary_Key` / `Contact_ID_Field`.
 - **Short-circuits** when the table's PK *is* Contact_ID (e.g., `Contacts` table).
 - **Batches** at 100 IDs per request.
-- **Validates** `tableName`, `primaryKey`, every segment of `contactIdField`, and every record ID.
+- **Validates** `pageId`, `Table_Name` and `Primary_Key` (`validateColumnName`), `Contact_ID_Field` (`validateFkPath` — no extra columns, aliases, or non-`_TABLE` segments), and every record ID.
 
 **Return type:**
 ```typescript
