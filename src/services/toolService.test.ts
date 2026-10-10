@@ -179,12 +179,32 @@ describe('ToolService', () => {
   });
 
   describe('resolveContactIds', () => {
-    it('should return empty records when recordIds is empty', async () => {
+    const page = (overrides: Record<string, unknown> = {}) => [[{
+      Page_ID: 7,
+      Display_Name: 'Page',
+      Singular_Name: 'Page',
+      Table_Name: 'Group_Participants',
+      Primary_Key: 'Group_Participant_ID',
+      Contact_ID_Field: 'Participant_ID_Table.Contact_ID',
+      ...overrides,
+    }]];
+
+    it('looks up the page metadata server-side from the page ID', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(page());
+      mockGetTableRecords.mockResolvedValueOnce([]);
+
       const service = await ToolService.getInstance();
-      const result = await service.resolveContactIds(
-        'Group_Participants', 'Group_Participant_ID',
-        'Participant_ID_Table.Contact_ID', []
-      );
+      await service.resolveContactIds(7, [1]);
+
+      expect(mockExecuteProcedureWithBody).toHaveBeenCalledWith('api_Tools_GetPageData', { '@PageID': 7 });
+      expect(mockRequireSecurityRole).toHaveBeenCalledWith({ table: 'Contacts', operation: 'read' });
+    });
+
+    it('should return empty records when recordIds is empty', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(page());
+
+      const service = await ToolService.getInstance();
+      const result = await service.resolveContactIds(7, []);
 
       expect(mockGetTableRecords).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -195,11 +215,34 @@ describe('ToolService', () => {
       });
     });
 
-    it('should short-circuit when contactIdField equals primaryKey', async () => {
+    it.each([
+      ['the page is unknown', [[]]],
+      ['the page has no Contact_ID_Field', page({ Contact_ID_Field: undefined })],
+      ['the Contact_ID_Field is blank', page({ Contact_ID_Field: '  ' })],
+      ['the page has no Table_Name', page({ Table_Name: '' })],
+      ['the page has no Primary_Key', page({ Primary_Key: '' })],
+    ])('returns null when %s', async (_label, pageResult) => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(pageResult);
+
       const service = await ToolService.getInstance();
-      const result = await service.resolveContactIds(
-        'Contacts', 'Contact_ID', 'Contact_ID', [10, 20, 30]
+      expect(await service.resolveContactIds(7, [1])).toBeNull();
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+    });
+
+    it.each([0, -1, 1.5, NaN])('rejects invalid page ID %s before any I/O', async (bad) => {
+      const service = await ToolService.getInstance();
+      await expect(service.resolveContactIds(bad, [1])).rejects.toThrow('Expected positive integer for pageId');
+      expect(mockRequireSecurityRole).not.toHaveBeenCalled();
+      expect(mockExecuteProcedureWithBody).not.toHaveBeenCalled();
+    });
+
+    it('should short-circuit when contactIdField equals primaryKey', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(
+        page({ Table_Name: 'Contacts', Primary_Key: 'Contact_ID', Contact_ID_Field: 'Contact_ID' })
       );
+
+      const service = await ToolService.getInstance();
+      const result = await service.resolveContactIds(7, [10, 20, 30]);
 
       expect(mockGetTableRecords).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -214,52 +257,77 @@ describe('ToolService', () => {
       });
     });
 
+    it('rejects a non-positive record ID on the short-circuit path', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(
+        page({ Table_Name: 'Contacts', Primary_Key: 'Contact_ID', Contact_ID_Field: 'Contact_ID' })
+      );
+
+      const service = await ToolService.getInstance();
+      await expect(service.resolveContactIds(7, [1, 0])).rejects.toThrow('Expected positive integer');
+    });
+
     it('should resolve contact IDs with a direct column', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(
+        page({ Table_Name: 'Donations', Primary_Key: 'Donation_ID', Contact_ID_Field: 'Contact_ID' })
+      );
       mockGetTableRecords.mockResolvedValueOnce([
         { Donation_ID: 1, Contact_ID: 100 },
         { Donation_ID: 2, Contact_ID: 200 },
       ]);
 
       const service = await ToolService.getInstance();
-      const result = await service.resolveContactIds(
-        'Donations', 'Donation_ID', 'Contact_ID', [1, 2]
-      );
+      const result = await service.resolveContactIds(7, [1, 2]);
 
       expect(mockGetTableRecords).toHaveBeenCalledWith({
         table: 'Donations',
         select: 'Donation_ID, Contact_ID',
         filter: 'Donation_ID IN (1,2)',
       });
-      expect(result.records).toEqual([
+      expect(result!.records).toEqual([
         { recordId: 1, contactId: 100 },
         { recordId: 2, contactId: 200 },
       ]);
     });
 
     it('should resolve contact IDs with FK traversal path', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(page());
       mockGetTableRecords.mockResolvedValueOnce([
         { Group_Participant_ID: 10, Contact_ID: 500 },
         { Group_Participant_ID: 11, Contact_ID: 501 },
       ]);
 
       const service = await ToolService.getInstance();
-      const result = await service.resolveContactIds(
-        'Group_Participants', 'Group_Participant_ID',
-        'Participant_ID_Table.Contact_ID', [10, 11]
-      );
+      const result = await service.resolveContactIds(7, [10, 11]);
 
       expect(mockGetTableRecords).toHaveBeenCalledWith({
         table: 'Group_Participants',
         select: 'Group_Participant_ID, Participant_ID_Table.Contact_ID',
         filter: 'Group_Participant_ID IN (10,11)',
       });
-      expect(result.records).toEqual([
+      expect(result!.records).toEqual([
         { recordId: 10, contactId: 500 },
         { recordId: 11, contactId: 501 },
       ]);
     });
 
+    it.each([
+      ['Table_Name', { Table_Name: 'Contacts; DROP TABLE Contacts' }, 'Invalid column name'],
+      ['Primary_Key', { Primary_Key: 'Contact_ID) OR (1=1' }, 'Invalid column name'],
+      ['Contact_ID_Field (extra column)', { Contact_ID_Field: 'Contact_ID, Social_Security_Number' }, 'Invalid Contact_ID_Field'],
+      ['Contact_ID_Field (alias)', { Contact_ID_Field: 'Donor_ID AS Contact_ID' }, 'Invalid Contact_ID_Field'],
+      ['Contact_ID_Field (non-FK segment)', { Contact_ID_Field: 'dp_Users.Password' }, 'Invalid Contact_ID_Field'],
+    ])('rejects a hostile %s from page metadata without querying', async (_label, overrides, message) => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(page(overrides));
+
+      const service = await ToolService.getInstance();
+      await expect(service.resolveContactIds(7, [1])).rejects.toThrow(message);
+      expect(mockGetTableRecords).not.toHaveBeenCalled();
+    });
+
     it('should batch record IDs in groups of 100', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(
+        page({ Table_Name: 'Events', Primary_Key: 'Event_ID', Contact_ID_Field: 'Contact_ID' })
+      );
       const ids = Array.from({ length: 150 }, (_, i) => i + 1);
       mockGetTableRecords.mockResolvedValueOnce(
         ids.slice(0, 100).map(id => ({ Event_ID: id, Contact_ID: id + 1000 }))
@@ -269,23 +337,28 @@ describe('ToolService', () => {
       );
 
       const service = await ToolService.getInstance();
-      const result = await service.resolveContactIds(
-        'Events', 'Event_ID', 'Contact_ID', ids
-      );
+      const result = await service.resolveContactIds(7, ids);
 
       expect(mockGetTableRecords).toHaveBeenCalledTimes(2);
-      expect(result.records).toHaveLength(150);
-      expect(result.records[0]).toEqual({ recordId: 1, contactId: 1001 });
-      expect(result.records[149]).toEqual({ recordId: 150, contactId: 1150 });
+      expect(result!.records).toHaveLength(150);
+      expect(result!.records[0]).toEqual({ recordId: 1, contactId: 1001 });
+      expect(result!.records[149]).toEqual({ recordId: 150, contactId: 1150 });
     });
 
     it('should propagate errors', async () => {
+      mockExecuteProcedureWithBody.mockResolvedValueOnce(page());
       mockGetTableRecords.mockRejectedValueOnce(new Error('Table not found'));
 
       const service = await ToolService.getInstance();
-      await expect(
-        service.resolveContactIds('Bad_Table', 'ID', 'Contact_ID', [1])
-      ).rejects.toThrow('Table not found');
+      await expect(service.resolveContactIds(7, [1])).rejects.toThrow('Table not found');
+    });
+
+    it('propagates an authorization refusal before reading page metadata', async () => {
+      mockRequireSecurityRole.mockRejectedValueOnce(new Error('Access denied'));
+
+      const service = await ToolService.getInstance();
+      await expect(service.resolveContactIds(7, [1])).rejects.toThrow('Access denied');
+      expect(mockExecuteProcedureWithBody).not.toHaveBeenCalled();
     });
   });
 

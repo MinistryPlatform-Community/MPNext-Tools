@@ -50,7 +50,7 @@ Localhost-only developer overlay rendered by `ToolContainer` when `params` is pr
 | `src/components/dev-panel/panels/selection-actions.ts` | `resolveSelection(selectionId, pageId)` → `{ recordIds, count }` (auth-gated) |
 | `src/components/dev-panel/panels/selection-actions.test.ts` | Tests for auth/userGuid guards and delegation |
 | `src/components/dev-panel/panels/contact-records-panel.tsx` | Maps record IDs → Contact IDs via `resolveContactRecords`, driven by `params.recordID` or upstream selection |
-| `src/components/dev-panel/panels/contact-records-actions.ts` | `resolveContactRecords(table, pk, contactIdField, recordIds)` → `ContactRecordResult` |
+| `src/components/dev-panel/panels/contact-records-actions.ts` | `resolveContactRecords(pageId, recordIds)` → `ContactRecordResult \| null` (page metadata resolved server-side) |
 | `src/components/dev-panel/panels/user-tools-panel.tsx` | Lists the user's authorized tool paths, computes `isAuthorized` against `NEXT_PUBLIC_PROD_URL + pathname`, reports status up via `onAuthorizationChange` |
 | `src/components/dev-panel/panels/user-tools-actions.ts` | `getUserTools()` → `string[]` (paths, auth-gated, resolves `userGuid` → `User_ID`) |
 | `src/components/dev-panel/panels/user-tools-actions.test.ts` | Tests for auth/userGuid guards and delegation |
@@ -101,7 +101,7 @@ When missing, the form disables the submit button and surfaces an amber notice n
 | `api_dev_DeployTool` | `ToolService.deployTool` | `src/services/toolService.ts:268` (via `deploy-tool-actions.ts`) |
 | `api_MPNextTools_GetPages` | `ToolService.listPages` | `src/services/toolService.ts:207` (via `deploy-tool-actions.ts`) |
 
-`ContactRecordsPanel` does **not** call a stored procedure — it uses `getTableRecords` in `ToolService.resolveContactIds` (`src/services/toolService.ts:335`).
+`ContactRecordsPanel` does **not** call a stored procedure — it uses `getTableRecords` in `ToolService.resolveContactIds` (`src/services/toolService.ts`).
 
 ### Glossary candidates
 - **DevPanel** — localhost-only overlay defined at `src/components/dev-panel/dev-panel.tsx:44`
@@ -134,11 +134,9 @@ export async function resolveSelection(
 
 // src/components/dev-panel/panels/contact-records-actions.ts
 export async function resolveContactRecords(
-  tableName: string,
-  primaryKey: string,
-  contactIdField: string,
+  pageId: number,
   recordIds: number[]
-): Promise<ContactRecordResult>;
+): Promise<ContactRecordResult | null>;
 
 // src/components/dev-panel/panels/user-tools-actions.ts
 export async function getUserTools(): Promise<string[]>;

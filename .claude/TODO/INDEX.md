@@ -18,7 +18,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **6 open TODOs**.
+Total: **5 open TODOs**.
 
 > **`step6`** and **`step8`** are the remaining steps from the 2026-09-30 MPNext
 > playbook audit (one PR each). `held-*` items wait on an owner decision.
@@ -39,23 +39,21 @@ _none open_
 | routing | security, drift | Step 6 — Headers, next.config, server-only, prerender + build in CI | [→](2026-09-30-step6-headers-csp-build-guards.md) |
 | routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
 
-### Low (4)
+### Low (3)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | components | security, bug | Step 8 — Address-label caps, error boundaries, tool-params decode, codegen escaping | [→](2026-09-30-step8-fork-specific-low-risk-items.md) |
 | components | bug | Add/Edit Family search: "No contacts found" empty state never renders | [→](2026-09-13-search-empty-state-never-renders.md) |
 | components | refactor, missing-test | Unreachable "empty STEP_FIELDS" branch in `GroupWizard.handleNext` | [→](2026-09-13-dead-empty-fields-branch-handlenext.md) |
-| services | security | `ToolService.resolveContactIds` takes table/column names from its caller (dev panel) | [→](2026-10-10-dev-panel-resolvecontactids-caller-identifiers.md) |
 
 ---
 
 ## By tag
 
-### security (4)
+### security (3)
 - step6-headers-csp-build-guards — medium
 - held-csp-customer-deployments — medium
 - step8-fork-specific-low-risk-items — low
-- dev-panel-resolvecontactids-caller-identifiers — low
 
 ### bug (2)
 - step8-fork-specific-low-risk-items — low
@@ -84,7 +82,7 @@ _none open_
 |---|---|
 | components | 3 |
 | routing | 2 |
-| services | 1 |
+| services | 0 |
 | auth | 0 |
 | commands | 0 |
 | mp-provider | 0 |

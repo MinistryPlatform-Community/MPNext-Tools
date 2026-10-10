@@ -1,7 +1,7 @@
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { PageData } from "@/lib/tool-params";
 import { AuthorizationService } from "@/services/authorizationService";
-import { validatePositiveInt, validateColumnName, escapeFilterString } from "@/lib/validation";
+import { validatePositiveInt, validateColumnName, validateFkPath, escapeFilterString } from "@/lib/validation";
 import { MP_FETCH_BATCH_SIZE } from "@/lib/constants";
 
 export interface ContactRecord {
@@ -309,44 +309,50 @@ export class ToolService {
   }
 
   /**
-   * Resolves record IDs to their associated Contact IDs by querying the
-   * specified table. Supports direct columns and FK traversal paths
+   * Resolves record IDs on an MP page to their associated Contact IDs.
+   * Supports direct columns and FK traversal paths
    * (e.g. `Participant_ID_Table.Contact_ID`).
+   *
+   * Takes the page ID, NOT table/column names: the page's `Table_Name`,
+   * `Primary_Key` and `Contact_ID_Field` are looked up server-side from MP
+   * (`getPageData`) and validated before they are interpolated, so no caller
+   * can choose which table or column the service account reads. Same
+   * treatment as `FamilyService.resolveContactIdFromPage`.
    *
    * Short-circuits when the contact ID field IS the primary key (e.g. Contacts table).
    * Batches queries in groups of 100 to avoid oversized IN clauses.
    *
-   * @param tableName - The Ministry Platform table to query
-   * @param primaryKey - The primary key column of the table
-   * @param contactIdField - Column or FK path that resolves to a Contact_ID
+   * @param pageId - The Ministry Platform Page ID the records belong to
    * @param recordIds - Array of primary key values to look up
-   * @returns Promise<ContactRecordResult> - Mapped record/contact ID pairs
+   * @returns Promise<ContactRecordResult | null> - Mapped record/contact ID
+   *   pairs, or null when the page is unknown or has no Contact_ID_Field
    */
   public async resolveContactIds(
-    tableName: string,
-    primaryKey: string,
-    contactIdField: string,
+    pageId: number,
     recordIds: number[]
-  ): Promise<ContactRecordResult> {
+  ): Promise<ContactRecordResult | null> {
+    validatePositiveInt(pageId, 'pageId');
     await AuthorizationService.getInstance().requireSecurityRole({
       table: 'Contacts',
       operation: 'read',
     });
-    const envelope = { tableName, primaryKey, contactIdField };
 
-    validateColumnName(primaryKey);
-    validateColumnName(tableName);
-    if (contactIdField.includes('.')) {
-      contactIdField.split('.').forEach(validateColumnName);
-    } else {
-      validateColumnName(contactIdField);
+    const page = await this.getPageData(pageId);
+    if (!page?.Table_Name || !page.Primary_Key || !page.Contact_ID_Field?.trim()) {
+      return null;
     }
+
+    const tableName = validateColumnName(page.Table_Name);
+    const primaryKey = validateColumnName(page.Primary_Key);
+    const contactIdField = validateFkPath(page.Contact_ID_Field.trim(), 'Contact_ID_Field');
+    const envelope = { tableName, primaryKey, contactIdField };
 
     if (recordIds.length === 0) {
       return { ...envelope, records: [] };
     }
 
     if (contactIdField === primaryKey) {
+      recordIds.forEach((id) => validatePositiveInt(id));
       return {
         ...envelope,
         records: recordIds.map(id => ({ recordId: id, contactId: id })),
