@@ -118,14 +118,9 @@ export function GroupWizard({ params, mpTimezone }: GroupWizardProps) {
   }, []);
 
   const handleNext = useCallback(async () => {
-    const fields = STEP_FIELDS[currentStep];
-    if (!fields || fields.length === 0) {
-      setCompletedSteps((prev) => new Set(prev).add(currentStep));
-      setCurrentStep((prev) => Math.min(prev + 1, WIZARD_STEPS.length - 1));
-      return;
-    }
-
-    const isValid = await form.trigger(fields as (keyof GroupWizardFormData)[]);
+    // No special case for a step without fields: `trigger([])` resolves true,
+    // and a missing entry (`undefined`) validates the whole form — fails safe.
+    const isValid = await form.trigger(STEP_FIELDS[currentStep]);
     if (isValid) {
       setCompletedSteps((prev) => new Set(prev).add(currentStep));
       setCurrentStep((prev) => Math.min(prev + 1, WIZARD_STEPS.length - 1));
