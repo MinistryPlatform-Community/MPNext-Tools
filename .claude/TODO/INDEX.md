@@ -18,7 +18,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **14 open TODOs**.
+Total: **13 open TODOs**.
 
 > **Start here for owner (non-code) work:** [`2026-10-10-owner-ops-checklist-before-release.md`](2026-10-10-owner-ops-checklist-before-release.md)
 > collects every env-var, MP and GitHub setting to do before and right after the next `/release`.
@@ -48,7 +48,7 @@ _none open_
 | routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
 | mp-provider | security | Held — Deny-all stored-procedure allowlist | [→](2026-09-30-held-stored-procedure-allowlist.md) |
 
-### Low (7)
+### Low (6)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | components | security, bug | Step 8 — Address-label caps, error boundaries, tool-params decode, codegen escaping | [→](2026-09-30-step8-fork-specific-low-risk-items.md) |
@@ -56,7 +56,6 @@ _none open_
 | commands | security, doc | Held — GitHub repo security settings | [→](2026-09-30-held-github-repo-security-settings.md) |
 | components | bug | Add/Edit Family search: "No contacts found" empty state never renders | [→](2026-09-13-search-empty-state-never-renders.md) |
 | components | refactor, missing-test | Unreachable "empty STEP_FIELDS" branch in `GroupWizard.handleNext` | [→](2026-09-13-dead-empty-fields-branch-handlenext.md) |
-| components | bug | Select fields treat a lookup id of 0 as "no selection" | [→](2026-10-10-select-falsy-id-zero-predicate.md) |
 | services | security | `ToolService.resolveContactIds` takes table/column names from its caller (dev panel) | [→](2026-10-10-dev-panel-resolvecontactids-caller-identifiers.md) |
 
 ---
@@ -75,10 +74,9 @@ _none open_
 - held-github-repo-security-settings — low
 - dev-panel-resolvecontactids-caller-identifiers — low
 
-### bug (3)
+### bug (2)
 - step8-fork-specific-low-risk-items — low
 - search-empty-state-never-renders — low
-- select-falsy-id-zero-predicate — low
 
 ### drift (2)
 - step6-headers-csp-build-guards — medium
@@ -108,7 +106,7 @@ _none open_
 
 | Area | Count |
 |---|---|
-| components | 4 |
+| components | 3 |
 | auth | 3 |
 | routing | 2 |
 | commands | 2 |
