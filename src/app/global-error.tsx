@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 /**
  * Last-resort boundary: catches a throw in the ROOT LAYOUT itself, which it
@@ -15,7 +15,20 @@ import { useEffect } from "react";
  * The two are coupled: a nonce-based `style-src` would silently drop all of
  * this and render an unstyled page at the worst possible moment. If you change
  * one, check the other.
+ *
+ * Two controls, because this page can be the server-rendered HTML a user sees
+ * BEFORE (or without) hydration:
+ * - "Try again" calls `retry`, which needs React. It is disabled until the
+ *   page hydrates, so a pre-hydration click is not silently swallowed.
+ * - "Go to home page" is a plain `<a href="/">`, which works with no JS at all.
  */
+
+const subscribeNoop = () => () => {};
+
+/** `false` in the server render and during hydration, `true` once hydrated. */
+function useHydrated(): boolean {
+  return useSyncExternalStore(subscribeNoop, () => true, () => false);
+}
 export default function GlobalError({
   error,
   retry,
@@ -23,6 +36,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
+  const hydrated = useHydrated();
+
   useEffect(() => {
     console.error("ui.render.error", {
       boundary: "global",
@@ -61,7 +76,9 @@ export default function GlobalError({
             The application failed to load. Please try again.
           </p>
           <button
+            type="button"
             onClick={retry}
+            disabled={!hydrated}
             style={{
               backgroundColor: "#2563eb",
               color: "#ffffff",
@@ -70,11 +87,21 @@ export default function GlobalError({
               padding: "0.5rem 1rem",
               fontSize: "0.875rem",
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: hydrated ? "pointer" : "default",
+              opacity: hydrated ? 1 : 0.6,
             }}
           >
             Try again
           </button>
+          <p style={{ fontSize: "0.875rem", marginTop: "1rem" }}>
+            {/* A plain <a>, not next/link, on purpose: it must work before or
+                without hydration, and a full document load is the recovery we
+                want when the root layout itself has failed. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/" style={{ color: "#2563eb", textDecoration: "underline" }}>
+              Go to home page
+            </a>
+          </p>
           {error.digest ? (
             <p style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "1.5rem" }}>
               Reference: <span style={{ fontFamily: "monospace" }}>{error.digest}</span>
