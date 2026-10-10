@@ -12,10 +12,11 @@ GO
 -- api_dev_GetProcedureDefinition
 -- =============================================
 -- Description: Returns the actual create SQL script for a stored procedure to enable LLM context
--- Last Modified: 04/16/2026
+-- Last Modified: 10/10/2026
 -- Chris Kehayias
 -- =============================================
 CREATE PROCEDURE [dbo].[api_dev_GetProcedureDefinition]
+    @DomainID INT, -- required first parameter for MP API procs; MP injects it (unused here)
     @ProcedureName NVARCHAR(256),
     @SchemaName NVARCHAR(128) = 'dbo'
 AS
