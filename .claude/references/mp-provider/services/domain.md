@@ -5,15 +5,15 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/domain.service.ts]
 symbols: [DomainService, getDomainInfo, getGlobalFilters]
 related: [../README.md, metadata.md]
-last_verified: 2026-09-30
+last_verified: 2026-10-10
 ---
 
 ## Purpose
 Read domain-level configuration (display name, timezone, culture, MFA settings) and fetch the lookup values for the domain's global filter.
 
 ## Files
-- `src/lib/providers/ministry-platform/services/domain.service.ts` — implementation (42 lines)
-- `src/lib/providers/ministry-platform/services/domain.service.test.ts` — tests (94 lines)
+- `src/lib/providers/ministry-platform/services/domain.service.ts` — implementation (53 lines)
+- `src/lib/providers/ministry-platform/services/domain.service.test.ts` — tests (128 lines)
 
 ## Key concepts
 - `getDomainInfo` hits `/domain` (no params). Authenticated; ties to the current access token's domain.
@@ -79,7 +79,7 @@ export interface GlobalFilterParams {
 
 ## Usage
 
-From tests (`domain.service.test.ts:66-74`):
+From tests (`domain.service.test.ts:86-94`):
 
 ```typescript
 const filters = [{ Key: 1, Value: 'Global' }];
@@ -89,20 +89,19 @@ const result = await service.getGlobalFilters({ $userId: 123 } as any);
 // expect(mockHttpClient.get).toHaveBeenCalledWith('/domain/filters', { $userId: 123 });
 ```
 
-Also exposed via `MPHelper.getDomainInfo` / `.getGlobalFilters` (`src/lib/providers/ministry-platform/helper.ts:346, :373`) — no direct callers in `src/services/**` or `src/components/**` as of this revision (greppable: no hits).
+Also exposed via `MPHelper.getDomainInfo` / `.getGlobalFilters` (`src/lib/providers/ministry-platform/helper.ts:380, :406`). Only app caller: `DomainTimezoneService.getMpTimezone` (`src/services/domainTimezoneService.ts:259`) reads `getDomainInfo().TimeZoneName`; `getGlobalFilters` has no app callers.
 
 ## Error handling
 
 | Status | Operation | Test location |
 |---|---|---|
-| 403 Forbidden | `getGlobalFilters` | `domain.service.test.ts:76-80` |
-| 500 Internal Server Error | `getDomainInfo` | `domain.service.test.ts:48-52` |
+| 403 Forbidden | `getGlobalFilters` | `domain.service.test.ts:111-115` |
+| 500 Internal Server Error | `getDomainInfo` | `domain.service.test.ts:68-72` |
 
 ## Gotchas
-- **`Key: 0` = unfiltered records** — documented in the JSDoc (`domain.service.ts:28-29`). Treat 0 as sentinel, not as a real filter id.
+- **`Key: 0` = unfiltered records** — documented in the JSDoc (`domain.service.ts:28-30`). Treat 0 as sentinel, not as a real filter id.
 - **No `$ignorePermissions`** — requests already run as the admin-level service account; the flag could only widen that. A non-integer `$userId` throws `Expected positive integer for user ID` before any request.
 - **`GlobalFilterTableName` is optional** — on domains with no global filter configured, `DomainInfo.GlobalFilterTableName` is `undefined`, and `getGlobalFilters` still returns `[]` (not an error).
-- **Response type is loose where MP sends more fields** — test fixture `{ DomainName: 'Test', DomainId: 1 }` does not match `DomainInfo` (which uses `DisplayName`, no `DomainId`). The mock is intentionally loose; production MP returns the `DomainInfo` shape.
 
 ## Related docs
 - `../README.md` — provider overview

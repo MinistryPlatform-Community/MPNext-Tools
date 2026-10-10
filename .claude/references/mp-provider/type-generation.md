@@ -14,18 +14,18 @@ symbols:
 related:
   - architecture.md
   - ../mp-schema/README.md
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
-`tsx` script that queries Ministry Platform's metadata API via `MPHelper.getTables()` and writes TypeScript interfaces, optional Zod schemas, a barrel `index.ts`, and a summary schema doc. Produces the 603 model files under `src/lib/providers/ministry-platform/models/` consumed by the barrel `export * from './models'` in `index.ts`.
+`tsx` script that queries Ministry Platform's metadata API via `MPHelper.getTables()` and writes TypeScript interfaces, optional Zod schemas, a barrel `index.ts`, and a summary schema doc. Produces the 603 model files (301 interfaces + 301 Zod schemas + `index.ts`) under `src/lib/providers/ministry-platform/models/` consumed by the barrel `export * from './models'` in `index.ts`.
 
 ## Files
 - `src/lib/providers/ministry-platform/scripts/generate-types.ts` — CLI
 - `src/lib/providers/ministry-platform/scripts/codegen-escape.ts` — escaping helpers for MP metadata interpolated into generated source (+ `codegen-escape.test.ts`)
 - `src/lib/providers/ministry-platform/scripts/README.md` — human-facing usage
-- `src/lib/providers/ministry-platform/models/` — output: 603 `.ts` files (verified by snapshot: `.claude/references/_meta/facts/2026-04-17.md`)
-- `.claude/references/ministryplatform.schema.md` — schema doc written by the same script
+- `src/lib/providers/ministry-platform/models/` — output: 603 `.ts` files (301 tables × interface + schema, plus `index.ts`)
+- `.claude/references/ministryplatform.schema.md` — schema doc written by the same script. **Not committed**: the curated copy lives at `../mp-schema/tables.md` (reformatted with frontmatter), so a regeneration must be copied over by hand
 
 ## Key concepts
 
@@ -56,11 +56,11 @@ last_verified: 2026-04-17
 | `--clean` | `-c` | flag | `false` | Delete all `.ts` files in output dir before generating |
 | `--help` | `-h` | flag | — | Show help, exit |
 
-Source: `generate-types.ts:56-104`.
+Source: `generate-types.ts:57-105`.
 
 ### Required env vars
 
-Validated at startup (`generate-types.ts:512-528`):
+Validated at startup (`generate-types.ts:519-535`):
 - `MINISTRY_PLATFORM_BASE_URL`
 - `MINISTRY_PLATFORM_CLIENT_ID`
 - `MINISTRY_PLATFORM_CLIENT_SECRET`
@@ -73,8 +73,8 @@ If missing, prints each missing var and `process.exit(1)`.
 |------|-----------|-------|
 | `{PascalCaseTable}.ts` | always (valid name) | `export interface {Name} { ... }` + `export type {Name}Record = {Name}` |
 | `{PascalCaseTable}Schema.ts` | `--zod` AND table has columns | `export const {Name}Schema = z.object({ ... })` + `export type {Name}Input = z.infer<...>` |
-| `index.ts` | always | `export * from './{Name}';` for every generated file |
-| `ministryplatform.schema.md` | always | Written to `.claude/references/ministryplatform.schema.md` — one-line summary per table |
+| `index.ts` | always | `export * from "./{Name}";` for every generated **interface** file — `*Schema.ts` files are **not** re-exported; import them by path (`@/lib/providers/ministry-platform/models/ContactLogSchema`) |
+| `ministryplatform.schema.md` | always | Written to `.claude/references/ministryplatform.schema.md` — one-line summary per table (see Files: curated copy is `../mp-schema/tables.md`) |
 
 ### TypeScript type mapping
 
@@ -83,9 +83,9 @@ From `mapDataTypeToTypeScript` (`generate-types.ts`):
 | MP `ParameterDataType` | TS (required) | Notes |
 |---|---|---|
 | `String`/`Text`/`LargeString` | `string /* max N chars */` | size comment only if `positiveInt(Size)` |
-| `Email` | `string /* email */` | |
+| `Email` | `string /* email */` | `/* email, max N chars */` when sized |
 | `Phone` | `string /* phone number */` | |
-| `Url` | `string /* URL */` | |
+| `Url` | `string /* URL */` | `/* URL, max N chars */` when sized |
 | `Integer16`/`Integer32`/`Integer64` | `number /* ..-bit integer */` | |
 | `Decimal`/`Real`/`Money` | `number /* decimal */` or `/* currency amount */` | |
 | `Counter` | `number /* auto-increment */` | |
@@ -94,9 +94,9 @@ From `mapDataTypeToTypeScript` (`generate-types.ts`):
 | `Time` | `string /* ISO time (HH:MM:SS) */` | |
 | `DateTime`/`Timestamp` | `string /* ISO datetime */` | |
 | `Guid` | `string /* GUID/UUID */` | |
-| `Binary`/`Image` | `Blob \| string` | |
+| `Binary`/`Image` | `Blob \| string /* binary data */` | |
 | `Xml` | `string /* XML content */` | |
-| `Password`/`SecretKey` | `string` | |
+| `Password`/`SecretKey` | `string /* password hash */` / `string /* secret key */` | |
 | `Separator` | `never` | filtered out of interfaces |
 | default | `unknown` | |
 
@@ -126,7 +126,7 @@ Non-required columns chain `.nullable()`.
 
 ### Naming
 
-- `sanitizeTypeName` (`generate-types.ts:140-154`) splits on `-_\s/`, title-cases each piece, strips non-alphanumerics, and prepends `_` if the name starts with a digit
+- `sanitizeTypeName` (`generate-types.ts:147-161`) splits on `-_\s/`, title-cases each piece, strips non-alphanumerics, and prepends `_` if the name starts with a digit
 
 ## How it works
 
@@ -168,10 +168,10 @@ The canonical npm script:
 ## Gotchas
 
 - **Never hand-edit files under `models/`.** The `--clean` flag in `mp:generate:models` deletes every `.ts` file in the output directory before regenerating. Any local edits are lost.
-- **`--clean` is scoped to `.ts` extension.** Non-ts files in the output dir survive (see `generate-types.ts:575-579`).
-- **`--detailed` only fires when columns are missing.** `generate-types.ts:608-622` — `if (options.detailed && (!table.Columns || table.Columns.length === 0))`. If every table has column metadata, `--detailed` has no effect and doesn't incur sampling costs.
-- **Schema doc path is hard-coded.** `generateSchemaDocument` always writes to `./.claude/references/ministryplatform.schema.md` relative to `process.cwd()` (`generate-types.ts:658`). Running the script from a different cwd can write the doc in an unexpected place.
-- **`require.main === module` guard is CJS-only.** The script uses `require.main` at `generate-types.ts:712` — works under `tsx` (CJS shim) but would need adjustment if the project moves to pure ESM for scripts.
+- **`--clean` is scoped to `.ts` extension.** Non-ts files in the output dir survive (see `generate-types.ts:578-588`); and it only runs when the output dir already exists.
+- **`--detailed` only fires when columns are missing.** `generate-types.ts:615` — `if (options.detailed && (!table.Columns || table.Columns.length === 0))`. If every table has column metadata, `--detailed` has no effect and doesn't incur sampling costs.
+- **Schema doc path is hard-coded.** `generateSchemaDocument` always writes to `./.claude/references/ministryplatform.schema.md` relative to `process.cwd()` (`generate-types.ts:665`). Running the script from a different cwd can write the doc in an unexpected place.
+- **`require.main === module` guard is CJS-only.** The script uses `require.main` at `generate-types.ts:719` — works under `tsx` (CJS shim) but would need adjustment if the project moves to pure ESM for scripts.
 - **Zod schemas do not infer nullability from MP metadata perfectly.** `mapDataTypeToZod` uses `.nullable()` for non-required fields, so schemas match the TypeScript `| null` emission, but do not match the `?:` optional marker on the interface. Consumers doing `Schema.parse(record)` on a POSTed record must include the key (or use `.optional()` themselves).
 
 ## Related docs

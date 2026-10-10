@@ -5,23 +5,23 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/table.service.ts]
 symbols: [TableService, getTableRecords, createTableRecords, updateTableRecords, deleteTableRecords, copyRecord, copyRecordWithSubpages]
 related: [../README.md, procedure.md, file.md, ../../services/README.md]
-last_verified: 2026-09-30
+last_verified: 2026-10-10
 ---
 
 ## Purpose
 HTTP-level wrapper around the Ministry Platform REST `/tables/{table}` endpoints. Stateless; each method validates its path segments, calls `client.ensureValidToken()`, then the underlying `HttpClient` verb. No record-body validation at this layer — Zod `schema` validation lives one level up in `MPHelper` (see Gotchas).
 
 ## Files
-- `src/lib/providers/ministry-platform/services/table.service.ts` — implementation (150 lines)
-- `src/lib/providers/ministry-platform/services/table.service.test.ts` — tests (519 lines)
+- `src/lib/providers/ministry-platform/services/table.service.ts` — implementation (152 lines)
+- `src/lib/providers/ministry-platform/services/table.service.test.ts` — tests (636 lines)
 
 ## Key concepts
 - Constructor takes a `MinistryPlatformClient`; no singleton.
 - Every method: `ensureValidToken()` → `getHttpClient().{verb}()` → return typed result.
 - `TableQueryParams` include `$select`, `$filter`, `$orderby`, `$groupby`, `$having`, `$top`, `$skip`, `$distinct`, `$userId`, `$globalFilterId`, `$allowCreate` (see `src/lib/providers/ministry-platform/types/provider.types.ts:1`).
 - Table name is validated (`sanitizeIdentifier` via `tableEndpoint` in `services/guards.ts`) and then URL-encoded on every endpoint; `recordId` (copy methods) and each `ids` entry (delete) must be positive safe integers. All checks run before any token work and throw a fixed message naming the field.
-- **Partial vs full updates** are not parameters on `TableService` — they are a `MPHelper.updateTableRecords` concern (`partial: boolean`, default `true`; see `src/lib/providers/ministry-platform/helper.ts:266-267`).
-- **`schema` (Zod validation)** is also not a `TableService` parameter — it is a `MPHelper` concern (`src/lib/providers/ministry-platform/helper.ts:175`, `:256`). `TableService` itself does not validate.
+- **Partial vs full updates** are not parameters on `TableService` — they are a `MPHelper.updateTableRecords` concern (`partial: boolean`, default `true`; see `src/lib/providers/ministry-platform/helper.ts:286-287`).
+- **`schema` (Zod validation)** is also not a `TableService` parameter — it is a `MPHelper` concern (`src/lib/providers/ministry-platform/helper.ts:201`, `:286`). `TableService` itself does not validate.
 
 ## API / Interface
 
@@ -75,28 +75,28 @@ public async deleteTableRecords<T extends TableRecord = TableRecord>(
 | `deleteTableRecords` | DELETE | `/tables/{table}` (ids merged into query as `id: number[]`) |
 
 ## How it works
-- `deleteTableRecords` merges `ids` into query params as `id: [1, 2, 3]` (`table.service.ts:141`), not in the body.
+- `deleteTableRecords` merges `ids` into query params as `id: [1, 2, 3]` (`table.service.ts:145`), not in the body.
 - `createTableRecords` / `updateTableRecords` pass `records` array as the body and `params` as query string.
-- `copyRecord` does NOT copy sub-pages or files; `copyRecordWithSubpages` can via `CopyParameters.SubpageIds` and `CopyParameters.CopyFiles`. Both create `dp_Sequences` entries for native MP series linkage (`table.service.ts:73-77`, `:100-105`).
-- `RecurrencePattern` and `CopyParameters` defined in `src/lib/providers/ministry-platform/types/provider.types.ts:221, :246`.
+- `copyRecord` does NOT copy sub-pages or files; `copyRecordWithSubpages` can via `CopyParameters.SubpageIds` and `CopyParameters.CopyFiles`. Both create `dp_Sequences` entries for native MP series linkage (JSDoc at `table.service.ts:73`, `:101`).
+- `RecurrencePattern` and `CopyParameters` defined in `src/lib/providers/ministry-platform/types/provider.types.ts:220, :245`.
 - Errors from `HttpClient` propagate unchanged after `logger.error('mp.table.<op>_failed', { table, recordId?, error: errorName(e) })`.
 
 ## Usage
 
-Real callers (via `MPHelper`, not `TableService` directly — see ADR in Gotchas):
+Real callers (via `MPHelper`, not `TableService` directly — see CLAUDE.md "Data Flow"):
 
 ```typescript
-// src/services/groupService.ts:232 — create with $userId
+// src/services/groupService.ts:374 — create with $userId (from the AuthorizationService gate)
 const result = await this.mp!.createTableRecords('Groups', [apiData], {
   $select: 'Group_ID, Group_Name',
-  $userId: userId,
+  $userId,
 });
 
-// src/services/groupService.ts:245 — partial update
+// src/services/groupService.ts:398 — partial update
 const result = await this.mp!.updateTableRecords('Groups', [apiData], {
   partial: true,
   $select: 'Group_ID, Group_Name',
-  $userId: userId,
+  $userId,
 });
 
 // src/services/userService.ts (getUserProfile) — filtered read
@@ -106,10 +106,11 @@ const records = await this.mp!.getTableRecords<MPUserProfile>({ ... });
 With Zod validation (recommended — enforced in `MPHelper`, not `TableService`):
 
 ```typescript
-// from src/lib/providers/ministry-platform/helper.ts:161-169 (doc example)
+// adapted from src/lib/providers/ministry-platform/helper.ts:186-196 (JSDoc example)
+// Schemas are not in the models barrel: import from '.../models/ContactLogSchema'.
 await mp.createTableRecords('Contact_Log', [{
   Contact_ID: 12345,
-  Contact_Date: new Date().toISOString(),
+  Contact_Date: await tz.toMpSqlDatetime(new Date()), // DomainTimezoneService (CLAUDE.md rule 17)
   Made_By: 1,
   Notes: 'Follow-up call completed'
 }], {
@@ -118,27 +119,29 @@ await mp.createTableRecords('Contact_Log', [{
 });
 ```
 
+> **Known conflict:** generated Zod schemas type `DateTime` columns as `z.string().datetime()`, which (Zod 4.6.5) rejects the `YYYY-MM-DD HH:MM:SS` string `toMpSqlDatetime` returns (no `T`, no offset). Passing `schema` with a `toMpSqlDatetime` value therefore throws `MPValidationError` before any API call; an ISO-`Z` value passes Zod but violates CLAUDE.md rule 17. Until the generator emits a wall-clock-compatible rule, omit `schema` (or use a custom schema) for records carrying datetimes. See `../../ministryplatform.datetimehandling.md`.
+
 ## Error handling
 
-Errors from the underlying `HttpClient` propagate after being logged (`table.service.ts:28`, `:48`, `:67`, `:95`, `:124`, `:147`). Covered by tests:
+Errors from the underlying `HttpClient` propagate after being logged (`table.service.ts:29`, `:47`, `:65`, `:93`, `:121`, `:148`). Covered by tests:
 
 | Status | Operation | Test location |
 |---|---|---|
-| 400 Bad Request | create (validation failure) | `table.service.test.ts:184-192` |
-| 400 Bad Request | copyRecord | `table.service.test.ts:430-444` |
-| 403 Forbidden | delete (permission denied) | `table.service.test.ts:323-331` |
-| 404 Not Found | get (table/record missing) | `table.service.test.ts:100-108` |
-| 404 Not Found | update (record missing) | `table.service.test.ts:241-249` |
-| 404 Not Found | delete (record missing) | `table.service.test.ts:313-321` |
-| 409 Conflict | create (duplicate key) | `table.service.test.ts:194-202` |
-| 500 Server Error | copyRecordWithSubpages | `table.service.test.ts:501-517` |
-| auth refresh failure | any | `table.service.test.ts:110-118` |
+| 400 Bad Request | create (validation failure) | `table.service.test.ts:196-204` |
+| 400 Bad Request | copyRecord | `table.service.test.ts:435-449` |
+| 403 Forbidden | delete (permission denied) | `table.service.test.ts:335-343` |
+| 404 Not Found | get (table/record missing) | `table.service.test.ts:112-120` |
+| 404 Not Found | update (record missing) | `table.service.test.ts:253-261` |
+| 404 Not Found | delete (record missing) | `table.service.test.ts:325-333` |
+| 409 Conflict | create (duplicate key) | `table.service.test.ts:206-214` |
+| 500 Server Error | copyRecordWithSubpages | `table.service.test.ts:506-522` |
+| auth refresh failure | any | `table.service.test.ts:122-130` |
 
 ## Gotchas
-- **`schema` and `partial` params are not on `TableService`** — they are added by `MPHelper` (`helper.ts:175, :256-258`). Calling `new TableService(...).createTableRecords(..., { schema })` is a type error.
-- **Ambiguous columns** — when `$filter` / `$select` traverses FKs, prefix tables (e.g., `Contacts.Contact_ID`, `Contact_ID_TABLE.First_Name`). See CLAUDE.md practice #10 and `../../services/README.md`.
+- **`schema` and `partial` params are not on `TableService`** — they are added by `MPHelper` (`helper.ts:201, :286-287`). Calling `new TableService(...).createTableRecords(..., { schema })` is a type error.
+- **Ambiguous columns** — when `$filter` / `$select` traverses FKs, prefix tables (e.g., `Contacts.Contact_ID`, `Contact_ID_TABLE.First_Name`). See CLAUDE.md practice #10 and `../../services/query-patterns.md`.
 - **Escape user input in filters** — always `term.replace(/'/g, "''")` before interpolating into `$filter` (CLAUDE.md practice #11).
-- **`deleteTableRecords` requires at least one id** — empty array produces `?id=` which is provider-dependent; no runtime guard here.
+- **`deleteTableRecords` requires at least one id** — an empty array passes the guard and sends `DELETE /tables/{table}` with no `id` params (an empty array serializes to nothing); callers must check length.
 - **URL-encoding is applied to table names only** — column names inside `$filter` / `$select` are not encoded by the service.
 
 ## Related docs

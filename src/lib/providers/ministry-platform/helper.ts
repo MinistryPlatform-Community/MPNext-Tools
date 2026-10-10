@@ -176,8 +176,8 @@ export class MPHelper {
    * });
    *
    * @example
-   * // Create with Zod validation (recommended)
-   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+   * // Create with a datetime (no `schema`: generated Zod schemas currently reject
+   * // MP wall-clock datetimes — see .claude/TODO/2026-10-10-generated-zod-rejects-mp-datetimes.md)
    * import { DomainTimezoneService } from '@/services/domainTimezoneService';
    *
    * // MP stores datetimes as wall-clock in the domain's TZ, not UTC.
@@ -190,7 +190,6 @@ export class MPHelper {
    *   Made_By: 1,
    *   Notes: 'Follow-up call completed'
    * }], {
-   *   schema: ContactLogSchema,
    *   $userId: 1
    * });
    */
@@ -268,7 +267,7 @@ export class MPHelper {
    *
    * @example
    * // Update with Zod validation (recommended)
-   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
    *
    * const updatedLogs = await mp.updateTableRecords('Contact_Log', [{
    *   Contact_Log_ID: 67890,

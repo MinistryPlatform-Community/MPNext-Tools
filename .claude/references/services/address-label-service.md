@@ -5,19 +5,22 @@ type: reference
 applies_to: [src/services/addressLabelService.ts, src/services/addressLabelService.test.ts]
 symbols: [AddressLabelService, ContactAddressRow]
 related: [query-patterns.md, ../dto-constants/dtos.md, ../components/address-labels.md]
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
 Fetch mailing addresses for one or many contacts by traversing `Contacts → Households → Addresses` via multi-level FK joins. Backs the address-label print feature.
 
 ## Files
-- `src/services/addressLabelService.ts` — singleton (105 lines)
-- `src/services/addressLabelService.test.ts` — 110 lines; covers singleton, happy path, batching (250 IDs → multiple calls), empty input, single-contact lookup
+- `src/services/addressLabelService.ts` — singleton (118 lines)
+- `src/services/addressLabelService.test.ts` — 154 lines; covers singleton, happy path, batching (250 IDs → multiple calls), empty input, single-contact lookup, invalid IDs (NaN/0/negative) rejected before the MP call
+
+## Authorization
+Both methods call `AuthorizationService.getInstance().requireSecurityRole({ table: 'Contacts', operation: 'read' })` first — bulk names + mailing addresses are the app's largest PII surface. The action (`fetchAddressLabels`) gates again; per-request `cache()` memoization keeps it to one MP read.
 
 ## Singleton
 ```typescript
-// src/services/addressLabelService.ts:45-63
+// src/services/addressLabelService.ts:46-64
 export class AddressLabelService {
   private static instance: AddressLabelService;
   private mp: MPHelper | null = null;
@@ -31,13 +34,13 @@ export class AddressLabelService {
 
 | Method | Returns | Behavior |
 |--------|---------|----------|
-| `getAddressesForContacts(contactIds: number[])` | `ContactAddressRow[]` | Batches of 100, validates each ID with `validatePositiveInt`, orders by Postal_Code |
+| `getAddressesForContacts(contactIds: number[])` | `ContactAddressRow[]` | Batches of `MP_FETCH_BATCH_SIZE` (100, `src/lib/constants.ts`), validates each ID with `validatePositiveInt`, orders by Postal_Code |
 | `getAddressForContact(contactId: number)` | `ContactAddressRow \| null` | Validates ID with `validatePositiveInt`, single-row lookup, `top: 1` |
 
 ## Shared select (multi-level FK traversal)
 
 ```typescript
-// src/services/addressLabelService.ts:23-38
+// src/services/addressLabelService.ts:24-39
 const SELECT_FIELDS = [
   'Contact_ID',
   'Display_Name',
@@ -65,17 +68,19 @@ Key rules (see `query-patterns.md`):
 ## getAddressesForContacts (batched)
 
 ```typescript
-// src/services/addressLabelService.ts:21, 69-90
-const BATCH_SIZE = 100;
-
+// src/services/addressLabelService.ts:70-97 (MP_FETCH_BATCH_SIZE = 100 from src/lib/constants.ts)
 async getAddressesForContacts(contactIds: number[]): Promise<ContactAddressRow[]> {
+  await AuthorizationService.getInstance().requireSecurityRole({
+    table: 'Contacts',
+    operation: 'read',
+  });
   if (contactIds.length === 0) return [];
 
   const results: ContactAddressRow[] = [];
 
-  for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
-    const batch = contactIds.slice(i, i + BATCH_SIZE);
-    batch.forEach(validatePositiveInt);
+  for (let i = 0; i < contactIds.length; i += MP_FETCH_BATCH_SIZE) {
+    const batch = contactIds.slice(i, i + MP_FETCH_BATCH_SIZE);
+    batch.forEach((id) => validatePositiveInt(id));
     const idList = batch.join(', ');
 
     const rows = await this.mp!.getTableRecords<ContactAddressRow>({
@@ -102,8 +107,12 @@ async getAddressesForContacts(contactIds: number[]): Promise<ContactAddressRow[]
 ## getAddressForContact
 
 ```typescript
-// src/services/addressLabelService.ts:95-106
+// src/services/addressLabelService.ts:102-117
 async getAddressForContact(contactId: number): Promise<ContactAddressRow | null> {
+  await AuthorizationService.getInstance().requireSecurityRole({
+    table: 'Contacts',
+    operation: 'read',
+  });
   validatePositiveInt(contactId);
 
   const rows = await this.mp!.getTableRecords<ContactAddressRow>({
@@ -119,7 +128,7 @@ async getAddressForContact(contactId: number): Promise<ContactAddressRow | null>
 ## Return type
 
 ```typescript
-// src/services/addressLabelService.ts:4-19
+// src/services/addressLabelService.ts:7-22
 export interface ContactAddressRow {
   Contact_ID: number;
   Display_Name: string;
@@ -149,7 +158,7 @@ The server action (`src/components/address-labels/actions.ts`) transforms `Conta
 | `fetchAddressLabels` | `src/components/address-labels/actions.ts` | `getAddressesForContacts` (selection mode), `getAddressForContact` (single record) |
 
 ## Gotchas
-- Returning `[]` for empty input skips the API call — don't "helpfully" add a default.
+- Returning `[]` for empty input skips the API call (the gate still runs first) — don't "helpfully" add a default.
 - `Contacts.Household_ID` must stay prefixed — removing the `Contacts.` prefix will 500 with "ambiguous column".
 - `[State/Region]` must stay in brackets in the select; the TS key is `'State/Region'` (single-quoted).
 - `ContactAddressRow` returned from MP can have `Household_ID: null` when the contact isn't linked to a household — downstream filters must handle it.

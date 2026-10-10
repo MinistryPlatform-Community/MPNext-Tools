@@ -21,17 +21,18 @@ Better Auth (`1.7.x`) wired to Ministry Platform OIDC via the `genericOAuth` plu
 | `src/lib/auth.ts` | Server Better Auth config (plugins: `genericOAuth`, `customSession`, `nextCookies`) |
 | `src/lib/auth-client.ts` | Client `authClient` (`customSessionClient`) |
 | `src/lib/env.ts` | `getMpBaseUrl()`, `getAuthBaseUrl()`, `getMpClient()` — validated env readers |
-| `src/app/api/auth/[...all]/route.ts` | Route handler (`toNextJsHandler(auth)`) |
-| `src/app/signin/page.tsx` | Sign-in page — auto-redirects via `authClient.signIn.social({ provider: "ministryplatform" })` |
+| `src/app/api/auth/[...all]/route.ts` | Route handler — deny-by-default allowlist + `/sign-in/social` body filter in front of `toNextJsHandler(auth)` |
+| `src/app/signin/page.tsx` + `sign-in-content.tsx` | Sign-in page (server shell, `force-dynamic`) — the client body auto-redirects via `authClient.signIn.social({ provider: "ministryplatform", callbackURL })` |
 | `src/proxy.ts` | Route protection (session-cookie presence check + `x-pathname` forwarding) |
 | `src/components/layout/auth-wrapper.tsx` | Server-component guard — redirects to `/signin` with `callbackUrl` |
 | `src/components/shared-actions/sign-out.ts` | `handleSignOut()` — clears the session, then `endsession` with `client_id` (+ `id_token_hint` when this process has it) |
 | `src/contexts/user-context.tsx` | `UserProvider` — loads MP profile client-side from `userGuid` |
-| `src/contexts/session-context.tsx` | `useAppSession()` — thin wrapper around `authClient.useSession()` |
+| `src/contexts/use-app-session.ts` | `useAppSession()` — thin wrapper around `authClient.useSession()` (returns `data`) |
 | `src/auth.test.ts` | Config pins, `customSession`, `mapProfileToUser` |
 | `src/auth.user-info.test.ts` | `getUserInfo` with genuinely signed id_tokens (verification, alg confusion, sub binding) |
 | `src/auth.oidc-discovery.test.ts` | MP down/hanging at boot and at the callback; lazy verifier units |
 | `src/auth.id-token-sign-in.test.ts` / `src/auth.shared-instance.test.ts` | F12 layers / one instance per process |
+| `src/auth.secret-guard.test.ts`, `src/auth.session-config.test.ts`, `src/auth.session-lifetime.test.ts`, `src/auth.user-oauth-tokens.test.ts`, `src/auth.ip-address.test.ts` | Boot refusals, cookie-cache config, 12 h cap, token stripping, client-IP headers |
 | `src/test-utils/mock-oidc.ts` | Mock MP OIDC provider (per-endpoint failure modes, `signIdToken`) |
 | `src/proxy.test.ts` | Proxy route-protection tests |
 | `src/components/layout/auth-wrapper.test.tsx` | `AuthWrapper` redirect tests |

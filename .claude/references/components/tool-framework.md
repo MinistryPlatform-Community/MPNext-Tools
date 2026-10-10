@@ -7,12 +7,13 @@ applies_to:
   - src/components/tool/tool-header.tsx
   - src/components/tool/tool-footer.tsx
   - src/components/tool/index.ts
+  - src/components/tool/tool-framework.test.tsx
 symbols: [ToolContainer, ToolHeader, ToolFooter]
 related:
   - dev-panel.md
   - layout.md
   - ui.md
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -23,11 +24,12 @@ Reusable layout shell used by every tool page: a dark slate title bar, a scrolla
 - `src/components/tool/tool-header.tsx` — dark slate (`bg-slate-700`) title bar with optional info tooltip
 - `src/components/tool/tool-footer.tsx` — white footer with Close + Save buttons and loading state
 - `src/components/tool/index.ts` — barrel: `ToolContainer`, `ToolFooter`, `ToolHeader`
+- `src/components/tool/tool-framework.test.tsx` — 13 cases covering all three (`DevPanel` mocked; `params`/`infoContent`/`hideFooter` branches)
 
 ## Key concepts
 - Composition via `children`; no internal router or data fetching
 - `"use client"` only on `ToolContainer` (it imports the client-only `DevPanel`); `ToolHeader` and `ToolFooter` are plain React (no `"use client"` directive, but contain no async server work — safe to import from either)
-- Dev overlay gating lives inside `DevPanel`, not `ToolContainer`: `ToolContainer` always renders `<DevPanel />` when `params` is passed, and `DevPanel` itself early-returns `null` when `NODE_ENV !== "development"` or hostname is not `localhost`/`127.0.0.1` (`src/components/dev-panel/dev-panel.tsx:20,56-58`)
+- Dev overlay gating lives inside `DevPanel`, not `ToolContainer`: `ToolContainer` always renders `<DevPanel />` when `params` is passed, and `DevPanel` itself early-returns `null` when `NODE_ENV !== "development"` or hostname is not `localhost`/`127.0.0.1` (`src/components/dev-panel/dev-panel.tsx:14-22,59-61`)
 - Footer buttons: Close is an `outline` variant; Save uses `bg-cyan-600 hover:bg-cyan-700` and swaps label to `"Saving..."` while `isSaving`
 - Header info tooltip uses shadcn `Tooltip` + `Info` icon from lucide, anchored to `side="left"` with `max-w-xs`
 
@@ -50,7 +52,7 @@ interface ToolContainerProps {
   children: React.ReactNode;
 }
 ```
-`ToolParams` comes from `src/lib/tool-params.ts:17-28`.
+`ToolParams` comes from `src/lib/tool-params.ts:28-39`.
 
 ### `ToolHeader`
 Source: `src/components/tool/tool-header.tsx:9-12`

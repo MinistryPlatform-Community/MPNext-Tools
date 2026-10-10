@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/services/toolService.ts, src/services/fieldManagementService.ts, src/lib/providers/ministry-platform/services/procedure.service.ts, src/lib/providers/ministry-platform/helper.ts]
 symbols: [api_Tools_GetPageData, api_Common_GetSelection, api_Tools_GetUserTools, api_MPNextTools_GetPages, api_MPNextTools_GetPageFields, api_MPNextTools_UpdatePageFieldOrder, api_dev_DeployTool]
 related: [stored-procs.md, ../services/README.md]
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -16,8 +16,8 @@ Stored procedures actively invoked by the application (7 procs). All are called 
 | Proc | Caller | Notes |
 |------|--------|-------|
 | `api_Tools_GetPageData` | `ToolService.getPageData()` | Page metadata lookup |
-| `api_Common_GetSelection` | `ToolService.getSelectionRecordIds()` | Selection → Record_ID[] |
-| `api_Tools_GetUserTools` | `ToolService.getUserTools()` | User → tool paths |
+| `api_Common_GetSelection` | `ToolService.getSelectionRecordIds()` | Selection → Record_ID[]; `@UserID` from the auth gate |
+| `api_Tools_GetUserTools` | `ToolService.getUserTools()` | User → tool paths; `@UserId` from the auth gate |
 | `api_MPNextTools_GetPages` | `ToolService.listPages()`, `FieldManagementService.getPages()` | No params; in-memory filter |
 | `api_MPNextTools_GetPageFields` | `FieldManagementService.getPageFields()` | Per-page field metadata |
 | `api_MPNextTools_UpdatePageFieldOrder` | `FieldManagementService.updatePageFieldOrder()` | Per-field mutation |
@@ -27,7 +27,8 @@ Stored procedures actively invoked by the application (7 procs). All are called 
 
 - HTTP: `POST /procs/{procedureName}` with body `{ "@ParamName": value, ... }`
 - Return: `unknown[][]` (array of result sets, each an array of row objects)
-- `@DomainID` is auto-injected by the MP API
+- `@DomainID` is auto-injected by the MP API — never pass it. SQL side: every `api_*` proc must declare `@DomainID INT` as its **first** parameter or MP will not expose it; all procs in `src/lib/providers/ministry-platform/db/` do
+- Every caller runs `AuthorizationService.requireSecurityRole(...)` before the call; user IDs passed to procs come from that gate's return value, never from the caller
 
 Call chain:
 
@@ -45,12 +46,15 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 |-----------|-----------|-----------|-------------|
 | @PageID   | Input     | Integer32 | Ministry Platform Page ID |
 
-**Return:** First result set, first row → `PageData` (`src/lib/tool-params.ts`) with fields: `Page_ID`, `Display_Name`, `Table_Name`, `Primary_Key`.
+**Return:** First result set, first row → `PageData` (`src/lib/tool-params.ts:14`): `Page_ID`, `Display_Name`, `Singular_Name`, `Table_Name`, `Primary_Key`, plus optional fields such as `Contact_ID_Field`, `Selected_Record_Expression`, `Filter_Clause`.
 
-**Called by:** `ToolService.getPageData(pageID)` at `src/services/toolService.ts:123`
+**DDL:** not in this repo (MP-provided proc).
+
+**Called by:** `ToolService.getPageData(pageID)` at `src/services/toolService.ts:126` (call at `:134`)
 
 **Consumer(s):**
-- `fetchAddressLabels()` in `src/components/address-labels/actions.ts`
+- `resolveContactIdFromPage()` in `src/app/(web)/tools/addeditfamily/actions.ts`
+- `ToolService.resolveContactIds()` (internal) → `resolveContactRecords()` in `src/components/dev-panel/panels/contact-records-actions.ts`
 
 ---
 
@@ -66,7 +70,9 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 
 **Return:** Searches all result sets for one containing `Record_ID` column → extracts `number[]`.
 
-**Called by:** `ToolService.getSelectionRecordIds(selectionId, userId, pageId)` at `src/services/toolService.ts:152`
+**DDL:** not in this repo (MP-provided proc).
+
+**Called by:** `ToolService.getSelectionRecordIds(selectionId, pageId)` at `src/services/toolService.ts:162` (call at `:168`). `@UserID` is the gate's return value — never caller-supplied.
 
 **Consumer(s):**
 - `fetchAddressLabels()` in `src/components/address-labels/actions.ts`
@@ -84,7 +90,9 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 
 **Return:** First result set → array of `{ Tool_Path: string }`.
 
-**Called by:** `ToolService.getUserTools(userId)` at `src/services/toolService.ts:183`
+**DDL:** not in this repo (MP-provided proc).
+
+**Called by:** `ToolService.getUserTools()` at `src/services/toolService.ts:196` (call at `:202`). `@UserId` is the gate's return value.
 
 **Consumer(s):**
 - `getUserTools()` in `src/components/dev-panel/panels/user-tools-actions.ts`
@@ -93,7 +101,7 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 
 ## api_MPNextTools_GetPages
 
-**Purpose:** Lists every MP `dp_Pages` row that MPNext Tools cares about (for deploy-tool and field-management pickers). SP takes no search param; callers filter in-memory and cap results.
+**Purpose:** Lists every MP `dp_Pages` row (`Page_ID, Display_Name, Table_Name`, ordered by `Display_Name`) for the deploy-tool and field-management pickers. SP takes no search param; callers filter in-memory and cap results.
 
 | Parameter | Direction | Data Type | Description |
 |-----------|-----------|-----------|-------------|
@@ -104,8 +112,8 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 **DDL:** `src/lib/providers/ministry-platform/db/api_MPNextTools_GetPages.sql`
 
 **Called by:**
-- `ToolService.listPages(search?)` at `src/services/toolService.ts:206`
-- `FieldManagementService.getPages()` at `src/services/fieldManagementService.ts:43`
+- `ToolService.listPages(search?)` at `src/services/toolService.ts:223` (in-memory filter on `Display_Name`/`Table_Name`, capped at 100)
+- `FieldManagementService.getPages()` at `src/services/fieldManagementService.ts:45`
 
 ---
 
@@ -121,7 +129,7 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 
 **DDL:** `src/lib/providers/ministry-platform/db/api_MPNextTools_GetPageFields.sql`
 
-**Called by:** `FieldManagementService.getPageFields(pageId)` at `src/services/fieldManagementService.ts:53`
+**Called by:** `FieldManagementService.getPageFields(pageId)` at `src/services/fieldManagementService.ts:59`
 
 ---
 
@@ -131,23 +139,23 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 
 | Parameter | Direction | Data Type | Description |
 |-----------|-----------|-----------|-------------|
-| @PageID | Input | Integer32 | Page ID |
-| @FieldName | Input | String | Field column name |
-| @GroupName | Input | String (nullable) | UI group name |
-| @ViewOrder | Input | Integer32 | Display order |
-| @Required | Input | Boolean | Required flag |
-| @Hidden | Input | Boolean | Hidden flag |
-| @DefaultValue | Input | String (nullable) | Default literal |
-| @FilterClause | Input | String (nullable) | DDL filter |
-| @DependsOnField | Input | String (nullable) | Dependency field name |
-| @FieldLabel | Input | String (nullable) | Display label |
-| @WritingAssistantEnabled | Input | Boolean | AI-assist toggle |
+| @PageID | Input | INT | Page ID |
+| @FieldName | Input | VARCHAR(64) | Field column name |
+| @GroupName | Input | NVARCHAR(75) = NULL | UI group name |
+| @ViewOrder | Input | SMALLINT = NULL | Display order |
+| @Required | Input | BIT = 0 | Required flag |
+| @Hidden | Input | BIT = 0 | Hidden flag |
+| @DefaultValue | Input | NVARCHAR(128) = NULL | Default literal |
+| @FilterClause | Input | NVARCHAR(2000) = NULL | Lookup filter clause |
+| @DependsOnField | Input | VARCHAR(64) = NULL | Dependency field name |
+| @FieldLabel | Input | NVARCHAR(64) = NULL | Display label |
+| @WritingAssistantEnabled | Input | BIT = 0 | AI-assist toggle |
 
 **Return:** Not consumed.
 
 **DDL:** `src/lib/providers/ministry-platform/db/api_MPNextTools_UpdatePageFieldOrder.sql`
 
-**Called by:** `FieldManagementService.updatePageFieldOrder(fields[])` at `src/services/fieldManagementService.ts:76`
+**Called by:** `FieldManagementService.updatePageFieldOrder(...)` at `src/services/fieldManagementService.ts:90` (call at `:118`, batches of `CONCURRENCY = 5`)
 
 ---
 
@@ -157,22 +165,22 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 
 | Parameter | Direction | Data Type | Description |
 |-----------|-----------|-----------|-------------|
-| @ToolName | Input | String(30) | Tool name |
-| @LaunchPage | Input | String(1024) | Launch URL / route |
-| @Description | Input | String(100) nullable | Tool description |
-| @LaunchWithCredentials | Input | Bit (0/1) | Include creds on launch |
-| @LaunchWithParameters | Input | Bit (0/1) | Include params on launch |
-| @LaunchInNewTab | Input | Bit (0/1) | Open in new tab |
-| @ShowOnMobile | Input | Bit (0/1) | Visible on mobile |
-| @PageIDs | Input | String (CSV, nullable) | Comma-joined `Page_ID` list |
-| @AdditionalData | Input | String(65) nullable | Free-form metadata |
-| @RoleIDs | Input | String (CSV, nullable) | Comma-joined `Role_ID` list |
+| @ToolName | Input | NVARCHAR(30) | Tool name |
+| @LaunchPage | Input | NVARCHAR(1024) | Launch URL / route |
+| @Description | Input | NVARCHAR(100) = NULL | Tool description |
+| @LaunchWithCredentials | Input | BIT = 1 | Include creds on launch |
+| @LaunchWithParameters | Input | BIT = 1 | Include params on launch |
+| @LaunchInNewTab | Input | BIT = 0 | Open in new tab |
+| @ShowOnMobile | Input | BIT = 0 | Visible on mobile |
+| @PageIDs | Input | NVARCHAR(MAX) = NULL | Comma-joined `Page_ID` list |
+| @AdditionalData | Input | NVARCHAR(65) = NULL | Applied to each inserted `dp_Tool_Pages` row |
+| @RoleIDs | Input | NVARCHAR(MAX) = NULL | Comma-joined `Role_ID` list; Administrators auto-included |
 
 **Return:** 3 result sets — `[toolRow]`, `pageRows[]`, `roleRows[]`. Consumed as `DeployToolResult`.
 
 **DDL:** `src/lib/providers/ministry-platform/db/api_dev_DeployTool.sql`
 
-**Called by:** `ToolService.deployTool(input)` at `src/services/toolService.ts:247`
+**Called by:** `ToolService.deployTool(input)` at `src/services/toolService.ts:272` (call at `:297`, with `{ $userId }` from the gate as a query param)
 
 ---
 
@@ -186,9 +194,18 @@ Server Action → {ToolService | FieldManagementService} (singleton) → MPHelpe
 | `src/services/toolService.ts` | Application service wrapping `api_Tools_GetPageData`, `api_Common_GetSelection`, `api_Tools_GetUserTools`, `api_MPNextTools_GetPages` (partial), `api_dev_DeployTool` |
 | `src/services/fieldManagementService.ts` | Application service wrapping `api_MPNextTools_GetPages`, `api_MPNextTools_GetPageFields`, `api_MPNextTools_UpdatePageFieldOrder` |
 
-## Note on `api_CloudTools_GetSelection`
+## Installed but not called by app code
 
-The facts snapshot lists `api_CloudTools_GetSelection` as a referenced proc. As of 2026-04-17, only the newer `api_Common_GetSelection` is invoked from `ToolService`. The `CloudTools` name survives in code comments only — see TODO `2026-04-17-services-stale-cloudtools-comment.md`.
+These ship in `src/lib/providers/ministry-platform/db/` (combined into `_INSTALL/ministryplatform-install.sql` by `npm run mp:build:install`) but nothing in `src/` invokes them. All declare `@DomainID INT` first.
+
+| Proc | DDL |
+|---|---|
+| `api_Common_GenerateSlug` | `db/api_Common_GenerateSlug.sql` |
+| `api_Common_StoredProcParameters` | `db/api_Common_StoredProcParameters.sql` (skips `@DomainID` when listing params, `:92`) |
+| `api_dev_GetProcedureDefinition` | `db/api_dev_GetProcedureDefinition.sql` |
+| `api_MPNextTools_GetAuditLog` | `db/api_MPNextTools_GetAuditLog.sql` |
+
+`api_CloudTools_GetSelection` (in `stored-procs.md`) is the legacy name; only `api_Common_GetSelection` is called.
 
 ## Related docs
 

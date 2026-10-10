@@ -80,31 +80,31 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** You pass `session.user.id` to an MP query expecting `dp_Users.User_GUID`. MP returns 0 rows, joins fail, or audit columns show the wrong user.
 **Root cause:** `session.user.id` is Better Auth's internal nanoid-style ID (e.g. `1gYSNMvy6OqAm9q3DdVhtKj3Czkxd0ms`), NOT the MP `User_GUID` (UUID). The MP `sub` claim is stored in a separate `userGuid` additionalField.
 **Fix:** Always use `session.user.userGuid` for MP API lookups. Needs a cast at the call site: `const userGuid = (session.user as { userGuid?: string }).userGuid`.
-**Enforced where:** `src/lib/auth.ts:22-30` (additionalFields definition), `src/contexts/user-context.tsx:29` (cast pattern), `src/auth.test.ts:189-207` (regression test).
+**Enforced where:** `src/lib/auth.ts` (`userAdditionalFields`), `src/contexts/user-context.tsx:29` (cast pattern), `src/auth.test.ts:203` (regression test).
 **Related:** [auth/user-identity.md](auth/user-identity.md), [services/](services/)
 
 ### GOTCHA-002: TypeScript error "Property userGuid does not exist on type..."
 
 **Symptom:** TS complains about `session.user.userGuid` even though the value exists at runtime.
-**Root cause:** Better Auth 1.5's `customSessionClient` does not propagate `additionalFields` into its inferred session type. Runtime is correct, types are not.
+**Root cause:** Better Auth's `customSessionClient` does not propagate `additionalFields` into its inferred session type. Runtime is correct, types are not.
 **Fix:** Cast at the read site: `(session.user as { userGuid?: string }).userGuid`. Do not try to extend Better Auth's types globally.
-**Enforced where:** `src/contexts/user-context.tsx:29`, `src/lib/auth.ts:85` (map function also needs a cast).
+**Enforced where:** `src/contexts/user-context.tsx:29`, `src/lib/auth.ts` (`mapProfileToUser` returns `as Record<string, unknown>`).
 **Related:** [auth/README.md](auth/README.md)
 
 ### GOTCHA-003: Proxy lets forged/expired session cookies through
 
 **Symptom:** Proxy does not redirect a broken session to `/signin`; the request reaches a route that then errors or returns empty data.
 **Root cause:** `src/proxy.ts` uses `getSessionCookie()` from `better-auth/cookies`, which only checks for cookie presence — it does not decode or validate the JWT. Any forged or expired cookie passes the proxy.
-**Fix:** Every protected page must render inside `(web)/layout.tsx` so `AuthWrapper` runs `auth.api.getSession()` on the server. Protected API/server actions must also call `auth.api.getSession()` themselves. Never rely on the proxy alone for auth.
-**Enforced where:** `src/proxy.ts:24-26` (cookie-presence check), `src/components/layout/auth-wrapper.tsx:5-20` (real session check).
+**Fix:** Every protected page must render inside `(web)/layout.tsx` so `AuthWrapper` runs `auth.api.getSession()` on the server. Server actions and services that touch MP data must call `AuthorizationService.requireSecurityRole()` (CLAUDE.md practice #12). Never rely on the proxy alone for auth.
+**Enforced where:** `src/proxy.ts:91-95` (cookie-presence check), `src/components/layout/auth-wrapper.tsx:5-27` (real session check).
 **Related:** [auth/](auth/), [routing/](routing/)
 
 ### GOTCHA-004: User lands on tool index instead of specific tool + params after sign-in
 
 **Symptom:** After OAuth round-trip the user is dropped at `/` or the tool index rather than the originally requested URL.
 **Root cause:** `callbackUrl` is dropped somewhere in the round-trip. The proxy must forward `x-pathname` on the pass-through request, and `/signin` redirects must set `callbackUrl` to that original path. `AuthWrapper` must read `x-pathname` to build the redirect.
-**Fix:** Preserve both the `x-pathname` header in `src/proxy.ts:13` and the `hdrs.get("x-pathname")` read in `src/components/layout/auth-wrapper.tsx:13`. Do not remove either without updating the other.
-**Enforced where:** `src/proxy.ts:12-15,28-30`, `src/components/layout/auth-wrapper.tsx:13-16`.
+**Fix:** Preserve both the `x-pathname` header in `src/proxy.ts:58` and the `hdrs.get("x-pathname")` read in `src/components/layout/auth-wrapper.tsx:13`. Do not remove either without updating the other.
+**Enforced where:** `src/proxy.ts:57-58` (`forwardedHeaders.set('x-pathname', fullPath)`), `src/components/layout/auth-wrapper.tsx:13-16`.
 **Related:** [auth/oauth-flow.md](auth/oauth-flow.md)
 
 ### GOTCHA-005: Sign-out redirects to `http://localhost:3000` in production
@@ -127,8 +127,8 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 **Symptom:** `Created_By`, `Modified_By`, `dp_Audit_Log` rows show the test user, an empty user, or the wrong MP user.
 **Root cause:** Caller passed `session.user.id` (the Better Auth internal) as `$userId`. MP expects the numeric `User_ID` (integer), not a GUID and certainly not a nanoid.
-**Fix:** Resolve the numeric MP `User_ID` before the MP call: `const userId = await UserService.getInstance().then(s => s.getUserIdByGuid(session.user.userGuid))`, then pass that integer as `$userId`.
-**Enforced where:** `src/services/groupService.ts:232,248` (correct pattern — uses `userId: number`), `src/services/userService.ts:68-79` (`getUserIdByGuid` helper).
+**Fix:** Take `$userId` from the return value of `AuthorizationService.getInstance().requireSecurityRole(...)` inside the **service** (it resolves the session's `userGuid` to the numeric `dp_Users.User_ID`). Never accept it from an action argument or caller payload (CLAUDE.md practice #13).
+**Enforced where:** `src/services/authorizationService.ts` (`requireSecurityRole` returns the acting `User_ID`); e.g. `src/services/groupService.ts:369,385`, `src/services/toolService.ts` (`deployTool`).
 **Related:** [auth/user-identity.md](auth/user-identity.md), [services/](services/)
 
 ---
@@ -140,7 +140,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** Fresh server boot, first MP call returns 401 with an empty Bearer.
 **Root cause:** Service method forgot to `await this.client.ensureValidToken()` before `getHttpClient().get()`. Since 2026-09-30 (Step 5) the `HttpClient` 401 hook refreshes and retries once, so this now costs an extra round trip instead of failing — but it is still a bug; do not rely on the hook for a cold client.
 **Fix:** Every MP-provider service method that does a network call must start with `await this.client.ensureValidToken()` (or `ensureValidDevToken()` for `api_dev_*` procs).
-**Enforced where:** `src/lib/providers/ministry-platform/client.ts` (`TokenPipeline.ensureValid`). Seen correctly applied in e.g. `src/lib/providers/ministry-platform/services/file.service.ts:48`, `communication.service.ts:20,40`.
+**Enforced where:** `src/lib/providers/ministry-platform/client.ts` (`TokenPipeline.ensureValid`). Seen correctly applied in e.g. `src/lib/providers/ministry-platform/services/file.service.ts:49`, `communication.service.ts:28,51`.
 **Related:** [mp-provider/](mp-provider/)
 
 ### GOTCHA-009: N concurrent MP calls on cold server trigger N OAuth token POSTs (RESOLVED)
@@ -164,7 +164,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** You hand-edit a model file, run `npm run mp:generate:models`, and the edit is gone.
 **Root cause:** `npm run mp:generate:models` uses the `--clean` flag, which deletes every `.ts` file in the output dir before regeneration.
 **Fix:** Never hand-edit anything under `models/`. Add runtime types to `src/lib/dto/` or wrap the generated model with a DTO. If the generator output is wrong, fix the generator in `src/lib/providers/ministry-platform/scripts/generate-types.ts`.
-**Enforced where:** `src/lib/providers/ministry-platform/scripts/generate-types.ts:570-581`.
+**Enforced where:** `src/lib/providers/ministry-platform/scripts/generate-types.ts:577-581` (`options.clean`).
 **Related:** [mp-provider/](mp-provider/)
 
 ### GOTCHA-012: Ambiguous column error when `$filter` joins tables
@@ -172,7 +172,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** MP REST call errors with "ambiguous column name" when querying a table whose columns exist on the base table and a joined table.
 **Root cause:** MP REST does not auto-qualify columns that appear in both base and joined tables. The `Contact_ID` on `Contacts` is ambiguous with `Contact_ID` on `Contact_Addresses`, for example.
 **Fix:** Prefix every ambiguous column with its table: `Contacts.Contact_ID` instead of bare `Contact_ID`. For FK traversal use `FKColumn_TABLE.Column` (e.g. `Contact_ID_TABLE.First_Name`). For multi-level FK chains use underscores between `_TABLE_` hops and a single dot before the final field: `Building_ID_TABLE_Location_ID_TABLE.Congregation_ID`.
-**Enforced where:** Documented in CLAUDE.md practice #10. Examples: `src/services/userService.ts:85` (FK traversal), `src/services/addressLabelService.ts:83` (multi-level).
+**Enforced where:** Documented in CLAUDE.md practice #10. Examples: `src/services/userService.ts:63` (FK traversal), `src/services/addressLabelService.ts:32-38` (multi-level).
 **Related:** [services/query-patterns.md](services/query-patterns.md)
 
 ### GOTCHA-013: Passing `@DomainID` in `executeProcedureWithBody` causes parameter-count mismatch
@@ -180,7 +180,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** Stored procedure call errors with "Procedure expected parameter @DomainID which was not supplied" or "procedure has too many arguments".
 **Root cause:** The MP REST API injects `@DomainID` automatically from the OAuth token context. Passing it in the body double-binds the parameter.
 **Fix:** Never include `@DomainID` in the body passed to `executeProcedureWithBody`. DO still declare `@DomainID INT` as the first parameter in the SP DDL — it is required for MP API exposure. See user's persistent memory: "@DomainID Required — All api_* stored procs MUST have @DomainID INT as first parameter for MP API".
-**Enforced where:** `src/services/toolService.ts:126-129` (comment + correct pattern), `src/services/toolService.ts:185-187`.
+**Enforced where:** `src/services/toolService.ts:133-135` (comment + correct pattern in `getPageData`); every `executeProcedureWithBody` call in `toolService.ts` omits `@DomainID`.
 **Related:** [mp-schema/](mp-schema/), [services/](services/)
 
 ### GOTCHA-014: Deploy-tool call hits production MP instance by accident
@@ -188,7 +188,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** The deploy-tool flow writes rows into the production `dp_Tools` table.
 **Root cause:** Procedures prefixed with `api_dev_` are routed to the dev credentials pipeline by the provider. Without that prefix, `DeployTool` would run under production credentials.
 **Fix:** Keep the `api_dev_` prefix on any proc that should stay out of prod. Ensure `MINISTRY_PLATFORM_DEV_CLIENT_ID` / `MINISTRY_PLATFORM_DEV_CLIENT_SECRET` are set in `.env.local`. Keep the dev-panel localhost-only (see GOTCHA-033). Never rename these procs without checking the ProcedureService routing.
-**Enforced where:** `src/services/toolService.ts:242-247`, `src/lib/providers/ministry-platform/client.ts` (`dev` `TokenPipeline`).
+**Enforced where:** `src/services/toolService.ts:266-297` (`deployTool`), `src/lib/providers/ministry-platform/services/procedure.service.ts` (`DEV_PROC_PREFIX`), `src/lib/providers/ministry-platform/client.ts` (`dev` `TokenPipeline`).
 **Related:** [mp-provider/client.md](mp-provider/client.md)
 
 ### GOTCHA-015: File uploaded but no `$userId` audit trail
@@ -196,7 +196,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** `dp_Files` rows appear after upload but `Modified_By` is null or the system user.
 **Root cause:** `FileService.uploadFiles` sends `userId` only as a `$userId` query-string parameter, not as a FormData field. If the caller forgets to pass `params.userId` at all, no audit trail is recorded.
 **Fix:** Always pass `params.userId` to `uploadFiles`. Verify MP records the audit by checking `dp_Audit_Log` rows after upload.
-**Enforced where:** `src/lib/providers/ministry-platform/services/file.service.ts:67-77`.
+**Enforced where:** `src/lib/providers/ministry-platform/services/file.service.ts:100` (`$userId` query param in `uploadFiles`).
 **Related:** [mp-provider/services/](mp-provider/services/)
 
 ### GOTCHA-016: `createCommunication` with empty `[]` attachments sends JSON not multipart
@@ -204,7 +204,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** `createCommunication(info, [])` does not exercise the multipart path even though an array was passed.
 **Root cause:** Branch condition is `attachments && attachments.length > 0`. An empty array is truthy for `&&` but `length > 0` fails, so it falls through to the JSON path. This is the intended behavior but a footgun for tests that assume "array passed ⇒ multipart used".
 **Fix:** Pass `undefined` (or omit the second argument) when there are no attachments. Don't assert `postFormData` was called on an empty-array fixture.
-**Enforced where:** `src/lib/providers/ministry-platform/services/communication.service.ts:22,42`.
+**Enforced where:** `src/lib/providers/ministry-platform/services/communication.service.ts:32,55`.
 **Related:** [mp-provider/services/](mp-provider/services/)
 
 ### GOTCHA-017: `getTables('Contacts')` returns multiple tables
@@ -212,7 +212,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** Calling `getTables('Contacts')` returns `Contacts`, `Contact_Addresses`, `Contact_Log`, `Contact_Attributes`, etc. — not just the exact match you wanted.
 **Root cause:** The MP REST `$search` parameter is a substring match, not an exact match.
 **Fix:** Always post-filter: `tables.find((t) => t.Table_Name === exactName)`. Return `tables.find(...) ?? tables[0]` or raise if no exact match found.
-**Enforced where:** `src/services/fieldManagementService.ts:70-71`.
+**Enforced where:** `src/services/fieldManagementService.ts:85`.
 **Related:** [services/](services/)
 
 ---
@@ -223,16 +223,16 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 **Symptom:** User types `O'Brien` into a search box; MP request fails with 400 or — worse — a SQL-like injection token is embedded verbatim into the filter.
 **Root cause:** MP `$filter` accepts raw OData-style strings. If user input is interpolated without escaping, single quotes close the literal prematurely.
-**Fix:** Always escape before embedding: `term.replace(/'/g, "''")`. For LIKE patterns with wildcards also escape `%` and `_`: use `escapeFilterString` from `src/lib/validation.ts:25-30`. Documented in CLAUDE.md practice #11.
-**Enforced where:** `src/lib/validation.ts:25-30` (helper), `src/services/toolService.ts:229` (correct inline), `src/services/groupService.ts` passim.
+**Fix:** Always escape before embedding: `term.replace(/'/g, "''")`. For LIKE patterns use `escapeFilterString` from `src/lib/validation.ts:127` (bracket-escapes `[`, `%`, `_`, doubles `'`, rejects control chars and terms over `MAX_SEARCH_TERM_LENGTH`). Documented in CLAUDE.md practice #11.
+**Enforced where:** `src/lib/validation.ts:127` (helper), `src/services/toolService.ts:254`, `src/services/groupService.ts` passim.
 **Related:** [services/query-patterns.md](services/query-patterns.md), [dto-constants/](dto-constants/)
 
 ### GOTCHA-019: MP filter breaks on non-numeric record ID (NaN interpolation)
 
 **Symptom:** MP returns 400 or empty result because the filter reads `WHERE Record_ID = NaN`.
 **Root cause:** `parseInt('abc', 10)` returns `NaN`; if the service doesn't validate before interpolating into `` `Record_ID = ${id}` ``, `NaN` slips through.
-**Fix:** Call `validatePositiveInt(id)` from `src/lib/validation.ts:11-16` before building any `` `ID = ${id}` `` filter. Services like `addressLabelService` batch-validate in loops; copy that pattern.
-**Enforced where:** `src/services/addressLabelService.ts:76` (positive pattern), `src/lib/validation.ts:11-16` (helper).
+**Fix:** Call `validatePositiveInt(id)` from `src/lib/validation.ts:33` before building any `` `ID = ${id}` `` filter. Services like `addressLabelService` batch-validate in loops; copy that pattern.
+**Enforced where:** `src/services/addressLabelService.ts:83` (positive pattern), `src/lib/validation.ts:33` (helper).
 **Related:** [services/query-patterns.md](services/query-patterns.md)
 
 ### GOTCHA-020: Field-management partial save leaves `dp_Page_Fields` inconsistent
@@ -240,7 +240,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** User edits 20 fields, save fails halfway; some changes are committed and others are not — no rollback.
 **Root cause:** `FieldManagementService.updatePageFieldOrder` calls `api_MPNextTools_UpdatePageFieldOrder` once per field, 5 at a time, with no transaction wrapper. A failure in batch 3 leaves batches 1-2 committed.
 **Fix:** Caller should wrap in `try/catch` and surface partial-save state. For true atomicity, rewrite `api_MPNextTools_UpdatePageFieldOrder` to accept a table-valued parameter and commit all rows in a single SP transaction.
-**Enforced where:** `src/services/fieldManagementService.ts:74-109`.
+**Enforced where:** `src/services/fieldManagementService.ts:105-130` (`updatePageFieldOrder`, `CONCURRENCY = 5`).
 **Related:** [services/](services/), [components/field-management.md](components/field-management.md)
 
 ### GOTCHA-021: Negative `Page_Field_ID` values sent to MP if passed through carelessly
@@ -248,7 +248,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** MP rejects update with "PK violation" or silently creates a bogus row because a negative `Page_Field_ID` was sent over the wire.
 **Root cause:** `fetchPageFieldData` synthesizes client-only IDs starting at `-1` and decrementing (`nextId--`) for rows that exist in the table metadata but not yet in `dp_Page_Fields`. These negative IDs are sentinel values for "not yet persisted" and must never be sent back to MP.
 **Fix:** Never send `Page_Field_ID` to MP. `FieldOrderPayload` intentionally omits it. When you add a new payload type, omit `Page_Field_ID` explicitly.
-**Enforced where:** `src/components/field-management/actions.ts:34-42` (negative ID synthesis).
+**Enforced where:** `src/components/field-management/actions.ts:61-71` (negative ID synthesis).
 **Related:** [components/field-management.md](components/field-management.md)
 
 ### GOTCHA-022: SkipRecord / FetchAddressLabelsResult indexing returns undefined
@@ -284,7 +284,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** `npm test -- src/services/toolService.test.ts` passes, but `npm run test:run` fails that same file with bogus mock return values from a previous test file.
 **Root cause:** The service singleton (`ServiceClass.instance`) is cached across test files. The previous file's mock `MPHelper` is still attached.
 **Fix:** Reset the singleton in `beforeEach`: `(ServiceClass as any).instance = undefined`.
-**Enforced where:** `src/services/toolService.test.ts:19-23` (canonical pattern).
+**Enforced where:** `src/services/toolService.test.ts:46-49` (canonical pattern).
 **Related:** [testing/mocks.md](testing/mocks.md)
 
 ### GOTCHA-026: Server action test crashes with `headers(...).get is not a function`
@@ -292,7 +292,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** Testing a server action: `TypeError: (intermediate value).get is not a function` inside Better Auth.
 **Root cause:** `next/headers` was mocked with a plain object (`{}`) or `new Map()`. Better Auth internally calls `.get('cookie')` on a `Headers` instance — plain objects don't implement that interface.
 **Fix:** `vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }))`. Use a real `Headers` instance.
-**Enforced where:** `src/components/dev-panel/panels/user-tools-actions.test.ts:17-19` (canonical pattern).
+**Enforced where:** `src/components/dev-panel/panels/user-tools-actions.test.ts:16-18` (canonical pattern).
 **Related:** [testing/mocks.md](testing/mocks.md)
 
 ---
@@ -311,8 +311,8 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 **Symptom:** A newly added public route (e.g. `/healthz`) bounces to `/signin` which bounces back.
 **Root cause:** The proxy's early-return whitelist was not updated for the new path.
-**Fix:** Add the path to the early-return branch in `src/proxy.ts:18`. The current whitelist is `pathname.startsWith('/api') || pathname === '/signin'`.
-**Enforced where:** `src/proxy.ts:18`.
+**Fix:** Add the path to `isPublicPath()` in `src/proxy.ts:26-35`. The current allowlist is `/api/auth`, `/api/auth/*`, `/signin` and `/auth-error` (exact-segment matches; every other `/api/*` route needs a session cookie).
+**Enforced where:** `src/proxy.ts:26-35` (`isPublicPath`); `src/proxy.test.ts`.
 **Related:** [routing/](routing/)
 
 ### GOTCHA-029: CI runs `next lint` and fails — command unknown
@@ -320,7 +320,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** CI fails with "Unknown command: lint" or similar from a script that invokes `next lint`.
 **Root cause:** Next.js 16 removed `next lint`. This project uses ESLint flat config directly via `eslint .`.
 **Fix:** Use `npm run lint`. Config is native flat config in `eslint.config.mjs`.
-**Enforced where:** `package.json:9` (`"lint": "eslint ."`).
+**Enforced where:** `package.json:13` (`"lint": "eslint ."`).
 **Related:** CLAUDE.md "Next.js 16 Notes"
 
 ---
@@ -348,15 +348,15 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** Client component crashes on render with `useUser must be used within a UserProvider`.
 **Root cause:** Consumer was rendered outside the `<UserProvider>` subtree, or inside a server component that never reaches `providers.tsx`.
 **Fix:** Ensure the component is a descendant of `<UserProvider>`, which is mounted in `src/app/providers.tsx`. Convert the component to a client component (`"use client"`) if it needs `useUser()`.
-**Enforced where:** `src/contexts/user-context.tsx:76-82`.
+**Enforced where:** `src/contexts/user-context.tsx:76-82` (`useUser`).
 **Related:** [contexts/](contexts/)
 
 ### GOTCHA-031: `userProfile` stays `null` and `isLoading` never resolves when session has no `userGuid`
 
 **Symptom:** Loading spinner spins forever for a user whose session does not have a `userGuid` (e.g. edge-case cookie migration).
 **Root cause:** The effect gating `loadUserProfile` only runs when `userGuid` is present AND session is settled; the "settled but no guid" branch does not set `isLoading = false` in the initial render.
-**Fix:** Gate UI on `isLoading` only when a `userGuid` is expected. Handle the missing case explicitly in consumer components. See `user-context.tsx:51-58`.
-**Enforced where:** `src/contexts/user-context.tsx:51-58`.
+**Fix:** Gate UI on `isLoading` only when a `userGuid` is expected. Handle the missing case explicitly in consumer components. See `user-context.tsx:52-60`. (Inside `(web)` this state is unreachable in practice: `AuthWrapper` redirects a session with no `userGuid` to `/session-error`.)
+**Enforced where:** `src/contexts/user-context.tsx:52-60`, `src/components/layout/auth-wrapper.tsx:24-27`.
 **Related:** [contexts/](contexts/)
 
 ### GOTCHA-032: `AuthWrapper` silently stops authenticating after adding `"use client"`
@@ -364,7 +364,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** You add `"use client"` to `auth-wrapper.tsx` for a quick fix; the app compiles but every user is treated as signed in (or the route is never protected).
 **Root cause:** `AuthWrapper` must be a server component — it calls `await headers()` and `await auth.api.getSession({ headers })`. These are server-only APIs. Adding `"use client"` silently no-ops the redirect.
 **Fix:** Keep `auth-wrapper.tsx` as a server component. Move any interactive state into a child client component.
-**Enforced where:** `src/components/layout/auth-wrapper.tsx:1-20` (no `"use client"`).
+**Enforced where:** `src/components/layout/auth-wrapper.tsx` (no `"use client"`).
 **Related:** [components/layout.md](components/layout.md), [auth/](auth/)
 
 ### GOTCHA-033: Dev overlay unexpectedly appears in production
@@ -372,7 +372,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** The amber dev-panel banner shows up in a deployed environment.
 **Root cause:** The self-gating lives inside `DevPanel` (`process.env.NODE_ENV === "development"` AND hostname === localhost) — not in `ToolContainer`. `ToolContainer` always renders `<DevPanel />` when `params` is provided.
 **Fix:** Trust the DevPanel self-gate. If you need to hide the overlay locally (e.g. for a screenshot), drop the `params` prop from `ToolContainer`. Do NOT remove the self-gate.
-**Enforced where:** `src/components/dev-panel/dev-panel.tsx:20-22,56-58`.
+**Enforced where:** `src/components/dev-panel/dev-panel.tsx:14-22,59-61` (`isLocalhost`, `isDevBuild`).
 **Related:** [components/dev-panel.md](components/dev-panel.md)
 
 ### GOTCHA-034: Dev-panel server actions callable in production despite UI hidden
@@ -388,7 +388,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 **Symptom:** The dev panel's user-tools check shows a red "NOT AUTHORIZED" banner even though the user can obviously access the tool in prod.
 **Root cause:** `NEXT_PUBLIC_PROD_URL` is unset (or has a trailing slash mismatch). The check is `path.includes(prodToolUrl)` where `prodToolUrl = ${prodBase}${pathname}`; if `prodBase` is empty, the match can never succeed.
 **Fix:** Set `NEXT_PUBLIC_PROD_URL` in `.env.local` to the deployed tool base URL (no trailing slash). The component already renders a helpful amber banner when unset — check for that banner instead of the red one.
-**Enforced where:** `src/components/dev-panel/panels/user-tools-panel.tsx:38-42,112-133` (handles the unset case explicitly).
+**Enforced where:** `src/components/dev-panel/panels/user-tools-panel.tsx:41-44,115` (handles the unset case explicitly).
 **Related:** [components/dev-panel.md](components/dev-panel.md)
 
 ### GOTCHA-036: Edit-mode Review screen shows "ID: &lt;n&gt;" for Primary Contact / Parent Group
@@ -403,7 +403,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 **Symptom:** You rename the field in the Zod schema and the form compiles, but the Review step or form submission silently drops the value.
 **Root cause:** The field name contains a hyphen and is referenced as a quoted string literal (`'Secure_Check-in'`) across schema, `STEP_FIELDS`, `SwitchRow`, and `step-review`. A refactor tool that only renames symbols will miss the string literals.
-**Fix:** Grep-search for `Secure_Check-in` across `src/components/group-wizard` and rename at all five sites. TypeScript will not help you here — the key is a string literal, not a symbol.
+**Fix:** Grep-search for `Secure_Check-in` across `src/components/group-wizard` and rename at every site (`schema.ts` declaration, `STEP_FIELDS`, defaults; `step-settings.tsx`; two reads in `step-review.tsx`). TypeScript will not help you here — the key is a string literal, not a symbol.
 **Enforced where:** `src/components/group-wizard/schema.ts:43` (declaration).
 **Related:** [components/group-wizard.md](components/group-wizard.md)
 
@@ -438,7 +438,7 @@ Retired 2026-10-10: applied only to the template editor's merge tokens; the edit
 ### GOTCHA-040: IMb barcode silently becomes POSTNET (or disappears) with no log
 
 **Symptom:** User configures IMb with a Mailer ID, prints labels, and sees POSTNET (or no barcode) on the output.
-**Root cause:** `preEncodeBarcodes` wraps `imbEncode` in a bare `try {} catch {}` with no logging, falling through to POSTNET. Also, if `config.mailerId` is empty (`''`), the `config.barcodeFormat === 'imb' && config.mailerId` guard skips IMb entirely and falls through silently.
+**Root cause:** `preEncodeBarcodes` falls back to POSTNET when `imbEncode` throws (originally inside a bare `try {} catch {}` with no logging — now logged, see Fix). Also, if `config.mailerId` is empty (`''`), the `config.barcodeFormat === 'imb' && config.mailerId` guard skips IMb entirely and falls through silently.
 **Fix:** (a) Users: enter a valid 6- or 9-digit USPS Mailer ID. (b) Code: fixed — the fallback is logged (`console.warn`) and the Mailer ID is validated.
 **Enforced where:** `src/lib/barcode-helpers.ts` (logged fallback). Log payload is `{ labelIndex, error: <error name> }` — no label name, address, or routing digits (rule 14) — so locate the row by its index in the request.
 **Related:** [utils/](utils/), [components/address-labels.md](components/address-labels.md)
@@ -454,9 +454,9 @@ Retired 2026-10-10: applied only to the template editor's merge tokens; the edit
 ### GOTCHA-042: Tool page crashes when it assumes `params.pageData` is present
 
 **Symptom:** Tool route throws "Cannot read properties of undefined" on `params.pageData.Table_Name` or similar.
-**Root cause:** `parseToolParams` catches errors from `ToolService.getPageData` and leaves `pageData` as `undefined`. The SP `api_Tools_GetPageData` may not exist yet in the target MP instance (dev/new installs).
+**Root cause:** `parseToolParams` (`src/lib/tool-params.server.ts`) catches errors from `ToolService.getPageData` and leaves `pageData` as `undefined`. The SP `api_Tools_GetPageData` may not exist yet in the target MP instance (dev/new installs).
 **Fix:** Always treat `pageData` as optional at consumption sites: guard with `if (params.pageData) { ... }`. Never destructure it without a null check.
-**Enforced where:** `src/lib/tool-params.ts:54-61` (catch + undefined assignment).
+**Enforced where:** `src/lib/tool-params.server.ts:65-76` (catch + undefined assignment).
 **Related:** [utils/](utils/)
 
 ### GOTCHA-043: `pageID` / `recordID` values of `NaN` appear in downstream state

@@ -45,7 +45,6 @@ vi.mock('@/services/authorizationService', () => ({
 describe('ToolService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-     
     (ToolService as any).instance = undefined;
   });
 

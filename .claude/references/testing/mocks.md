@@ -3,9 +3,9 @@ title: Mocking Patterns
 domain: testing
 type: reference
 applies_to: [src/**/*.test.ts, src/**/*.test.tsx]
-symbols: [vi.hoisted, vi.mock, MPHelper]
+symbols: [vi.hoisted, vi.mock, MPHelper, AuthorizationService]
 related: [setup.md, cookbook.md, inventory.md]
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -66,33 +66,50 @@ Every method that the service under test calls must be declared as a class field
 
 ## Pattern: Singleton reset between tests
 
-All services in `src/services/` use a private static `instance` field (`toolService.ts:82`, `userService.ts:12`, etc.). Without resetting, cached instances hold stale mocked methods across tests (including stale `mockClear`ed state).
+All services in `src/services/` use a private static `instance` field (`toolService.ts:85`, `userService.ts:13`, etc.). Without resetting, cached instances hold stale mocked methods across tests (including stale `mockClear`ed state).
 
 ```typescript
-// From src/services/toolService.test.ts:19-23
+// From src/services/toolService.test.ts:46-50
 beforeEach(() => {
   vi.clearAllMocks();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (ToolService as any).instance = undefined;
 });
 ```
 
-Required for: `ToolService`, `UserService`, `AddressLabelService`, `GroupService`, `FieldManagementService`.
+Required for every service's own test: `AddressLabelService`, `AuthorizationService`, `DomainTimezoneService`, `FamilyService`, `FieldManagementService`, `GooglePlacesService`, `GroupService`, `ToolService`, `UserService` (all 9 `src/services/*.test.ts` files do it).
+
+## Pattern: Mocking the `AuthorizationService` gate
+
+Every MP-touching service method and feature server action calls `AuthorizationService.getInstance().requireSecurityRole(...)` (CLAUDE.md rule 12), which returns the acting MP `User_ID`. Tests of anything *above* the gate mock it so they exercise their own logic; the gate has its own tests in `src/services/authorizationService.test.ts`. Note `getInstance` is **synchronous** here (as is `DomainTimezoneService`'s; the other seven services' are async).
+
+```typescript
+// From src/services/toolService.test.ts:28-42
+const { mockRequireSecurityRole, mockHasSecurityRole } = vi.hoisted(() => ({
+  mockRequireSecurityRole: vi.fn(async () => 42),
+  mockHasSecurityRole: vi.fn(async () => true),
+}));
+
+vi.mock('@/services/authorizationService', () => ({
+  AuthorizationService: {
+    getInstance: () => ({
+      requireSecurityRole: mockRequireSecurityRole,
+      hasSecurityRole: mockHasSecurityRole,
+    }),
+  },
+  UnauthorizedError: class UnauthorizedError extends Error {},
+}));
+```
+
+- The stub's return value (`42`) is the only source of `$userId` write attribution (rule 13), so service tests assert `$userId: 42` to prove the service takes it from the gate.
+- To test a refusal: `mockRequireSecurityRole.mockRejectedValueOnce(new UnauthorizedError(...))`.
+- `src/components/address-labels/actions.test.ts:33-49` shows a variant whose `hasSecurityRole` delegates to the same mock.
 
 ## Pattern: Mocking service singletons in server-action tests
 
 Server actions call `ServiceClass.getInstance()` (async). Mock the static method to return an object shaped like the service API used by the action.
 
 ```typescript
-// From src/components/dev-panel/panels/user-tools-actions.test.ts:21-35
-vi.mock('@/services/userService', () => ({
-  UserService: {
-    getInstance: vi.fn().mockResolvedValue({
-      getUserIdByGuid: mockGetUserIdByGuid,
-    }),
-  },
-}));
-
+// From src/components/dev-panel/panels/user-tools-actions.test.ts:20-26
 vi.mock('@/services/toolService', () => ({
   ToolService: {
     getInstance: vi.fn().mockResolvedValue({
@@ -106,10 +123,10 @@ When mocking multiple services, each `getInstance` returns only the methods the 
 
 ## Pattern: Mocking auth + `next/headers` for server actions
 
-Most server actions do `await auth.api.getSession({ headers: await headers() })`.
+Code that reads the session directly — the `AuthorizationService` gate itself, `requireDevSession`, `AuthWrapper`, and the `shared-actions/` carve-outs — does `await auth.api.getSession({ headers: await headers() })`. Feature actions mostly reach it only through the gate, so their tests mock the gate (above) and often also these two.
 
 ```typescript
-// From src/components/dev-panel/panels/user-tools-actions.test.ts:9-19
+// From src/components/dev-panel/panels/user-tools-actions.test.ts:8-18
 vi.mock('@/lib/auth', () => ({
   auth: {
     api: {
@@ -128,7 +145,7 @@ Session shapes used in tests:
 // Authenticated
 { user: { id: 'internal-id', userGuid: '550e8400-e29b-41d4-a716-446655440000' } }
 
-// Missing userGuid (tests "User GUID not found")
+// Missing userGuid (e.g. getCurrentUserProfile → throws 'Unauthorized')
 { user: { id: 'internal-id' } }
 
 // Unauthenticated (tests "Unauthorized")
@@ -178,7 +195,7 @@ vi.mock('next/navigation', () => ({
 Used in `src/lib/providers/ministry-platform/client.test.ts` to test OAuth token refresh without waiting real time.
 
 ```typescript
-// From src/lib/providers/ministry-platform/client.test.ts:21-34
+// From src/lib/providers/ministry-platform/client.test.ts:33-46
 beforeEach(async () => {
   vi.clearAllMocks();
   vi.useFakeTimers();
@@ -213,7 +230,7 @@ await waitFor(() => {
 ## Pattern: Per-test env stubbing
 
 ```typescript
-// From src/components/dev-panel/dev-panel.test.tsx:35-45
+// From src/components/dev-panel/dev-panel.test.tsx:44-54
 beforeEach(() => {
   vi.stubEnv("NODE_ENV", "development");
   setHostname("localhost");

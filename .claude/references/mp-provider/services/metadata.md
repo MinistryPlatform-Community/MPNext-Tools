@@ -4,22 +4,22 @@ domain: mp-provider
 type: reference
 applies_to: [src/lib/providers/ministry-platform/services/metadata.service.ts]
 symbols: [MetadataService, getTables, refreshMetadata]
-related: [../README.md, table.md, ../../ministryplatform.schema.md]
-last_verified: 2026-09-30
+related: [../README.md, table.md, ../../mp-schema/tables.md]
+last_verified: 2026-10-10
 ---
 
 ## Purpose
 Discover MP tables available to the current user, and invalidate the MP metadata cache after schema changes.
 
 ## Files
-- `src/lib/providers/ministry-platform/services/metadata.service.ts` — implementation (39 lines, smallest service)
-- `src/lib/providers/ministry-platform/services/metadata.service.test.ts` — tests (102 lines)
+- `src/lib/providers/ministry-platform/services/metadata.service.ts` — implementation (38 lines, smallest service)
+- `src/lib/providers/ministry-platform/services/metadata.service.test.ts` — tests (113 lines)
 
 ## Key concepts
 - `refreshMetadata` is a `GET /refreshMetadata` (no body) — MP uses this to trigger cache invalidation across all servers.
 - `getTables` is an authenticated list endpoint; an optional `search` string filters server-side via `?$search=`.
-- Empty-string search is coerced to "no search" — `!search` check drops it (`metadata.service.ts:32`, verified by `metadata.service.test.ts:75-81`).
-- Result type `TableMetadata[]` is a loose shape with optional `Columns?: ColumnMetadata[]` — real endpoint returns only basic table info unless columns are expanded.
+- Empty-string search is coerced to "no search" — `!search` check drops it (`metadata.service.ts:32`, verified by `metadata.service.test.ts:87-93`).
+- Result type `TableMetadata[]` is a loose shape with optional `Columns?: ColumnMetadata[]` and an index signature. `generate-types.ts` builds every model from these `Columns`, and reads the name as `Name ?? Table_Name` (`generate-types.ts:141-145` — its comment says the API returns `Name`, not the typed `Table_Name`).
 
 ## API / Interface
 
@@ -40,7 +40,7 @@ public async getTables(search?: string): Promise<TableMetadata[]>
 
 ### Type shape
 
-From `src/lib/providers/ministry-platform/types/provider.types.ts:265`:
+From `src/lib/providers/ministry-platform/types/provider.types.ts:264`:
 
 ```typescript
 export interface TableMetadata {
@@ -52,7 +52,7 @@ export interface TableMetadata {
   [key: string]: unknown;
 }
 
-// :274
+// :273
 export interface ColumnMetadata {
   Name: string;
   DataType: ParameterDataType;
@@ -76,10 +76,14 @@ export interface ColumnMetadata {
 
 ## Usage
 
-Only caller in the app is `FieldManagementService.getTableMetadata` (`src/services/fieldManagementService.ts:65-72`):
+Only caller in the app is `FieldManagementService.getTableMetadata` (`src/services/fieldManagementService.ts:75-86`):
 
 ```typescript
 public async getTableMetadata(tableName: string): Promise<TableMetadata | null> {
+  await AuthorizationService.getInstance().requireSecurityRole({
+    table: "dp_Tables",
+    operation: "read",
+  });
   const tables = await this.mp!.getTables(tableName);
 
   if (tables.length === 0) return null;
@@ -95,15 +99,15 @@ Note the consumer guard: MP `$search` is substring-match, so callers must filter
 
 | Status | Operation | Test location |
 |---|---|---|
-| 403 Forbidden | `getTables` | `metadata.service.test.ts:83-87` |
-| 500 Internal Server Error | `refreshMetadata` | `metadata.service.test.ts:46-50` |
+| 403 Forbidden | `getTables` | `metadata.service.test.ts:95-99` |
+| 500 Internal Server Error | `refreshMetadata` | `metadata.service.test.ts:58-62` |
 
 ## Gotchas
 - **`$search` is substring-match** — always post-filter on `Table_Name === exact` if you need the exact table. Pattern used by `FieldManagementService`.
 - **`refreshMetadata` has no return data** — it's fire-and-forget. Uses `GET` (not `POST`) even though it has side effects.
-- **No `Columns` populated by default** — generic `getTables` call returns a list without the `Columns` array. To get column-level metadata in this codebase, generate types via `npm run mp:generate:models` (see CLAUDE.md).
+- **`Columns` come back on the list call** — `generate-types.ts` relies on them (it only falls back to record sampling under `--detailed` when a table has none). For committed column-level types, use the generated models (`npm run mp:generate:models`).
 
 ## Related docs
 - `../README.md` — provider overview
 - `table.md` — uses names discovered here as the `table` argument
-- `../../ministryplatform.schema.md` — auto-generated schema dump (authoritative at build time)
+- `../../mp-schema/tables.md` — generated table catalog (snapshot)

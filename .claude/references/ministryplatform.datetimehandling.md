@@ -24,7 +24,7 @@ await tz.toMpSqlDatetime(new Date());      // → MP-TZ wall-clock for "now"
 await tz.parseMpDatetime('2026-05-17 12:00:00'); // → Date instant
 ```
 
-For client-side rendering, expose the IANA zone through `getMpTimezone()` in `src/components/shared-actions/domain.ts` and thread it as a prop into the component that needs to format MP datetimes.
+For client-side rendering, expose the IANA zone through the `getMpTimezone()` server action in `src/components/shared-actions/domain.ts` (session-checked, not role-gated — a documented rule-12 carve-out) and thread it as a prop into the component that needs to format MP datetimes.
 
 ### `toMpSqlDatetime(value)` — write path
 
@@ -40,6 +40,8 @@ Returns the SQL datetime string MP's table API expects (`YYYY-MM-DD HH:MM:SS`).
 | `Date` instance | UTC instant | converted to MP-TZ |
 
 The rule: **strings with no zone marker are wall-clock**, strings/Dates with explicit zone info are instants that get converted.
+
+**Zod conflict:** generated `*Schema.ts` files type `DateTime` columns as `z.string().datetime()`, which rejects this `YYYY-MM-DD HH:MM:SS` output (verified on Zod 4.6.5). Do not pass a generated `schema` to `createTableRecords`/`updateTableRecords` for records whose datetime fields came from `toMpSqlDatetime` — it throws `MPValidationError` before the API call.
 
 ### `parseMpDatetime(value)` — read path arithmetic
 
@@ -120,13 +122,13 @@ The shared signature of these bugs: a `Date` object that crosses a zone boundary
 
 ## Windows ↔ IANA zone names
 
-MP's `/domain` endpoint returns `TimeZoneName` as a **Windows** zone (e.g. `"Eastern Standard Time"`). `Intl.DateTimeFormat` requires **IANA** (e.g. `"America/New_York"`). `DomainTimezoneService` maps between them. If a new MP deployment surfaces an unmapped zone, `resolveIanaTimezone` throws with the unmapped name — extend the table rather than silently falling back to the server's local zone.
+MP's `/domain` endpoint returns `TimeZoneName` as a **Windows** zone (e.g. `"Eastern Standard Time"`). `Intl.DateTimeFormat` requires **IANA** (e.g. `"America/New_York"`). `DomainTimezoneService` maps between them (`WINDOWS_TO_IANA`). `resolveIanaTimezone` also passes through values that already look like IANA names (contain `/`) and maps `UTC`/`Etc/UTC` to `Etc/UTC`. If a new MP deployment surfaces an unmapped Windows zone, it throws with the unmapped name — extend the table rather than silently falling back to the server's local zone.
 
 ## Testing
 
 When a test exercises code that goes through `DomainTimezoneService`:
 
-1. **Mock `MPHelper.getDomainInfo`** to return a known `TimeZoneName` — use `vi.hoisted()` because the service's `MPHelper` is constructed at module-load time.
-2. **Reset the singleton** between tests: `(DomainTimezoneService as any).instance = null` in `beforeEach`.
+1. **Mock `MPHelper.getDomainInfo`** to return a known `TimeZoneName` — declare the mock with `vi.hoisted()` so the `vi.mock('@/lib/providers/ministry-platform', ...)` factory can reference it (the service constructs its `MPHelper` when the singleton is first created).
+2. **Reset the singleton** between tests: `(DomainTimezoneService as any).instance = null` in `beforeEach` (or call `clearCache()` to drop only the cached zone).
 3. **Use `mockReset()` (not `clearAllMocks()`)** on the `getDomainInfo` mock when you queue per-test responses with `mockResolvedValueOnce`. `clearAllMocks` doesn't drain those queues, and tests that don't hit `getMpTimezone()` leave queue entries behind that leak forward.
 4. **Run under multiple `TZ` env vars** — at minimum `TZ=UTC` and `TZ=America/Los_Angeles`. The original bug was invisible when developer machines and the server happened to be in the same zone as the MP domain.

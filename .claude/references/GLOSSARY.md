@@ -15,15 +15,15 @@ Agent-facing domain ontology for MPNext-Tools. Terms are alphabetized. Aliases a
 SQL-side convention: every `api_*` stored procedure MUST declare `@DomainID INT` as its first parameter; the MP REST API injects the authenticated domain automatically so TypeScript callers never pass it.
 
 **Not to be confused with:** `$userId` (app-side audit param) or `Domain_ID` (FK column value).
-**Defined in:** `.claude/commands/newstoredproc.md:171`
+**Defined in:** `.claude/commands/newstoredproc.md:21`
 **See:** `mp-schema/required-procs.md`
 
 ## $userId (aliases: MP audit user ID)
 
-Option passed to `MPHelper.createTableRecords` / `updateTableRecords` that stamps MP audit columns with an MP `User_ID`; resolve from `session.user.userGuid` via `UserService.getUserIdByGuid`.
+Option passed to `MPHelper.createTableRecords` / `updateTableRecords` (and procedure/file calls) that stamps MP audit columns with an MP `User_ID`; taken only from the return value of `AuthorizationService.requireSecurityRole()` inside the service, never from a caller (CLAUDE.md practice #13).
 
 **Not to be confused with:** `session.user.id` (Better Auth internal nanoid) or `userGuid` (MP User_GUID).
-**Defined in:** `src/services/groupService.ts:232`
+**Defined in:** `src/services/authorizationService.ts:200` (`requireSecurityRole`); used e.g. `src/services/groupService.ts:369`
 **See:** `services/README.md`
 
 ## A
@@ -33,7 +33,7 @@ Option passed to `MPHelper.createTableRecords` / `updateTableRecords` that stamp
 MP REST error raised when a column name appears in multiple tables joined by `_TABLE` FK traversal; resolved by prefixing with `TableName.Column` or `FKColumn_TABLE.Column`.
 
 **Not to be confused with:** SQL ambiguous-column errors (different error surface).
-**Defined in:** `src/services/addressLabelService.ts:28`
+**Defined in:** `src/services/addressLabelService.ts:30`
 **See:** `services/query-patterns.md`
 
 ## api_dev_ prefix (aliases: dev procedure, DEV_PROC_PREFIX)
@@ -41,12 +41,12 @@ MP REST error raised when a column name appears in multiple tables joined by `_T
 Procedures whose name starts with `api_dev_` (case-insensitive, trailing underscore required) are routed through an isolated dev-credential HttpClient; `api_developer_*` does NOT match.
 
 **Not to be confused with:** regular `api_*` procs (default credential pipeline).
-**Defined in:** `src/lib/providers/ministry-platform/services/procedure.service.ts:6`
+**Defined in:** `src/lib/providers/ministry-platform/services/procedure.service.ts:7`
 **See:** `mp-provider/services/procedure.md`
 
 ## AuthWrapper
 
-Server component that runs inside the `(web)` route group, calls `auth.api.getSession()`, and redirects unauthenticated users to `/signin?callbackUrl=<x-pathname>`; layer-2 session validation complementing the proxy's layer-1 cookie check.
+Server component that runs inside the `(web)` route group, calls `auth.api.getSession()`, redirects unauthenticated users to `/signin?callbackUrl=<x-pathname>` and sessions without a `userGuid` to `/session-error`; layer-2 session validation complementing the proxy's layer-1 cookie check.
 
 **Not to be confused with:** `proxy` (edge-layer cookie check only).
 **Defined in:** `src/components/layout/auth-wrapper.tsx:5`
@@ -67,7 +67,7 @@ Server component that runs inside the `(web)` route group, calls `auth.api.getSe
 Query-string parameter on `/signin` that captures the originally requested URL; preserved across the OAuth redirect so the user lands back on the exact tool + params after sign-in.
 
 **Not to be confused with:** `post_logout_redirect_uri` (endsession flow).
-**Defined in:** `src/proxy.ts:29`
+**Defined in:** `src/proxy.ts:82`
 **See:** `routing/proxy.md`
 
 ## client credentials flow (aliases: OAuth2 client credentials, machine-to-machine auth)
@@ -75,7 +75,7 @@ Query-string parameter on `/signin` that captures the originally requested URL; 
 OAuth2 grant type used by the provider to acquire tokens for server-to-MP calls via `POST {baseUrl}/oauth/connect/token` with `grant_type=client_credentials`; distinct from the Better Auth user-login OAuth flow.
 
 **Not to be confused with:** `genericOAuth` (user-facing OIDC authorization code flow).
-**Defined in:** `src/lib/providers/ministry-platform/auth/client-credentials.ts:3`
+**Defined in:** `src/lib/providers/ministry-platform/auth/client-credentials.ts:27`
 **See:** `mp-provider/client.md`
 
 ## cookieCache (aliases: JWT cookie cache)
@@ -83,7 +83,7 @@ OAuth2 grant type used by the provider to acquire tokens for server-to-MP calls 
 Better Auth stateless session strategy: the `session_data` cookie (encrypted JWE, 1-hour `maxAge`, `refreshCache: false`) caches the session with no database — subsequent `getSession()` calls decrypt the cookie directly. The session itself has a hard 12 h ceiling (`expiresIn`). See `auth/sessions.md`.
 
 **Not to be confused with:** server-side session storage (not used here).
-**Defined in:** `src/lib/auth.ts:12`
+**Defined in:** `src/lib/auth.ts:1060`
 **See:** `auth/sessions.md`
 
 ## CredentialProfile (aliases: default, dev)
@@ -91,7 +91,7 @@ Better Auth stateless session strategy: the `session_data` cookie (encrypted JWE
 Union type `'default' | 'dev'` selecting which pair of env vars supplies the client id/secret; `'dev'` is used only by `ProcedureService` when executing `api_dev_*` stored procedures.
 
 **Not to be confused with:** Better Auth's OAuth `providerId`.
-**Defined in:** `src/lib/providers/ministry-platform/auth/client-credentials.ts:1`
+**Defined in:** `src/lib/providers/ministry-platform/auth/client-credentials.ts:6`
 **See:** `mp-provider/client.md`
 
 ## customSession (aliases: customSession plugin, customSessionClient)
@@ -99,7 +99,7 @@ Union type `'default' | 'dev'` selecting which pair of env vars supplies the cli
 Better Auth plugin wrapping the server `auth` config that enriches every `getSession()` response; here it performs name-splitting only (no API calls). Client-side `customSessionClient<typeof auth>()` provides type inference but does NOT expose `additionalFields`.
 
 **Not to be confused with:** `UserProvider` (loads the full MP profile).
-**Defined in:** `src/lib/auth.ts:97`
+**Defined in:** `src/lib/auth.ts:1116` (callback: `enrichSession`)
 **See:** `auth/sessions.md`
 
 ## D
@@ -132,10 +132,10 @@ MP OAuth endpoint at `/oauth/connect/endsession` that ends the SSO session and r
 
 ## escapeFilterString (aliases: MP filter quote escape)
 
-Helper that escapes `'` -> `''`, `%` -> `[%]`, `_` -> `[_]` before interpolating user input into an MP `$filter` string; used by `GroupService.searchContacts`/`searchGroups`.
+Helper that escapes `[` -> `[[]`, `%` -> `[%]`, `_` -> `[_]`, `'` -> `''` (and maps quote look-alikes to `_`; throws on control chars or > `MAX_SEARCH_TERM_LENGTH`) before interpolating user input into an MP `$filter` LIKE string; used by `GroupService`, `FamilyService`, and `ToolService`.
 
 **Not to be confused with:** plain quote-doubling (insufficient — misses wildcards).
-**Defined in:** `src/lib/validation.ts:25`
+**Defined in:** `src/lib/validation.ts:127`
 **See:** `services/query-patterns.md`
 
 ## G
@@ -145,7 +145,7 @@ Helper that escapes `'` -> `''`, `%` -> `[%]`, `_` -> `[_]` before interpolating
 Better Auth plugin wiring arbitrary OIDC providers; configured with `providerId: "ministryplatform"`, explicit authorize/token/endsession endpoints and **no** `discoveryUrl` (since security Step 4: no MP call at boot; the id_token is verified by the app in `getUserInfo` against lazily loaded discovery + JWKS), the app's single MP client (`MINISTRY_PLATFORM_CLIENT_ID`, shared with the service account), `openid` + MP all scope (no `offline_access`), `pkce: false` (MP advertises `S256` in discovery but rejects the token exchange with `invalid_grant`), no nonce (MP omits the claim), and `realm=realm` authorization param. As of Better Auth 1.7 it registers providers as first-class **social** providers, so the callback URL is the core `/api/auth/callback/{providerId}` — not the former `/api/auth/oauth2/callback/{providerId}`.
 
 **Not to be confused with:** `client credentials flow` (server-to-server, no user).
-**Defined in:** `src/lib/auth.ts:32`
+**Defined in:** `src/lib/auth.ts:699` (`ministryPlatformProviderConfig`)
 **See:** `auth/oauth-flow.md`
 
 ## H
@@ -155,7 +155,7 @@ Better Auth plugin wiring arbitrary OIDC providers; configured with `providerId:
 Low-level fetch wrapper for the provider stack; injects `Authorization: Bearer <token>` via closure, serializes JSON or FormData, URL-encodes query params, throws formatted `Error`s on non-2xx.
 
 **Not to be confused with:** `MinistryPlatformClient` (token lifecycle owner).
-**Defined in:** `src/lib/providers/ministry-platform/utils/http-client.ts:4`
+**Defined in:** `src/lib/providers/ministry-platform/utils/http-client.ts:91`
 **See:** `mp-provider/client.md`
 
 ## I
@@ -165,7 +165,7 @@ Low-level fetch wrapper for the provider stack; injects `Authorization: Bearer <
 USPS 65-bar, 4-state (T/D/A/F) mail barcode encoding a 20-digit tracking block + optional 5/9/11-digit routing code; encoded by the hand-rolled `imbEncode()`.
 
 **Not to be confused with:** POSTNET (legacy tall/short barcode).
-**Defined in:** `src/lib/imb-encoder.ts:14`
+**Defined in:** `src/lib/imb-encoder.ts:320`
 **See:** `utils/barcodes.md`
 
 ## L
@@ -201,15 +201,15 @@ Secondary tab in `/tools/addresslabels` that lets the user upload a `.docx` temp
 USPS-assigned 6- or 9-digit identifier embedded in the IMb tracking block; the serial-number length is derived from Mailer ID length (9 vs 6 digits).
 
 **Not to be confused with:** Service Type ID (3-digit IMb field).
-**Defined in:** `src/lib/barcode-helpers.ts:21`
+**Defined in:** `src/lib/barcode-helpers.ts:22`
 **See:** `utils/barcodes.md`
 
 ## MinistryPlatformClient
 
-Token-lifecycle + HttpClient holder; owns two independent pipelines (default + dev) each with its own token cache, `expiresAt`, and `HttpClient`.
+Token-lifecycle + HttpClient holder; owns two independent `TokenPipeline`s (default + dev), each with its own token cache, `expiresAt`, single-flight refresh, 401 retry hook, and `HttpClient`.
 
 **Not to be confused with:** `HttpClient` (low-level fetch wrapper).
-**Defined in:** `src/lib/providers/ministry-platform/client.ts:21`
+**Defined in:** `src/lib/providers/ministry-platform/client.ts:93`
 **See:** `mp-provider/client.md`
 
 ## MinistryPlatformProvider (aliases: provider singleton)
@@ -233,15 +233,15 @@ Pattern of mocking a constructable import as a `class { method = mockFn }` liter
 Public-API facade class for Ministry Platform operations; normalizes friendly param names (`select`, `filter`, `top`) to `$`-prefixed OData params, offers optional Zod validation on create/update, and delegates to the singleton `MinistryPlatformProvider`.
 
 **Not to be confused with:** `MinistryPlatformProvider` (singleton internal).
-**Defined in:** `src/lib/providers/ministry-platform/helper.ts:34`
+**Defined in:** `src/lib/providers/ministry-platform/helper.ts:55`
 **See:** `mp-provider/README.md`
 
 ## MPUserProfile
 
-Display-only client-side user profile: `First_Name`, `Nickname`, `Last_Name`, `Email_Address` (joined from the `dp_Users` row's Contact) — no IDs, phone, image, roles, or user groups; loaded via `getCurrentUserProfile()` → `UserService.getUserProfile(userGuid)` (single query) and cached in `UserContext`.
+Display-only client-side user profile: `First_Name`, `Nickname`, `Last_Name`, `Email_Address` (joined from the `dp_Users` row's Contact) — no IDs, phone, image, roles, or user groups; loaded via the parameterless `getCurrentUserProfile()` → `UserService.getUserProfile(userGuid)` (single query) and cached in `UserContext`.
 
 **Not to be confused with:** Better Auth `session.user` (name/email/id only).
-**Defined in:** `src/lib/providers/ministry-platform/types/user-profile.types.ts:1`
+**Defined in:** `src/lib/providers/ministry-platform/types/user-profile.types.ts:10`
 **See:** `contexts/user-provider.md`
 
 ## P
@@ -259,7 +259,7 @@ Row describing how one column is presented on an MP page: order, group, required
 TS interface describing the first-result-set row returned by `api_Tools_GetPageData`: `Page_ID`, `Display_Name`, `Singular_Name`, `Table_Name`, `Primary_Key`, and optional tool-config fields.
 
 **Not to be confused with:** `PageListItem` (list view) or `PageField` (per-field metadata).
-**Defined in:** `src/lib/tool-params.ts:3`
+**Defined in:** `src/lib/tool-params.ts:14`
 **See:** `utils/tool-params.md`
 
 ## parseToolParams (aliases: ToolParams)
@@ -267,7 +267,7 @@ TS interface describing the first-result-set row returned by `api_Tools_GetPageD
 Single ingestion point for Ministry Platform tool URL query strings (`pageID`, `s`, `sc`, `p`, `q`, `v`, `recordID`, `recordDescription`, `addl`); hydrates `pageData` and returns a typed `ToolParams`.
 
 **Not to be confused with:** framework `searchParams` (raw Next.js input).
-**Defined in:** `src/lib/tool-params.ts:30`
+**Defined in:** `src/lib/tool-params.server.ts:43` (`ToolParams` type: `src/lib/tool-params.ts:28`)
 **See:** `utils/tool-params.md`
 
 ## POSTNET
@@ -275,15 +275,15 @@ Single ingestion point for Ministry Platform tool URL query strings (`pageID`, `
 Legacy USPS tall/short barcode for 5/9/11-digit ZIPs with Mod-10 check digit; used as IMb fallback when Mailer ID is absent or IMb encoding throws.
 
 **Not to be confused with:** IMb (modern 4-state replacement).
-**Defined in:** `src/lib/postnet-encoder.ts:11`
+**Defined in:** `src/lib/postnet-encoder.ts:31`
 **See:** `utils/barcodes.md`
 
 ## proxy (aliases: proxy.ts, middleware (old name))
 
-Next.js 16 renamed `middleware.ts`/`middleware()` to `proxy.ts`/`proxy()`; here it performs a session-cookie-presence check via `getSessionCookie()` (no JWT decode) and forwards `pathname + search` as the `x-pathname` header.
+Next.js 16 renamed `middleware.ts`/`middleware()` to `proxy.ts`/`proxy()`; here it performs a session-cookie-presence check via `getSessionCookie()` (no JWT decode) forwards `pathname + search` as the `x-pathname` header, and sets the per-request CSP nonce.
 
 **Not to be confused with:** `AuthWrapper` (server-component layer-2 check).
-**Defined in:** `src/proxy.ts:4`
+**Defined in:** `src/proxy.ts:37`
 **See:** `routing/proxy.md`
 
 ## R
@@ -303,7 +303,7 @@ Next.js App Router convention: a directory wrapped in parentheses groups routes 
 Ministry Platform user-scoped record set (identified by `Selection_ID` + `User_ID` + `Page_ID`) fetched via `api_Common_GetSelection`; the "selected records" context passed to cloud tools.
 
 **Not to be confused with:** browser text selection or client-side state.
-**Defined in:** `src/services/toolService.ts:152`
+**Defined in:** `src/services/toolService.ts:162` (`getSelectionRecordIds`)
 **See:** `mp-schema/required-procs.md`
 
 ## service singleton (aliases: getInstance pattern, lazy async singleton)
@@ -311,7 +311,7 @@ Ministry Platform user-scoped record set (identified by `Selection_ID` + `User_I
 Application service class with private constructor and static `getInstance(): Promise<T>` that lazily constructs and initializes a single shared instance holding an `MPHelper`; reset in tests via `(ServiceClass as any).instance = undefined`.
 
 **Not to be confused with:** `MinistryPlatformProvider` singleton (provider stack internal).
-**Defined in:** `src/services/toolService.ts:81`
+**Defined in:** `src/services/toolService.ts:102`
 **See:** `services/README.md`
 
 ## shadcn/ui (aliases: shadcn)
@@ -327,7 +327,7 @@ Component primitive library installed via the shadcn CLI using `new-york` style,
 Test pattern: set `(ServiceClass as any).instance = undefined` inside `beforeEach` to clear cached service singletons between tests.
 
 **Not to be confused with:** `vi.resetModules()` (full module-cache clear).
-**Defined in:** `src/services/toolService.test.ts:22`
+**Defined in:** `src/services/toolService.test.ts:49`
 **See:** `testing/mocks.md`
 
 ## SkipRecord
@@ -352,8 +352,8 @@ MP REST convention for following a foreign key: suffix the FK column with `_TABL
 
 Constant `5 * 60 * 1000` (ms); `MinistryPlatformClient` refreshes after this hard-coded 5-minute window for safety, ignoring MP's `expires_in`.
 
-**Not to be confused with:** `cookieCache.maxAge` (Better Auth 1-hour JWT).
-**Defined in:** `src/lib/providers/ministry-platform/client.ts:6`
+**Not to be confused with:** `cookieCache.maxAge` (Better Auth 1-hour JWE cookie cache).
+**Defined in:** `src/lib/providers/ministry-platform/client.ts:8`
 **See:** `mp-provider/client.md`
 
 ## ToolContainer
@@ -371,7 +371,7 @@ Client-side full-screen flex shell that composes `DevPanel` (conditional), `Tool
 Thin React hook that returns only the `data` portion of Better Auth's `authClient.useSession()`; the preferred client-side session accessor (drops `isPending`/`error`/`refetch`).
 
 **Not to be confused with:** `useUser` (loads full MP profile from UserContext).
-**Defined in:** `src/contexts/session-context.tsx:7`
+**Defined in:** `src/contexts/use-app-session.ts:7`
 **See:** `contexts/session.md`
 
 ## userGuid (aliases: User_GUID, MP User GUID)
@@ -379,7 +379,7 @@ Thin React hook that returns only the `data` portion of Better Auth's `authClien
 MP Ministry Platform `User_GUID` (UUID) stored on `session.user` via Better Auth `additionalFields` and populated from the OIDC `sub` claim by `mapProfileToUser`; REQUIRED for every MP API lookup of the signed-in user — `session.user.id` is a Better Auth internal nanoid and is NOT interchangeable.
 
 **Not to be confused with:** `session.user.id` (BA nanoid) or `User_ID` (MP int surrogate).
-**Defined in:** `src/lib/auth.ts:24`
+**Defined in:** `src/lib/auth.ts:353` (`userAdditionalFields.userGuid`)
 **See:** `auth/user-identity.md`
 
 ## UserProvider
@@ -397,7 +397,7 @@ Client React provider mounted in `src/app/providers.tsx` that watches the Better
 Throws if the input does not match `/^[A-Za-z_][A-Za-z0-9_]*$/`; used before interpolating column names into selects.
 
 **Not to be confused with:** `escapeFilterString` (value escaping, not identifier validation).
-**Defined in:** `src/lib/validation.ts:18`
+**Defined in:** `src/lib/validation.ts:40`
 **See:** `dto-constants/constants.md`
 
 ## validateGuid
@@ -405,7 +405,7 @@ Throws if the input does not match `/^[A-Za-z_][A-Za-z0-9_]*$/`; used before int
 Throws on malformed GUID (accepts upper/lower hex); used before interpolating `User_GUID` into MP filters.
 
 **Not to be confused with:** runtime Zod schema validation.
-**Defined in:** `src/lib/validation.ts:4`
+**Defined in:** `src/lib/validation.ts:20`
 **See:** `dto-constants/constants.md`
 
 ## validatePositiveInt
@@ -413,7 +413,7 @@ Throws on malformed GUID (accepts upper/lower hex); used before interpolating `U
 Throws on non-integer, zero, or negative input; strictly positive (`>= 1`).
 
 **Not to be confused with:** non-negative integer checks (this rejects `0`).
-**Defined in:** `src/lib/validation.ts:11`
+**Defined in:** `src/lib/validation.ts:33`
 **See:** `dto-constants/constants.md`
 
 ## vi.hoisted
@@ -441,5 +441,5 @@ Vitest helper that declares variables which must exist before `vi.mock()` factor
 Request header set by `src/proxy.ts` on passthrough responses; carries `pathname + search` so downstream server components (notably `AuthWrapper`) can build a correct `callbackUrl`.
 
 **Not to be confused with:** `NextRequest.nextUrl.pathname` (available only in the proxy layer).
-**Defined in:** `src/proxy.ts:13`
+**Defined in:** `src/proxy.ts:58`
 **See:** `routing/proxy.md`

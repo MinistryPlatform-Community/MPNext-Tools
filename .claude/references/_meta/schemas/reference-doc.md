@@ -8,7 +8,7 @@ Copy this schema when writing any reference doc under a domain subfolder (e.g., 
 ```markdown
 ---
 title: <concise title>
-domain: auth | mp-provider | services | components | contexts | routing | data-flow | testing | dto-constants | utils
+domain: auth | mp-provider | mp-schema | services | components | contexts | routing | data-flow | security | testing | dto-constants | utils
 type: reference
 applies_to: [src/path/to/file.ts]
 symbols: [exportName1, exportName2]

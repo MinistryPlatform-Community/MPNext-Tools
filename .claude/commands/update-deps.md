@@ -45,7 +45,8 @@ Record these numbers — they are the comparison for everything that follows:
 ```bash
 npm run test:run    # test + file counts
 npm run lint
-npm run build 2>&1 | grep -cE "error TS"   # may be non-zero already
+npm run typecheck 2>&1 | grep -cE "error TS"   # may be non-zero already
+npm run build       # needs a valid .env.local — the app refuses to boot (even at build) on missing/weak secrets
 npm audit
 node -v && npm -v
 ```
@@ -123,7 +124,8 @@ Then install that **one** package, and verify:
 npm install <pkg>@<target>
 npm run test:run
 npm run lint
-npm run build 2>&1 | grep -cE "error TS"   # compare to baseline
+npm run typecheck 2>&1 | grep -cE "error TS"   # compare to baseline
+npm run build && npm run check:prerender
 ```
 
 - Any new type error is a real break even if tests pass — find the migration
@@ -207,7 +209,8 @@ adds no install scripts. Otherwise pin to the previous version and note why.
   held with clearing conditions**, and any pre-existing issues found but not
   fixed.
 - Add a row to the index table in `.claude/packages/README.md`.
-- Add a row to the **Dependency Audit History** table in `CLAUDE.md`.
+- Add a row to the **Dependency Audit History** table in `CLAUDE.md`, and update
+  its **Current holds** table to match the new record.
 - Commit in the same separable units used above (in-range / removals / each
   major), then open a PR targeting `dev`.
 

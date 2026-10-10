@@ -5,7 +5,7 @@ domain: contexts
 ---
 
 ## What's in this domain
-Two React client contexts composed at the app shell: `UserProvider` (enriched MP profile, fetched from `userGuid`) and `useAppSession` (thin wrapper around Better Auth's `authClient.useSession()`). `session-context.tsx` is a hook module, not a `Context` — naming is legacy.
+Two React client contexts composed at the app shell: `UserProvider` (enriched MP profile, fetched from `userGuid`) and `useAppSession` (thin wrapper around Better Auth's `authClient.useSession()`). `use-app-session.ts` is a hook module, not a `Context`. Neither `useUser` nor `useAppSession` has a consumer outside `src/contexts/` since the header `UserMenu` was removed (#54); `UserProvider` is still mounted by `src/app/providers.tsx`.
 
 ## File map
 | File | Purpose | When to read |
@@ -17,9 +17,9 @@ Two React client contexts composed at the app shell: `UserProvider` (enriched MP
 | Path | Role |
 |------|------|
 | `src/contexts/user-context.tsx` | `UserProvider` + `useUser` hook (loads `MPUserProfile` from `userGuid`) |
-| `src/contexts/user-context.test.tsx` | 6 test cases: throw-outside-provider, load-with-guid, null-session, missing-guid, error path, refresh |
-| `src/contexts/session-context.tsx` | `useAppSession()` + `SessionData` type alias |
-| `src/contexts/session-context.test.tsx` | 2 test cases: data passthrough, null session |
+| `src/contexts/user-context.test.tsx` | 11 test cases: throw-outside-provider, load-with-guid, null-session, missing-guid, error path, refresh, plus refresh-without-guid, pending state, non-Error rejection, undefined profile, error cleared on refresh |
+| `src/contexts/use-app-session.ts` | `useAppSession()` + `SessionData` type alias |
+| `src/contexts/use-app-session.test.ts` | 2 test cases: data passthrough, null session |
 | `src/contexts/index.ts` | Barrel: `UserProvider`, `useUser`, `useAppSession`, `SessionData` |
 | `src/app/providers.tsx` | Client `Providers` — mounts `<UserProvider>` + Sonner `<Toaster>` |
 

@@ -10,7 +10,7 @@ Used for files under `.claude/TODO/YYYY-MM-DD-<slug>.md`. See `.claude/TODO/SCHE
 title: <actionable title>
 severity: critical | high | medium | low
 tags: [security | bug | drift | missing-test | refactor | doc | perf]
-area: auth | mp-provider | services | components | contexts | routing | data-flow | testing | dto-constants | utils | commands
+area: auth | mp-provider | mp-schema | services | components | contexts | routing | data-flow | security | testing | dto-constants | utils | commands
 files: [src/path/to/file.ts]
 discovered: YYYY-MM-DD
 discovered_by: <shard-name>

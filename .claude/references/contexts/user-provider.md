@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/contexts/user-context.tsx, src/contexts/user-context.test.tsx, src/app/providers.tsx]
 symbols: [UserProvider, useUser, MPUserProfile]
 related: [session.md, ../auth/README.md, ../services/README.md]
-last_verified: 2026-09-13
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -13,7 +13,7 @@ Client context that watches the Better Auth session, extracts `userGuid` (OIDC `
 
 ## Files
 - `src/contexts/user-context.tsx` — provider + hook + error handling
-- `src/contexts/user-context.test.tsx` — 6 test cases covering load/error/refresh/missing-guid
+- `src/contexts/user-context.test.tsx` — 11 test cases covering load/error/refresh/missing-guid + edge branches
 - `src/app/providers.tsx` — mounts `<UserProvider>` at the app shell
 - `src/components/shared-actions/user.ts` — `getCurrentUserProfile()` server action (no parameters; derives the GUID from the session)
 - `src/services/userService.ts` — `UserService.getUserProfile(guid)` downstream lookup
@@ -21,10 +21,11 @@ Client context that watches the Better Auth session, extracts `userGuid` (OIDC `
 
 ## Key concepts
 - **Client-side profile load** — MP profile is fetched after mount, not injected by the server. Page renders before `userProfile` is available (`isLoading` starts `true`).
-- **`userGuid` is the key** — `session.user.id` is Better Auth's internal ID; `session.user.userGuid` is the MP `User_GUID`. Only `userGuid` is used for MP lookups (`user-context.tsx:27-29`).
-- **Effect gating** — the effect only fires load when `!isPending && userGuid`; the else-branch (`!isPending && !session`) clears state. If the session exists but has no `userGuid`, **neither branch runs** (`user-context.tsx:51-59`; test at `user-context.test.tsx:88-99`).
-- **Error state is local** — `getCurrentUserProfile` rejections are caught; `error` is exposed on context, `userProfile` is reset to `null`, `isLoading` ends `false` (`user-context.tsx:43-48`).
-- **`useUser` throws outside a provider** — guard at `user-context.tsx:79-81`.
+- **`userGuid` is the key** — `session.user.id` is Better Auth's internal ID; `session.user.userGuid` is the MP `User_GUID`. Only `userGuid` is used for MP lookups (`user-context.tsx:40-42`).
+- **Effect gating** — the effect only fires load when `!isPending && userGuid`; the else-branch (`!isPending && !session`) clears state. If the session exists but has no `userGuid`, **neither branch runs** (`user-context.tsx:64-72`; test at `user-context.test.tsx:88-99`).
+- **Error state is local** — `getCurrentUserProfile` rejections are caught; `error` is exposed on context, `userProfile` is reset to `null`, `isLoading` ends `false` (`user-context.tsx:56-61`).
+- **`useUser` throws outside a provider** — guard at `user-context.tsx:92-94`.
+- **No current consumers** — nothing outside `src/contexts/` calls `useUser()` since the header `UserMenu` was removed (#54); the provider still loads the profile on every signed-in page.
 
 ## API / Interface
 
@@ -75,6 +76,10 @@ import { UserProvider } from "@/contexts/user-context";
 import { Toaster } from "sonner";
 import { ReactNode } from "react";
 
+interface ProvidersProps {
+  children: ReactNode;
+}
+
 export function Providers({ children }: ProvidersProps) {
   return (
     <UserProvider>
@@ -85,7 +90,7 @@ export function Providers({ children }: ProvidersProps) {
 }
 ```
 
-Consumer hook (from `src/contexts/user-context.tsx:77-83`):
+Consumer hook (from `src/contexts/user-context.tsx:90-96`):
 
 ```typescript
 export function useUser() {
@@ -124,12 +129,17 @@ UserProvider mount
 | no fetch when session lacks userGuid | 88 | `data: { user: { id } }` (no `userGuid`) → action not called |
 | handles profile load error | 101 | rejected promise → `error` set, `userProfile=null` |
 | `refreshUserProfile` re-fetches | 119 | second call returns updated profile; action called twice |
+| refresh with no `userGuid` clears profile | 160 | guard inside `loadUserProfile`; action not called |
+| stays loading while session pending | 177 | `isPending: true` → `isLoading` stays `true` |
+| non-Error rejection wrapped | 186 | `error` is a real `Error` ("Failed to load user profile") |
+| undefined profile → no profile | 202 | `profile ?? null` |
+| error cleared on successful refresh | 217 | `setError(null)` before reload |
 
 ## Gotchas
-- Reading `useUser().userProfile` before load returns `null` — gate UI on `isLoading` (inline; `user-context.tsx:24,51-59`).
-- Consumer must be a client component and wrapped by `<UserProvider>` — the hook throws otherwise (`user-context.tsx:79-81`).
-- Session without `userGuid` leaves `isLoading` at its previous value — if the session switches to "missing guid" mid-lifecycle, neither branch of the effect clears it (`user-context.tsx:51-59`). Prefer `useAppSession` + explicit checks in components that need to distinguish "loading" vs "guid missing".
-- Direct import from `@/lib/auth-client` bypasses the `useAppSession` wrapper — `UserProvider` itself does this (`user-context.tsx:22`) because it needs `isPending` which `useAppSession` drops.
+- Reading `useUser().userProfile` before load returns `null` — gate UI on `isLoading` (inline; `user-context.tsx:37,64-72`).
+- Consumer must be a client component and wrapped by `<UserProvider>` — the hook throws otherwise (`user-context.tsx:92-94`).
+- Session without `userGuid` leaves `isLoading` at its previous value — if the session switches to "missing guid" mid-lifecycle, neither branch of the effect clears it (`user-context.tsx:64-72`). Prefer `useAppSession` + explicit checks in components that need to distinguish "loading" vs "guid missing".
+- Direct import from `@/lib/auth-client` bypasses the `useAppSession` wrapper — `UserProvider` itself does this (`user-context.tsx:35`) because it needs `isPending` which `useAppSession` drops.
 
 ## Related docs
 - `session.md` — why `useAppSession` is separate
