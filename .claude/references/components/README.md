@@ -16,7 +16,6 @@ Reference docs for `src/components/` — the tool layout framework, layout wrapp
 | `address-labels.md` | Address label printing feature (shard 12) | Working on label rendering, IMb/POSTNET barcodes, mail-merge |
 | `group-wizard.md` | Multi-step group wizard (shard 13) | Editing the 6-step create/edit group flow |
 | `dev-panel.md` | Localhost-only developer overlay (shard 14) | Understanding `ToolContainer` auto-rendering behavior |
-| `template-editor.md` | GrapesJS email/document template editor (shard 15) | Working on templates or merge fields |
 | `field-management.md` | Drag-and-drop page field ordering (shard 16) | Working on MP page field layout UX |
 | `user-menu.md` | User dropdown + OIDC sign-out (shard 17) | Working on sign-out or RP-initiated logout |
 
@@ -31,7 +30,6 @@ Reference docs for `src/components/` — the tool layout framework, layout wrapp
 | `src/components/dev-panel/` | Dev overlay — 3 files + `panels/` subdir |
 | `src/components/field-management/` | Field-order editor — 10 files |
 | `src/components/group-wizard/` | Group wizard — 14 files |
-| `src/components/template-editor/` | Template editor — 12 files |
 | `src/components/user-menu/` | User menu — 4 files |
 
 ## Conventions (domain-wide)

@@ -27,7 +27,6 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 - [Tools](#tools)
   - [Address Labels](#address-labels)
   - [Field Management](#field-management)
-  - [Template Editor](#template-editor)
   - [Template Tool](#template-tool)
   - [Building Custom Tools](#building-custom-tools)
 - [Ministry Platform Integration](#ministry-platform-integration)
@@ -44,7 +43,6 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 - **Authentication**: Better Auth with Ministry Platform OAuth (genericOAuth plugin), stateless encrypted-cookie sessions, and OIDC RP-initiated logout
 - **Tools Framework**: Reusable components for building Ministry Platform page tools with URL parameter parsing and dual-mode support (create/edit)
 - **Address Labels**: Print address labels with USPS Intelligent Mail Barcodes (IMb), POSTNET fallback, and Word document mail merge
-- **Template Editor**: Visual email/document template editor with GrapesJS, merge field support, and MP template integration
 - **Modern UI**: 22 Radix UI + shadcn/ui components with Tailwind CSS v4
 - **Type-Safe API**: Full TypeScript strict mode with auto-generated model and schema files from Ministry Platform
 - **REST API Client**: Six specialized services covering tables, procedures, communications, files, metadata, and domain operations
@@ -310,8 +308,7 @@ MPNext-Tools/
 │   │   │   │   ├── layout.tsx            # Full-height gray background
 │   │   │   │   ├── addresslabels/        # Address label printing tool
 │   │   │   │   ├── fieldmanagement/      # MP page field layout editor
-│   │   │   │   ├── template/             # Template tool (scaffold/demo)
-│   │   │   │   └── templateeditor/       # Visual template editor
+│   │   │   │   └── template/             # Template tool (scaffold/demo)
 │   │   │   └── layout.tsx                # Auth + Providers wrapper
 │   │   ├── api/auth/[...all]/            # Better Auth route handler
 │   │   ├── signin/                       # OAuth sign-in page
@@ -323,7 +320,6 @@ MPNext-Tools/
 │   │   ├── field-management/             # Drag-and-drop MP page field order editor
 │   │   ├── layout/                       # AuthWrapper (server component)
 │   │   ├── shared-actions/               # Cross-feature server actions
-│   │   ├── template-editor/              # GrapesJS template editor
 │   │   ├── tool/                         # Tool framework (Container, Header, Footer)
 │   │   ├── ui/                           # 22 shadcn/ui components
 │   │   ├── user-menu/                    # User dropdown with OIDC sign-out
@@ -409,28 +405,6 @@ A tool for printing address labels with USPS Intelligent Mail Barcodes (IMb) and
 - `ImbBarcode` — USPS Intelligent Mail barcode SVG
 - `PostnetBarcode` — POSTNET barcode SVG
 - `MailMergeTab` — Word document mail merge interface
-
-### Template Editor
-
-**Route**: `/tools/templateeditor`
-
-A visual email/document template editor built with GrapesJS for creating and editing Ministry Platform templates.
-
-**Features:**
-- Visual drag-and-drop template editing via GrapesJS
-- Merge field picker for Ministry Platform data tokens
-- HTML code editor for advanced editing
-- Template import/export
-- MP template integration
-
-**Components** (`src/components/template-editor/`):
-- `TemplateEditorForm` — Main editor orchestrator
-- `EditorCanvas` — GrapesJS editor wrapper
-- `EditorToolbar` — Editor action toolbar
-- `EditorCodeDialog` — HTML source code editor
-- `EditorImportDialog` — Template import dialog
-- `EditorExportDialog` — Template export dialog
-- `MergeFieldPicker` — MP merge field selection
 
 ### Field Management
 
@@ -610,7 +584,6 @@ Alert, Alert Dialog, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Command,
 
 - **address-labels/** — 12 components for address label printing, barcode generation, and mail merge
 - **field-management/** — Drag-and-drop editor for MP page field order and flags (`PageSearch`, `FieldOrderEditor`, sortable group/field items, `useFieldOrderState`)
-- **template-editor/** — 12 components for visual template editing with GrapesJS
 - **user-menu/** — User dropdown with profile display and OIDC sign-out action
 - **dev-panel/** — Unified developer overlay (localhost-only) showing parsed URL params, MP selection data, contact records, and authorized tools
 - **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile()` — returns the *calling* user's MP profile; the `User_GUID` comes from the session, never from a parameter)
@@ -843,7 +816,6 @@ src/components/
 ├── field-management/     # Drag-and-drop MP page field order editor
 ├── layout/               # AuthWrapper
 ├── shared-actions/       # Cross-feature server actions
-├── template-editor/      # Visual template editor (12 files)
 ├── tool/                 # Tool framework (Container, Header, Footer)
 ├── ui/                   # shadcn/ui components (22)
 ├── user-menu/            # User dropdown + sign-out action

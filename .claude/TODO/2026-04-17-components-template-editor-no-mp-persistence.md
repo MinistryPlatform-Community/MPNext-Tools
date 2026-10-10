@@ -10,7 +10,7 @@ files:
   - src/components/template-editor/actions.ts
 discovered: 2026-04-17
 discovered_by: components-template-editor
-status: open
+status: resolved
 ---
 
 ## Problem
@@ -42,3 +42,13 @@ Choose one of:
 - Users lose work unexpectedly.
 - Multiple users on a shared workstation clobber each other's drafts.
 - Expectations set by the tool's info text ("Create and edit email templates") don't match behavior — credibility and support cost.
+
+---
+
+## Resolution (2026-10-10) — won't fix: tool removed
+The owner removed the template editor entirely (it was a demo, not a supported
+tool): `src/components/template-editor/`, `src/app/(web)/tools/templateeditor/`,
+`src/styles/grapesjs-overrides.css`, the home-page card, and the
+`grapesjs`, `@grapesjs/react`, `grapesjs-mjml`, `mjml` and `@types/mjml`
+packages (about 200 lockfile entries). There is no code left for this defect to
+live in. If a template tool returns, start from the problem statement above.

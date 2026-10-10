@@ -111,7 +111,6 @@ src/components/
 ├── group-wizard/         # Multi-step group creation/edit wizard (6 steps)
 ├── layout/               # Layout components (AuthWrapper)
 ├── shared-actions/       # Shared actions used across features
-├── template-editor/      # Email/document template editor (GrapesJS)
 ├── tool/                 # Tool framework (Container, Header, Footer)
 ├── ui/                   # shadcn/ui components (22)
 ├── user-menu/            # User dropdown with OIDC sign-out
@@ -294,7 +293,6 @@ condition that clears it. Do not re-derive that analysis.
 |---|---|---|
 | `typescript` 7 | No stable Compiler API until 7.1; `typescript-eslint` peers `typescript: >=4.8.4 <6.1.0` | `npm view typescript-eslint peerDependencies` |
 | `eslint` 10 | `eslint-plugin-react@7.37.5` (latest) peers `eslint ^9.7` and calls a removed context method | `npm view eslint-plugin-react peerDependencies` |
-| `grapesjs` 0.23 | `@grapesjs/react@2.0.0` (latest) peers `grapesjs ^0.22.5` | `npm view @grapesjs/react peerDependencies` |
 | `@types/node` 25+ | Runtime is pinned to Node 24 (`engines.node: ^24.15.0`) because 24.x is Vercel's current default/newest offering; types must not lead the runtime | Vercel's [supported Node versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions) |
 
 ## Reference Documents

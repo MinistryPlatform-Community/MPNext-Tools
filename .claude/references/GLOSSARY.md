@@ -148,14 +148,6 @@ Better Auth plugin wiring arbitrary OIDC providers; configured with `providerId:
 **Defined in:** `src/lib/auth.ts:32`
 **See:** `auth/oauth-flow.md`
 
-## GrapesJS (aliases: grapesjs, @grapesjs/react)
-
-Client-only drag-and-drop visual editor used for the template editor; wrapped via `next/dynamic` with `ssr: false`.
-
-**Not to be confused with:** MJML (the markup GrapesJS edits).
-**Defined in:** `src/components/template-editor/editor-canvas.tsx:4`
-**See:** `components/template-editor.md`
-
 ## H
 
 ## HttpClient
@@ -227,14 +219,6 @@ Process-singleton orchestrator that owns one `MinistryPlatformClient` and six do
 **Not to be confused with:** `MPHelper` (public facade).
 **Defined in:** `src/lib/providers/ministry-platform/provider.ts:44`
 **See:** `mp-provider/architecture.md`
-
-## MJML
-
-Responsive-email markup language; source is edited in GrapesJS and server-compiled to HTML via the `mjml` package in `compileMjml`.
-
-**Not to be confused with:** GrapesJS (the editor that emits MJML).
-**Defined in:** `src/components/template-editor/actions.ts:22`
-**See:** `components/template-editor.md`
 
 ## mock class (aliases: class mock)
 

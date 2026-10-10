@@ -1,7 +1,7 @@
 ---
 title: TODO Index
 type: index
-last_updated: 2026-09-30
+last_updated: 2026-10-10
 ---
 
 <!-- 2026-04-18: closed 3 routing TODOs (proxy-api-whitelist, signin-no-error-ui, home-page-roundtrip) — see commit fix(routing): tighten proxy API whitelist, add signin error UI, optimize /home redirect -->
@@ -14,6 +14,7 @@ last_updated: 2026-09-30
 <!-- 2026-09-30: closed 1 high TODO (step2 authz + input validation) — see fix/step2-authz-input-validation PR. -->
 <!-- 2026-09-30: closed 1 high TODO (step4 OIDC lazy discovery + sub binding + sign-out); opened 1 medium (require dedicated OIDC client) — see fix/step4-oidc-lazy-discovery PR. -->
 <!-- 2026-09-30: closed 1 medium TODO (step5 MP HTTP client + provider hardening) — see fix/step5-mp-http-client-hardening PR. -->
+<!-- 2026-10-10: closed 2 medium TODOs (template-editor-no-mp-persistence, template-editor-merge-token-resolver) — won't fix, the template editor and all GrapesJS/MJML deps were removed (chore/remove-template-editor). -->
 <!-- 2026-09-13: coverage push 49.67% -> 98.84% statements. Opened 8 TODOs, closed 2 (template-editor-missing-tests, coverage-report-masked-untested-files). -->
 
 
@@ -27,7 +28,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **14 open TODOs**.
+Total: **12 open TODOs**.
 
 > **2026-09-30 — MPNext playbook audit.** The five `S:\MP\MPNext\.claude\playbooks`
 > port playbooks were audited against this fork. Remediation is split into nine
@@ -59,7 +60,7 @@ _none open_
 | auth | security, doc | Ops — Rotate BETTER_AUTH_SECRET; advise downstream clones | [→](2026-09-30-ops-rotate-better-auth-secret.md) |
 | auth | security, doc | Ops — Set MP_SECURITY_ROLES=* in every environment | [→](2026-09-30-ops-set-mp-security-roles-env.md) |
 
-### Medium (7)
+### Medium (5)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | auth | security, doc | Make MP_OIDC_CLIENT_ID / _SECRET required (remove the service-account fallback) | [→](2026-09-30-require-dedicated-oidc-client.md) |
@@ -67,8 +68,6 @@ _none open_
 | services | drift, missing-test | Step 7 — Write-audit gaps and datetime drift cleanup | [→](2026-09-30-step7-write-audit-and-datetime-cleanup.md) |
 | routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
 | mp-provider | security | Held — Deny-all stored-procedure allowlist | [→](2026-09-30-held-stored-procedure-allowlist.md) |
-| components | bug, drift | Template editor ignores pageID/recordID (no MP persistence) | [→](2026-04-17-components-template-editor-no-mp-persistence.md) |
-| components | bug, refactor | Merge tokens `{{Field_Name}}` have no resolver anywhere | [→](2026-04-17-components-template-editor-merge-token-resolver.md) |
 
 ### Low (5)
 | Area | Tags | Title | File |
@@ -84,28 +83,41 @@ _none open_
 ## By tag
 
 ### security (9)
-- all open 2026-09-30 step/ops/held items except step7 (step1–step5 resolved), plus require-dedicated-oidc-client
+- ops-rotate-better-auth-secret — high
+- ops-set-mp-security-roles-env — high
+- require-dedicated-oidc-client — medium
+- step6-headers-csp-build-guards — medium
+- held-csp-customer-deployments — medium
+- held-stored-procedure-allowlist — medium
+- step8-fork-specific-low-risk-items — low
+- step9-ci-setup-and-docs — low
+- held-github-repo-security-settings — low
 
-### bug (3)
-- components-template-editor-no-mp-persistence — medium
-- components-template-editor-merge-token-resolver — medium
+### bug (2)
+- step8-fork-specific-low-risk-items — low
 - search-empty-state-never-renders — low
 
-### drift (1)
-- components-template-editor-no-mp-persistence — medium
+### drift (2)
+- step6-headers-csp-build-guards — medium
+- step7-write-audit-and-datetime-cleanup — medium
 
-### missing-test (1)
+### missing-test (2)
+- step7-write-audit-and-datetime-cleanup — medium
 - dead-empty-fields-branch-handlenext — low
 
-### refactor (2)
-- components-template-editor-merge-token-resolver — medium
+### refactor (1)
 - dead-empty-fields-branch-handlenext — low
 
 ### testing (0)
 _none open_
 
-### doc (1)
+### doc (6)
+- ops-rotate-better-auth-secret — high
+- ops-set-mp-security-roles-env — high
 - require-dedicated-oidc-client — medium
+- held-csp-customer-deployments — medium
+- step9-ci-setup-and-docs — low
+- held-github-repo-security-settings — low
 
 ### perf (0)
 _none open_
@@ -116,13 +128,14 @@ _none open_
 
 | Area | Count |
 |---|---|
-| components | 4 |
-| testing | 0 |
-| services | 0 |
 | auth | 3 |
-| mp-provider | 0 |
+| components | 3 |
+| routing | 2 |
+| commands | 2 |
+| services | 1 |
+| mp-provider | 1 |
+| testing | 0 |
 | utils | 0 |
-| routing | 0 |
 | mp-schema | 0 |
 | contexts | 0 |
 | dto-constants | 0 |
@@ -134,6 +147,8 @@ _none open_
 
 | Date | Title | File |
 |---|---|---|
+| 2026-10-10 | Template editor ignores pageID/recordID — won't fix, tool removed | [→](2026-04-17-components-template-editor-no-mp-persistence.md) |
+| 2026-10-10 | Merge tokens have no resolver — won't fix, tool removed | [→](2026-04-17-components-template-editor-merge-token-resolver.md) |
 | 2026-09-30 | Step 5 — MP HTTP client: timeouts, redirect:error, path guard, safe JSON, token validation, single-flight + negative cache, 401 retry; provider path guards, $ignorePermissions removed, identifier-only logging | [→](2026-09-30-step5-mp-http-client-and-provider-hardening.md) |
 | 2026-09-30 | Step 4 — OIDC lazy discovery (no MP call at boot), app-side id_token verification, sub binding, dedicated OIDC client, sign-out id_token_hint | [→](2026-09-30-step4-oidc-lazy-discovery-and-sub-binding.md) |
 | 2026-09-30 | Step 3 — 12 h session ceiling, JWE cookie, no user OAuth tokens, boot guards + env.ts, secrets hygiene, client-IP header | [→](2026-09-30-step3-session-lifetime-and-secrets-hygiene.md) |

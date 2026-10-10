@@ -57,7 +57,6 @@ All MP REST errors originate in `src/lib/providers/ministry-platform/utils/http-
 | `UnauthorizedError('Not authorized')` (`code: "UNAUTHORIZED"`) | `src/services/authorizationService.ts:186` (`requireSecurityRole`) — the gate every feature action and service method calls | component `try/catch` → `setError` (or `ActionError` shape for group-wizard) | toast / inline error | yes — `console.warn` of `{table, operation, reason, userId}` only (identifiers/shape, never record content) |
 | `Error('Unauthorized - Missing user session data')` | `src/components/dev-panel/panels/require-dev-session.ts:34` — single guard shared by every dev-panel action | component catch → `setError` | as above | no |
 | ``Error(`${featureLabel} is not available in production.`)`` | `src/components/dev-panel/panels/require-dev-session.ts:30` (`featureLabel` defaults to `"Dev panel"`; deploy-tool passes `"Deploy Tool"`) | dev-panel / deploy-tool panel catch → `setError` | "production" warning to user | no |
-| `Error('MJML source must be between 1 and 512000 characters')` | `src/components/template-editor/actions.ts:19` | editor dialogs (`editor-code-dialog.tsx`, `editor-export-dialog.tsx`) catch | inline error state | no |
 | Zod `ZodError` via `zodResolver` (group wizard) | `src/components/group-wizard/schema.ts` (`groupWizardSchema`) | RHF `form.trigger(...)` in `src/app/(web)/tools/groupwizard/group-wizard.tsx:104` | in-form field error messages | no |
 | `Error('Input must contain only digits')` (IMb) | `src/lib/imb-encoder.ts:323` | `src/lib/barcode-helpers.ts:48` **silent catch — falls through to POSTNET** | no user-facing error; label prints without IMb | no (silent) |
 | `Error('Input must be 20, 25, 29, or 31 digits (got N)')` | `src/lib/imb-encoder.ts:328` | `src/lib/barcode-helpers.ts:48` silent fallthrough | as above | no |
@@ -95,14 +94,13 @@ These do NOT throw to the component; server action returns `{ success: false, er
 | Profile fetch failure in `UserProvider` | `src/components/shared-actions/user.ts:28` (`Unauthorized` — session has no `userGuid`) or downstream MP error from `UserService.getUserProfile` | `src/contexts/user-context.tsx:43-46` try/catch sets `error` state | silent (consumers of `useUser()` inspect `error`) | no |
 | `Error("useUser must be used within a UserProvider")` | `src/contexts/user-context.tsx:79` | uncaught — surfaces to nearest React error boundary | white-screen error unless a boundary is present | no |
 | `Error("useFormField should be used within <FormField>")` | `src/components/ui/form.tsx:53` | uncaught — React error boundary | same as above | no |
-| "Invalid JSON data…" (template-editor import) | `JSON.parse` throws at `src/components/template-editor/editor-import-dialog.tsx:34` | `:36` silent catch → `setError('Invalid JSON data…')` | inline error | no |
 | "IMb requires a 6 or 9 digit USPS Mailer ID" (control-flow) | `src/components/address-labels/mail-merge-tab.tsx:111-114` | same function → `setError` early return | inline error | no |
 
 ## Error-handling patterns
 
 ### Server action failures
 Two shapes exist; actions are inconsistent.
-- **Throw-then-catch (most actions):** action throws a plain `Error`; calling component wraps call in `try/catch` and calls `setError(err instanceof Error ? err.message : 'fallback')`. Examples: `selection-actions.ts`, `user-tools-actions.ts`, `field-management/actions.ts`, `contact-records-actions.ts`, `template-editor/actions.ts`.
+- **Throw-then-catch (most actions):** action throws a plain `Error`; calling component wraps call in `try/catch` and calls `setError(err instanceof Error ? err.message : 'fallback')`. Examples: `selection-actions.ts`, `user-tools-actions.ts`, `field-management/actions.ts`, `contact-records-actions.ts`.
 - **Envelope shape (`ActionError`):** action returns `{ success: false, error: string }`. Used by `address-labels/actions.ts` (PDF/docx/merge), `group-wizard/actions.ts` (`fetchGroupRecord`, `createGroup`, `updateGroup`), `field-management/actions.ts:61-72` (`savePageFieldOrder`).
 - **Mixed in same file** is common — auth/validation errors throw; domain operations return envelope. No central policy; see `address-labels/actions.ts` for both shapes in one file.
 
