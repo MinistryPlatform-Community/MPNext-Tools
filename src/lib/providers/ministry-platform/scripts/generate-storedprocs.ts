@@ -64,7 +64,12 @@ function parseArguments(): CLIOptions {
 
 function showHelp() {
   console.log(`
-Usage: tsx generate-storedprocs.ts [options]
+Usage: tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts [options]
+
+Run through npm (the scripts already pass the flag below), e.g.
+  npm run mp:generate:storedprocs -- -s "Contact"
+or directly with tsx, which MUST be given --conditions=react-server: the MP
+client modules import 'server-only', which throws without that condition.
 
 Prerequisites:
   Ensure your environment configuration contains the required Ministry Platform settings:
@@ -80,9 +85,9 @@ Options:
   -h, --help             Show this help message
 
 Examples:
-  tsx generate-storedprocs.ts
-  tsx generate-storedprocs.ts -s "Contact"
-  tsx generate-storedprocs.ts -o ./my-procs-reference.md
+  npm run mp:generate:storedprocs
+  npm run mp:generate:storedprocs -- -s "Contact"
+  npm run mp:generate:storedprocs -- -o ./my-procs-reference.md
 `);
 }
 

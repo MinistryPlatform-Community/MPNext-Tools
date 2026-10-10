@@ -106,7 +106,12 @@ function parseArguments(): CLIOptions {
 
 function showHelp() {
   console.log(`
-Usage: tsx CLI/generate-types.ts [options]
+Usage: tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts [options]
+
+Run through npm (the scripts already pass the flag below), e.g.
+  npm run mp:generate -- -s "Contact"
+or directly with tsx, which MUST be given --conditions=react-server: the MP
+client modules import 'server-only', which throws without that condition.
 
 Prerequisites:
   Ensure your environment configuration contains the required Ministry Platform settings:
@@ -126,9 +131,10 @@ Options:
   -h, --help             Show this help message
 
 Examples:
-  tsx CLI/generate-types.ts -o ./src/types/generated -s "Contact"
-  tsx CLI/generate-types.ts -d --sample-size 10 -o ./types
-  tsx CLI/generate-types.ts --zod -o ./types # Include Zod schemas
+  npm run mp:generate -- -o ./src/types/generated -s "Contact"
+  npm run mp:generate -- -d --sample-size 10 -o ./types
+  npm run mp:generate -- --zod -o ./types # Include Zod schemas
+  npm run mp:generate:models              # Canonical: regenerate src/.../models
 `);
 }
 

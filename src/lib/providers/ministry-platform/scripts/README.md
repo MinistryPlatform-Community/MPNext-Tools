@@ -29,38 +29,47 @@ MINISTRY_PLATFORM_CLIENT_SECRET=your_client_secret
 
 Supports `.env.local`, `.env.development`, and `.env` files (loaded in that order).
 
+### Always run with `--conditions=react-server`
+
+The generators import `MPHelper`, and the MP client modules start with
+`import 'server-only'`. That package throws unless it is resolved under the
+`react-server` export condition, which Next applies to server code but plain
+Node does not. Every direct `tsx` command below passes the flag. The
+`npm run mp:generate*` scripts include it too, so `npm run mp:generate -- <options>`
+is the shorter form.
+
 ## Usage
 
 ### Basic Usage
 
 ```bash
 # Generate types for all tables
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts
 
 # Generate with Zod schemas
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --zod
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --zod
 
 # Generate to models directory
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models
 ```
 
 ### Advanced Options
 
 ```bash
 # Generate detailed types by sampling records
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --detailed
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --detailed
 
 # Generate types for specific tables
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --search "Contact"
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --search "Contact"
 
 # Custom output directory with Zod schemas
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --output ./src/types/mp --zod
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --output ./src/types/mp --zod
 
 # Detailed mode with custom sample size
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --detailed --sample-size 10
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --detailed --sample-size 10
 
 # Combine options
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts \
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts \
   --detailed \
   --search "Contact" \
   --output ./types \
@@ -153,7 +162,7 @@ await mp.createTableRecords('Contacts', [validatedContact]);
 
 1. Generate types to the models directory:
    ```bash
-   npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts \
+   npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts \
      -o src/lib/providers/ministry-platform/models \
      --zod \
      --search "Contact"
@@ -173,8 +182,8 @@ Add to your `package.json` for easier access:
 ```json
 {
   "scripts": {
-    "mp:generate": "tsx src/lib/providers/ministry-platform/scripts/generate-types.ts",
-    "mp:generate:models": "tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models --zod"
+    "mp:generate": "tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts",
+    "mp:generate:models": "tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models --zod"
   }
 }
 ```
