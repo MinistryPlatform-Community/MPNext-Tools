@@ -1,3 +1,4 @@
+import "server-only";
 import { getClientCredentialsToken, type CredentialProfile } from "./auth/client-credentials";
 import { HttpClient } from "./utils/http-client";
 import { errorName, logger } from "./utils/logger";

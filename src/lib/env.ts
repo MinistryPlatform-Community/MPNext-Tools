@@ -20,6 +20,8 @@
  * unit tested without re-importing anything.
  */
 
+import "server-only";
+
 type Env = Readonly<Record<string, string | undefined>>;
 
 /** Loopback hosts allowed over plain http (see `loopbackHttpInProduction`). */

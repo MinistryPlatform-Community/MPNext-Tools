@@ -1,3 +1,4 @@
+import "server-only";
 import type { PageData, ToolParams } from "./tool-params";
 
 /**

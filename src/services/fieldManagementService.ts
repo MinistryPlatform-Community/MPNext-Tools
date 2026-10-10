@@ -1,3 +1,4 @@
+import "server-only";
 import { MPHelper } from "@/lib/providers/ministry-platform";
 import { AuthorizationService } from "@/services/authorizationService";
 import type { TableMetadata } from "@/lib/providers/ministry-platform/types/provider.types";

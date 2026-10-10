@@ -57,6 +57,27 @@ jobs:
       - name: Test with coverage
         run: npm run test:coverage
 
+      # Catches what tests and tsc cannot: a `server-only` module pulled into
+      # a client component, Turbopack graph errors, and boot-time env guards.
+      # The values are placeholders that satisfy `src/lib/env.ts` and the
+      # secret guard in `src/lib/auth.ts`; the build makes no MP call (OIDC
+      # discovery is lazy), so nothing here needs to be real or secret.
+      - name: Build
+        run: npm run build
+        env:
+          BETTER_AUTH_SECRET: ci-build-only-placeholder-secret-0123456789abcdef
+          BETTER_AUTH_URL: http://localhost:3000
+          MINISTRY_PLATFORM_BASE_URL: https://mp.example.invalid/ministryplatformapi
+          MINISTRY_PLATFORM_CLIENT_ID: ci-build
+          MINISTRY_PLATFORM_CLIENT_SECRET: ci-build-placeholder
+          MP_SECURITY_ROLES: "*"
+          NEXT_PUBLIC_MINISTRY_PLATFORM_FILE_URL: https://mp.example.invalid/ministryplatformapi/files
+
+      # A statically prerendered route has no CSP nonce, so it would never
+      # hydrate under the enforced policy. See scripts/check-prerender.mjs.
+      - name: Check prerendered routes
+        run: npm run check:prerender
+
       - uses: codecov/codecov-action@v5
         if: always()
         with:
