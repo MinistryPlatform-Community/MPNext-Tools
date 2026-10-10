@@ -19,7 +19,7 @@ Keep actions with their component folder when:
 
 **Shared Actions (place here):**
 - `user.ts` - Current-user profile lookup used by contexts and components
-- `sign-out.ts` - `handleSignOut`: app sign-out plus MP RP-initiated logout (used by `/session-error`)
+- `sign-out.ts` - `handleSignOut`: app sign-out plus MP RP-initiated logout (used by the sign-out forms on `/no-access` and `/session-error`)
 - `auth.ts` - Authentication actions used across the app
 - `analytics.ts` - Analytics tracking used by multiple features
 - `notifications.ts` - Notification system used app-wide

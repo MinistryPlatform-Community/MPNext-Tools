@@ -24,10 +24,10 @@ policy. Read this before changing anything under `src/lib/auth.ts`,
 Sign-in is deliberately **not** role-gated — no check in `getUserInfo`,
 `mapProfileToUser`, `customSession` or `AuthWrapper` — so a role-less user still
 gets a session and the app shell. They are redirected from `/tools/*` to
-`/no-access`, which renders inside the shell. **There is no sign-out control on
-`/no-access`** — the only one in the app is the `/session-error` form (the
-dropdown `UserMenu` was removed 2026-10-10). Such a session ends at the 12 h
-hard lifetime or when the browser drops the cookie.
+`/no-access`, which renders inside the shell and carries a **Sign out** form
+(`handleSignOut`) so they can end the session, e.g. to sign in as a different
+MP user. That form and the one on `/session-error` are the app's only sign-out
+controls (the dropdown `UserMenu` was removed 2026-10-10).
 
 ### Why authentication is not enough
 
@@ -256,9 +256,10 @@ against a production build before calling it done.
 
 Last walk: **2026-10-10**, enforced policy, production build — sign-in, every
 tool, Radix select/popover/command and dialog (scroll-lock `<style>` applied),
-zero violations. Sign-out was not walked: its only control is on
-`/session-error`, which a healthy session never reaches. `form-action` still
-allows the MP origin for that form's redirect chain.
+zero violations. Sign-out walked the same day from the `/no-access` form: MP
+logout → back to the app → `/signin` → MP login prompt (both sessions ended),
+zero violations — the `form-action` MP origin is what lets that redirect chain
+through.
 
 ### `CSP_REPORT_URI` (opt-in reporting)
 

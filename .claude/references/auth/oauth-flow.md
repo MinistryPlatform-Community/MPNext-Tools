@@ -17,7 +17,7 @@ id_token verification, profile mapping, and RP-initiated logout via `endsession`
 - `src/lib/env.ts` — `getMpBaseUrl()`, `getAuthBaseUrl()`, `getMpClient()` (validated env readers)
 - `src/app/signin/sign-in-content.tsx` — calls `authClient.signIn.social({ provider: "ministryplatform", callbackURL })`
 - `src/app/api/auth/[...all]/route.ts` — deny-by-default allowlist in front of `toNextJsHandler(auth)`
-- `src/components/shared-actions/sign-out.ts` — `handleSignOut()` server action (the only caller is the `/session-error` form)
+- `src/components/shared-actions/sign-out.ts` — `handleSignOut()` server action (called by the sign-out forms on `/no-access` and `/session-error`)
 - Tests: `src/auth.oidc-discovery.test.ts` (outages, lazy discovery), `src/auth.user-info.test.ts` (`getUserInfo` with signed tokens), `src/auth.id-token-sign-in.test.ts` (F12), `src/auth.shared-instance.test.ts`, `src/auth.test.ts` (config pins), `src/components/shared-actions/sign-out.test.ts`; mock MP in `src/test-utils/mock-oidc.ts`
 
 ## Key concepts

@@ -588,7 +588,7 @@ Alert, Alert Dialog, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Command,
 - **address-labels/** — 12 components for address label printing, barcode generation, and mail merge
 - **field-management/** — Drag-and-drop editor for MP page field order and flags (`PageSearch`, `FieldOrderEditor`, sortable group/field items, `useFieldOrderState`)
 - **dev-panel/** — Unified developer overlay (localhost-only) showing parsed URL params, MP selection data, contact records, and authorized tools
-- **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile()` — returns the *calling* user's MP profile; the `User_GUID` comes from the session, never from a parameter); `handleSignOut()` — app sign-out plus MP RP-initiated logout, used by `/session-error`
+- **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile()` — returns the *calling* user's MP profile; the `User_GUID` comes from the session, never from a parameter); `handleSignOut()` — app sign-out plus MP RP-initiated logout, used by the sign-out forms on `/no-access` and `/session-error`
 
 All components use kebab-case file naming, PascalCase component names, and named exports with barrel index files.
 
