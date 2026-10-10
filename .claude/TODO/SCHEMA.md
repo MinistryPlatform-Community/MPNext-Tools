@@ -37,6 +37,23 @@ Concrete, actionable. Specific file:line edits or command to run.
 Who is affected, how badly, when.
 ```
 
+## Lifecycle
+This folder holds **open work only**. `status` is always `open`.
+
+- **Done or won't do → delete the file** in the same PR that finishes the work
+  or records the decision. Never leave a file marked `resolved`, `closed`,
+  `won't fix` or `superseded`. The commit message is the record: say what was
+  done or why it was dropped. Find past items with
+  `git log --diff-filter=D -- .claude/TODO/`.
+- **Before deleting**, salvage what outlives the item:
+  - leftover follow-up work → a new TODO file;
+  - a lasting lesson or trap → `.claude/references/GOTCHAS.md`;
+  - a decision → `.claude/references/DECISIONS.md` (ADR).
+- **Remove every inbound link** to the deleted file (`INDEX.md`, references,
+  code comments, other TODOs). A link to a missing TODO is drift.
+- **Update `INDEX.md`** (counts, tables, tags, areas) in the same change.
+  `INDEX.md` has no "resolved" section.
+
 ## Severity
 - **critical**: security hole, data loss risk, auth bypass
 - **high**: broken behavior, test failure, convention violation that causes bugs

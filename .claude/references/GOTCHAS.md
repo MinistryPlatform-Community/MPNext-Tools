@@ -60,6 +60,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 - GOTCHA-037: Renaming `Secure_Check-in` breaks compilation in non-obvious places
 - GOTCHA-038: _Retired 2026-10-10 (template editor removed)_
 - GOTCHA-039: _Retired 2026-10-10 (template editor removed)_
+- GOTCHA-044: A flag set inside one `setState` updater is still `false` when the next setter runs
 
 ### Utils / labels
 - GOTCHA-040: IMb barcode silently becomes POSTNET (or disappears) with no log
@@ -107,8 +108,8 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 **Symptom:** Clicking sign-out in prod lands the user at `http://localhost:3000` (or some other wrong base URL).
 **Root cause:** `handleSignOut` uses `process.env.BETTER_AUTH_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'`. If both env vars are unset in prod, the literal fallback fires silently.
-**Fix:** Throw instead of silent fallback (mirror the `MINISTRY_PLATFORM_BASE_URL` check on the line above). TODO: `.claude/TODO/2026-04-17-auth-localhost-fallback-signout.md`.
-**Enforced where:** `src/components/user-menu/actions.ts:18-23` (not currently enforced — open TODO).
+**Fix:** Fixed — `handleSignOut` reads the origin through `getAuthBaseUrl()`, which throws when unset; there is no localhost fallback.
+**Enforced where:** `src/components/user-menu/actions.ts` (`getAuthBaseUrl()` / `getMpBaseUrl()`), `src/lib/env.ts`.
 **Related:** [auth/](auth/)
 
 ### GOTCHA-006: User appears to sign out but is silently re-authenticated (logout loop)
@@ -151,8 +152,8 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 **Symptom:** Validation error surfaces as a plain `Error` with a message string; calling code cannot inspect `.issues` to build field-level UI feedback.
 **Root cause:** `MPHelper.createTableRecords` / `updateTableRecords` catch the ZodError and re-throw as `new Error("Validation failed for record N: ...")`, losing the structured issue list.
-**Fix:** Subclass `MPValidationError` that carries the original `ZodError`, and throw that instead. TODO: `.claude/TODO/2026-04-17-mp-provider-helper-loses-zod-issue-list.md`.
-**Enforced where:** `src/lib/providers/ministry-platform/helper.ts:185-199,269-281` (not enforced).
+**Fix:** Fixed — the helper throws `MPValidationError`, which carries the original `ZodError` as `.zodError`. Catch that and read `.zodError.issues`.
+**Enforced where:** `src/lib/providers/ministry-platform/helper.ts` (`class MPValidationError`).
 **Related:** [mp-provider/](mp-provider/)
 
 ### GOTCHA-011: Local edits to files under `src/lib/providers/ministry-platform/models/` disappear
@@ -359,8 +360,8 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 **Symptom:** Security scan flags that `deployToolAction` / `listPagesAction` are network-addressable in prod even though the UI is hidden.
 **Root cause:** `"use server"` exports create network-addressable RPC endpoints regardless of where (or whether) the UI imports them. Only `deploy-tool-actions.ts` currently has the `requireDevSession` guard that throws on `NODE_ENV === "production"`.
-**Fix:** Every dev-panel server action must call `requireDevSession()` (or an equivalent `NODE_ENV !== "production"` check) before doing any work. Consider extracting a shared helper. TODO: `.claude/TODO/2026-04-17-components-dev-panel-prod-guard-gap.md`.
-**Enforced where:** `src/components/dev-panel/panels/deploy-tool-actions.ts:13-21` (correct pattern, not consistently applied elsewhere).
+**Fix:** Every dev-panel server action must call `requireDevSession()` (or an equivalent `NODE_ENV !== "production"` check) before doing any work. Fixed — every dev-panel action file now calls the shared helper.
+**Enforced where:** `src/components/dev-panel/panels/require-dev-session.ts`, called by `contact-records-actions.ts`, `deploy-tool-actions.ts`, `selection-actions.ts`, `user-tools-actions.ts`.
 **Related:** [components/dev-panel.md](components/dev-panel.md)
 
 ### GOTCHA-035: Dev-panel `UserToolsPanel` always shows "NOT AUTHORIZED"
@@ -375,8 +376,8 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 **Symptom:** In the group-wizard edit flow, the Review step shows "ID: 12345" instead of the contact's name next to Primary Contact or Parent Group.
 **Root cause:** `fetchGroupRecord` returns numeric IDs only. The display maps (`contactDisplayMap`, `groupDisplayMap`) are only seeded from user interactions during the wizard flow, never from a loaded record.
-**Fix:** Extend `GroupService.getGroup` to return display names alongside IDs and seed the display maps before `form.reset` in the edit-mode effect. TODO: `.claude/TODO/2026-04-17-components-group-wizard-display-map-edit-mode.md`.
-**Enforced where:** `src/app/(web)/tools/groupwizard/group-wizard.tsx:69-84` (not currently enforced).
+**Fix:** Fixed — `fetchGroupRecord` returns `displayNames`, and the edit-mode effect seeds both display maps before `form.reset`. If you see this again, check that a new ID field is included in `displayNames`.
+**Enforced where:** `src/app/(web)/tools/groupwizard/group-wizard.tsx` (edit-mode `useEffect`).
 **Related:** [components/group-wizard.md](components/group-wizard.md)
 
 ### GOTCHA-037: Renaming `Secure_Check-in` breaks compilation in non-obvious places
@@ -395,6 +396,14 @@ Retired 2026-10-10: applied only to the GrapesJS template editor, which was remo
 
 Retired 2026-10-10: applied only to the template editor's merge tokens; the editor was removed.
 
+### GOTCHA-044: A flag set inside one `setState` updater is still `false` when the next setter runs
+
+**Symptom:** Two state updates that must agree (e.g. remove a group from `groupedFields` *and* `groupOrder`) drift apart. A guard that looked correct never fires.
+**Root cause:** React runs updater functions (`setX(prev => …)`) during the next render, not when you call the setter. Code like `let removed = false; setA(prev => { …; removed = true; … }); if (removed) setB(…)` reads `removed` before the updater has run.
+**Fix:** Make the decision once, up front, from rendered state that both setters agree on (add it to the `useCallback` deps), then call both setters unconditionally.
+**Enforced where:** `src/components/field-management/use-field-order-state.ts` (`removeGroup`) and its tests.
+**Related:** [components/field-management.md](components/field-management.md)
+
 ---
 
 ## Utils / labels
@@ -403,8 +412,8 @@ Retired 2026-10-10: applied only to the template editor's merge tokens; the edit
 
 **Symptom:** User configures IMb with a Mailer ID, prints labels, and sees POSTNET (or no barcode) on the output.
 **Root cause:** `preEncodeBarcodes` wraps `imbEncode` in a bare `try {} catch {}` with no logging, falling through to POSTNET. Also, if `config.mailerId` is empty (`''`), the `config.barcodeFormat === 'imb' && config.mailerId` guard skips IMb entirely and falls through silently.
-**Fix:** (a) Users: enter a valid 6- or 9-digit USPS Mailer ID. (b) Code: log the caught IMb error and surface a per-label `barcodeError` field so the UI can warn the user. TODO: `.claude/TODO/2026-04-17-utils-imb-fallback-silent.md`.
-**Enforced where:** `src/lib/barcode-helpers.ts:41-50` (silent fallback), `src/lib/dto/address-label.dto.ts:40` (mailerId not validated at config level).
+**Fix:** (a) Users: enter a valid 6- or 9-digit USPS Mailer ID. (b) Code: fixed — the fallback is logged (`console.warn`) and the Mailer ID is validated.
+**Enforced where:** `src/lib/barcode-helpers.ts` (logged fallback).
 **Related:** [utils/](utils/), [components/address-labels.md](components/address-labels.md)
 
 ### GOTCHA-041: Avery label cells misaligned after adding new stock
@@ -427,6 +436,6 @@ Retired 2026-10-10: applied only to the template editor's merge tokens; the edit
 
 **Symptom:** Downstream code receives `NaN` as a numeric param and constructs a filter `WHERE Contact_ID = NaN`, producing no rows and a confusing log.
 **Root cause:** `parseToolParams` uses `x ? parseInt(x, 10) : undefined`. `parseInt('abc', 10)` returns `NaN` (not undefined), so `NaN` leaks through.
-**Fix:** Filter with `Number.isFinite` after `parseInt`: `const n = parseInt(x, 10); return Number.isFinite(n) ? n : undefined`. TODO: `.claude/TODO/2026-04-17-utils-tool-params-parseint-nan.md`.
-**Enforced where:** `src/lib/tool-params.ts:49,63-70` (not currently enforced).
+**Fix:** Fixed — `parseIntOrUndefined` returns `undefined` unless `Number.isFinite(parsed)`.
+**Enforced where:** `src/lib/tool-params.server.ts` (`parseIntOrUndefined`).
 **Related:** [utils/](utils/)

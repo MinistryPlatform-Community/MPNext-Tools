@@ -877,8 +877,6 @@ describe("FamilyService", () => {
  * `upsertDonor` uses `donorId` to target which `Donors` row gets written — a
  * future caller that skips the action, or a schema change that loosens a
  * field, must not silently reopen that.
- *
- * See `.claude/TODO/2026-09-13-unvalidated-envelope-donor-ids-in-filter.md`.
  */
 describe("FamilyService envelope/donor filter hardening", () => {
   beforeEach(() => {

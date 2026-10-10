@@ -445,8 +445,6 @@ describe("addeditfamily actions", () => {
  * `FamilyService` interpolates `envelopeNo` and `donorId` into MP `$filter`
  * strings and uses `donorId` to target a `Donors` update, so the payload has
  * to be parsed, not merely typed.
- *
- * See `.claude/TODO/2026-09-13-unvalidated-envelope-donor-ids-in-filter.md`.
  */
 describe("saveFamily payload validation", () => {
   beforeEach(() => {

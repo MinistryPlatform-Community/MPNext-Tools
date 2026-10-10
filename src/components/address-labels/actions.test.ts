@@ -678,8 +678,6 @@ describe('generateLabelPdf error branches', () => {
  * `console.error('mergeTemplate error:', error)` wrote every printable name
  * and mailing address for the batch into server logs — exactly what CLAUDE.md
  * rule 14 forbids.
- *
- * See `.claude/TODO/2026-09-13-mergetemplate-logs-address-pii-on-error.md`.
  */
 describe('address-label actions redact errors before logging', () => {
   const config: LabelConfig = {
