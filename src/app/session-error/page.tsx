@@ -1,12 +1,11 @@
-import { handleSignOut } from "@/components/user-menu/actions";
+import { handleSignOut } from "@/components/shared-actions/sign-out";
 
 /**
  * Recovery page for authenticated-but-unusable sessions.
  *
  * AuthWrapper redirects here when a session exists but has no `userGuid`. Such a
- * session can't load an MP profile, so the header avatar/menu — and therefore
- * the normal sign-out control — never render. This page gives the user an
- * unconditional way out via `handleSignOut`. It lives outside the (web) route
+ * session can't load an MP profile, so no tool can serve it. This page gives the
+ * user an unconditional way out via `handleSignOut`. It lives outside the (web) route
  * group, so it is NOT wrapped by AuthWrapper and cannot cause a redirect loop.
  */
 /**

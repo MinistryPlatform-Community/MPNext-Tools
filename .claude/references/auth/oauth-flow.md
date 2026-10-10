@@ -2,7 +2,7 @@
 title: OAuth Flow (genericOAuth, lazy id_token verification, OIDC endsession)
 domain: auth
 type: reference
-applies_to: [src/lib/auth.ts, src/lib/env.ts, src/app/signin/page.tsx, src/app/api/auth/[...all]/route.ts, src/components/user-menu/actions.ts, src/components/user-menu/user-menu.tsx]
+applies_to: [src/lib/auth.ts, src/lib/env.ts, src/app/signin/page.tsx, src/app/api/auth/[...all]/route.ts, src/components/shared-actions/sign-out.ts, src/app/session-error/page.tsx]
 symbols: [auth, ministryPlatformProviderConfig, lazyIdTokenVerifier, sharedInstance, getMpClient, handleSignOut]
 related: [sessions.md, user-identity.md, route-protection.md, ../security/README.md]
 last_verified: 2026-10-10
@@ -17,8 +17,8 @@ id_token verification, profile mapping, and RP-initiated logout via `endsession`
 - `src/lib/env.ts` — `getMpBaseUrl()`, `getAuthBaseUrl()`, `getMpClient()` (validated env readers)
 - `src/app/signin/sign-in-content.tsx` — calls `authClient.signIn.social({ provider: "ministryplatform", callbackURL })`
 - `src/app/api/auth/[...all]/route.ts` — deny-by-default allowlist in front of `toNextJsHandler(auth)`
-- `src/components/user-menu/actions.ts` — `handleSignOut()` server action
-- Tests: `src/auth.oidc-discovery.test.ts` (outages, lazy discovery), `src/auth.user-info.test.ts` (`getUserInfo` with signed tokens), `src/auth.id-token-sign-in.test.ts` (F12), `src/auth.shared-instance.test.ts`, `src/auth.test.ts` (config pins), `src/components/user-menu/actions.test.ts`; mock MP in `src/test-utils/mock-oidc.ts`
+- `src/components/shared-actions/sign-out.ts` — `handleSignOut()` server action (the only caller is the `/session-error` form)
+- Tests: `src/auth.oidc-discovery.test.ts` (outages, lazy discovery), `src/auth.user-info.test.ts` (`getUserInfo` with signed tokens), `src/auth.id-token-sign-in.test.ts` (F12), `src/auth.shared-instance.test.ts`, `src/auth.test.ts` (config pins), `src/components/shared-actions/sign-out.test.ts`; mock MP in `src/test-utils/mock-oidc.ts`
 
 ## Key concepts
 - **No boot-time discovery (security Step 4, upstream MPNext issue #101).** The provider has explicit `authorizationUrl`, `tokenUrl` and `endSessionEndpoint` and **no `discoveryUrl`**, so building the auth instance — `next build`, cold starts, every page's session check — makes **no MP call** and the provider always registers. With `discoveryUrl`, better-auth 1.7 fetched discovery once at boot with no timeout or retry: one MP blip left `/sign-in/social` answering `404 PROVIDER_NOT_FOUND` until a restart, and a hung MP stalled every request ~300 s.
@@ -65,7 +65,7 @@ the outage lands on `/auth-error?error=unable_to_get_user_info` (retry copy),
 and the next sign-in recovers on the same process. `PROVIDER_NOT_FOUND` /
 `oauth_provider_not_found` now means misconfiguration only.
 
-## Sign-out flow (`src/components/user-menu/actions.ts`)
+## Sign-out flow (`src/components/shared-actions/sign-out.ts`)
 
 1. `auth.api.signOut({ headers, body: { disableRedirect: true } })` — clears the
    app session **first**, so a broken env below still signs the user out, and
@@ -76,9 +76,10 @@ and the next sign-in recovers on the same process. `PROVIDER_NOT_FOUND` /
    `${MP}/oauth/connect/endsession?post_logout_redirect_uri=<BETTER_AUTH_URL>&client_id=<OIDC client>[&id_token_hint=…]`
    — `post_logout_redirect_uri` exactly as registered (better-auth would add a
    trailing `/` and drop `client_id` when it has a hint).
-4. `redirect()` — a `NEXT_REDIRECT` throw. `user-menu.tsx` wraps the call in
-   try/catch with `unstable_rethrow(err)` **first**, then alerts on a genuine
-   failure (it used to fail silently).
+4. `redirect()` — a `NEXT_REDIRECT` throw. Invoke it as a `<form action>` (as
+   `/session-error` does) so Next handles the redirect. A future client caller
+   that `await`s it in try/catch must call `unstable_rethrow(err)` **first**, or
+   it swallows the navigation as an "error".
 
 **Limitation:** the id_token lives only in the in-memory account row of the
 process that handled the callback. A sign-out on another serverless instance

@@ -72,7 +72,7 @@ Test files grouped by area. Totals from the current facts snapshot:
 | `src/components/dev-panel/panels/selection-actions.test.ts` | Selection resolution server actions |
 | `src/components/dev-panel/panels/user-tools-actions.test.ts` | Authorization checks, session validation |
 | `src/components/layout/auth-wrapper.test.tsx` | `AuthWrapper` render gating based on session |
-| `src/components/user-menu/actions.test.ts` | Sign-out action, OIDC logout redirect |
+| `src/components/shared-actions/sign-out.test.ts` | `handleSignOut`: session cleared first, MP-origin-only `id_token_hint`, end-session URL shape |
 | `src/components/shared-actions/user.test.ts` | `getCurrentUserProfile` session-derived GUID lookup, `Unauthorized` on missing/empty `userGuid`, IDOR regression (caller-forged argument ignored), error propagation |
 
 ## Core lib (8 files)

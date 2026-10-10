@@ -70,7 +70,7 @@ describe('user MP OAuth tokens are not requested or retained', () => {
       expect(account.accessTokenExpiresAt ?? null).toBeNull();
       expect(account.refreshTokenExpiresAt ?? null).toBeNull();
       // Kept deliberately: not an API bearer; it is the id_token_hint on MP
-      // logout (src/components/user-menu/actions.ts). It lives ONLY in this
+      // logout (src/components/shared-actions/sign-out.ts). It lives ONLY in this
       // process's memory adapter — there is no cookie copy any more.
       expect(account.idToken).toBe(oidc.lastIdToken);
     }
@@ -85,7 +85,7 @@ describe('user MP OAuth tokens are not requested or retained', () => {
 });
 
 describe('the retained id_token is still reachable for logout', () => {
-  // src/components/user-menu/actions.ts takes the hint from exactly this
+  // src/components/shared-actions/sign-out.ts takes the hint from exactly this
   // URL. This pins that dropping the account cookie did NOT remove the
   // id_token_hint source — on the instance that handled sign-in, better-auth's
   // own sign-out returns it from the in-memory row.

@@ -30,8 +30,9 @@ last_verified: 2026-04-17
 ## Key concepts
 
 - **Invoked via npm scripts:**
-  - `npm run mp:generate` → `tsx .../generate-types.ts` (default output `./generated-types`)
-  - `npm run mp:generate:models` → `tsx .../generate-types.ts -o src/lib/providers/ministry-platform/models --zod --clean` (canonical)
+  - `npm run mp:generate` → `tsx --conditions=react-server .../generate-types.ts` (default output `./generated-types`)
+  - `npm run mp:generate:models` → `tsx --conditions=react-server .../generate-types.ts -o src/lib/providers/ministry-platform/models --zod --clean` (canonical)
+- **`--conditions=react-server` is required** for every direct `tsx` run of `generate-types.ts` / `generate-storedprocs.ts`. They import `MPHelper`, and the MP client modules (`helper.ts`, `client.ts`, `auth/client-credentials.ts`) start with `import 'server-only'`, which throws unless resolved under that export condition. The npm scripts pass it. `build-sql-install.ts` imports nothing from the provider, so it doesn't need the flag. See GOTCHA-046.
 - **Data source:** MP `/tables` metadata endpoint via `MPHelper.getTables(search?)`, which hits `MetadataService`
 - **Column-driven typing is the default path;** `--detailed` falls back to record-sampling only if a table has no column metadata
 - **Field-name safety:** non-identifier field names are emitted as JSON string literals (e.g. `"Allow_Check-in"`, `"SSN/EIN"`) — `formatFieldName` → `propertyKey` (`codegen-escape.ts`), also applied to the `--detailed` fallback `${name}_ID` key
@@ -148,10 +149,10 @@ Non-required columns chain `.nullable()`.
 npm run mp:generate:models
 
 # Filtered + custom output
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o ./types -s "Contact" --zod
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -o ./types -s "Contact" --zod
 
 # Detailed (sample records for tables with no column metadata)
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -d --sample-size 10
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -d --sample-size 10
 
 # Help
 npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
@@ -161,7 +162,7 @@ The canonical npm script:
 
 ```json
 // package.json
-"mp:generate:models": "tsx src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models --zod --clean"
+"mp:generate:models": "tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models --zod --clean"
 ```
 
 ## Gotchas

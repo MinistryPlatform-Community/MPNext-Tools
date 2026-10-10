@@ -53,8 +53,8 @@ user: {
 > `node_modules/better-auth/dist/db/schema.mjs`) no longer lets an
 > `input: false` additionalField through when a value is supplied — in 1.6.11 it
 > throws `"userGuid is not allowed to be set"`, so the OAuth-created user never
-> gets a `userGuid`. Result: `session.user.userGuid` is `undefined` → blank
-> avatar, dead user menu, broken MP profile lookups. There is no user-facing
+> gets a `userGuid`. Result: `session.user.userGuid` is `undefined` → every
+> tool redirects to `/session-error`, and MP profile lookups break. There is no user-facing
 > form that sets this field (genericOAuth only; no email/password signup or
 > update-user endpoint), so `input: true` carries no practical risk here.
 > Guarded by `src/auth.test.ts` (runs the real better-auth parser against the
@@ -76,7 +76,7 @@ After **any** better-auth version change:
 3. **Manual smoke test (required — nothing else catches this):** `npm run dev`,
    **sign out and sign in fresh** (stale sessions predate any user-record change),
    open `/api/auth/get-session`, and confirm `user.userGuid` is present. Confirm
-   the header avatar renders and the user menu opens with a working sign-out.
+   a tool loads (not `/session-error`).
 4. If `userGuid` is missing, inspect `parseAdditionalUserInput` (formerly
    `parseAdditionalUserInputFromProviderProfile`) in
    `node_modules/better-auth/dist/db/schema.mjs`.

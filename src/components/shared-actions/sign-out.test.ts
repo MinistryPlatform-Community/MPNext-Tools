@@ -21,7 +21,7 @@ vi.mock('next/navigation', () => ({
   redirect: mockRedirect,
 }));
 
-import { handleSignOut } from './actions';
+import { handleSignOut } from './sign-out';
 
 /**
  * `handleSignOut` clears the app session, then sends the browser to MP's

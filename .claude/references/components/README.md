@@ -17,7 +17,6 @@ Reference docs for `src/components/` — the tool layout framework, layout wrapp
 | `group-wizard.md` | Multi-step group wizard (shard 13) | Editing the 6-step create/edit group flow |
 | `dev-panel.md` | Localhost-only developer overlay (shard 14) | Understanding `ToolContainer` auto-rendering behavior |
 | `field-management.md` | Drag-and-drop page field ordering (shard 16) | Working on MP page field layout UX |
-| `user-menu.md` | User dropdown + OIDC sign-out (shard 17) | Working on sign-out or RP-initiated logout |
 
 ## Code surfaces
 | Path | Role |
@@ -25,12 +24,11 @@ Reference docs for `src/components/` — the tool layout framework, layout wrapp
 | `src/components/tool/` | `ToolContainer`, `ToolHeader`, `ToolFooter` — 4 files |
 | `src/components/layout/` | `AuthWrapper` server component + test — 3 files |
 | `src/components/ui/` | 22 shadcn/ui primitives |
-| `src/components/shared-actions/` | Cross-feature server actions — 2 files (+ local `README.md`) |
+| `src/components/shared-actions/` | Cross-feature server actions — `user.ts`, `domain.ts`, `sign-out.ts` + tests (+ local `README.md`) |
 | `src/components/address-labels/` | Address-label feature — 13 files |
 | `src/components/dev-panel/` | Dev overlay — 3 files + `panels/` subdir |
 | `src/components/field-management/` | Field-order editor — 10 files |
 | `src/components/group-wizard/` | Group wizard — 14 files |
-| `src/components/user-menu/` | User menu — 4 files |
 
 ## Conventions (domain-wide)
 - File names: `kebab-case.tsx` (e.g., `tool-container.tsx`)

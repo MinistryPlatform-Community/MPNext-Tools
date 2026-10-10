@@ -25,7 +25,7 @@ Better Auth (`1.7.x`) wired to Ministry Platform OIDC via the `genericOAuth` plu
 | `src/app/signin/page.tsx` | Sign-in page — auto-redirects via `authClient.signIn.social({ provider: "ministryplatform" })` |
 | `src/proxy.ts` | Route protection (session-cookie presence check + `x-pathname` forwarding) |
 | `src/components/layout/auth-wrapper.tsx` | Server-component guard — redirects to `/signin` with `callbackUrl` |
-| `src/components/user-menu/actions.ts` | `handleSignOut()` — clears the session, then `endsession` with `client_id` (+ `id_token_hint` when this process has it) |
+| `src/components/shared-actions/sign-out.ts` | `handleSignOut()` — clears the session, then `endsession` with `client_id` (+ `id_token_hint` when this process has it) |
 | `src/contexts/user-context.tsx` | `UserProvider` — loads MP profile client-side from `userGuid` |
 | `src/contexts/session-context.tsx` | `useAppSession()` — thin wrapper around `authClient.useSession()` |
 | `src/auth.test.ts` | Config pins, `customSession`, `mapProfileToUser` |
@@ -35,7 +35,7 @@ Better Auth (`1.7.x`) wired to Ministry Platform OIDC via the `genericOAuth` plu
 | `src/test-utils/mock-oidc.ts` | Mock MP OIDC provider (per-endpoint failure modes, `signIdToken`) |
 | `src/proxy.test.ts` | Proxy route-protection tests |
 | `src/components/layout/auth-wrapper.test.tsx` | `AuthWrapper` redirect tests |
-| `src/components/user-menu/actions.test.ts` | `handleSignOut` tests |
+| `src/components/shared-actions/sign-out.test.ts` | `handleSignOut` tests |
 
 ## Related domains
 - `../contexts/README.md` — `UserProvider` consumes `userGuid` from the session
