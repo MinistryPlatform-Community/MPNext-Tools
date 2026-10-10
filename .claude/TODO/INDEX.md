@@ -18,13 +18,10 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **11 open TODOs**.
+Total: **6 open TODOs**.
 
-> **Start here for owner (non-code) work:** [`2026-10-10-owner-ops-checklist-before-release.md`](2026-10-10-owner-ops-checklist-before-release.md)
-> collects every env-var, MP and GitHub setting to do before and right after the next `/release`.
-
-> **`step6`…`step9`** are the remaining steps from the 2026-09-30 MPNext playbook
-> audit (one PR each). `held-*` items wait on an owner decision.
+> **`step6`** and **`step8`** are the remaining steps from the 2026-09-30 MPNext
+> playbook audit (one PR each). `held-*` items wait on an owner decision.
 
 ---
 
@@ -33,25 +30,19 @@ Total: **11 open TODOs**.
 ### Critical (0)
 _none open_
 
-### High (1)
-| Area | Tags | Title | File |
-|---|---|---|---|
-| auth | security, doc | Owner checklist — settings to do before/after the next /release | [→](2026-10-10-owner-ops-checklist-before-release.md) |
+### High (0)
+_none open_
 
-### Medium (4)
+### Medium (2)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | routing | security, drift | Step 6 — Headers, next.config, server-only, prerender + build in CI | [→](2026-09-30-step6-headers-csp-build-guards.md) |
-| services | drift, missing-test | Step 7 — Write-audit gaps and datetime drift cleanup | [→](2026-09-30-step7-write-audit-and-datetime-cleanup.md) |
 | routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
-| mp-provider | security | Held — Deny-all stored-procedure allowlist | [→](2026-09-30-held-stored-procedure-allowlist.md) |
 
-### Low (6)
+### Low (4)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | components | security, bug | Step 8 — Address-label caps, error boundaries, tool-params decode, codegen escaping | [→](2026-09-30-step8-fork-specific-low-risk-items.md) |
-| commands | security, doc | Step 9 — CI supply chain, setup env writer, docs | [→](2026-09-30-step9-ci-setup-and-docs.md) |
-| commands | security, doc | Held — GitHub repo security settings | [→](2026-09-30-held-github-repo-security-settings.md) |
 | components | bug | Add/Edit Family search: "No contacts found" empty state never renders | [→](2026-09-13-search-empty-state-never-renders.md) |
 | components | refactor, missing-test | Unreachable "empty STEP_FIELDS" branch in `GroupWizard.handleNext` | [→](2026-09-13-dead-empty-fields-branch-handlenext.md) |
 | services | security | `ToolService.resolveContactIds` takes table/column names from its caller (dev panel) | [→](2026-10-10-dev-panel-resolvecontactids-caller-identifiers.md) |
@@ -60,36 +51,27 @@ _none open_
 
 ## By tag
 
-### security (8)
-- owner-ops-checklist-before-release — high
+### security (4)
 - step6-headers-csp-build-guards — medium
 - held-csp-customer-deployments — medium
-- held-stored-procedure-allowlist — medium
 - step8-fork-specific-low-risk-items — low
-- step9-ci-setup-and-docs — low
-- held-github-repo-security-settings — low
 - dev-panel-resolvecontactids-caller-identifiers — low
 
 ### bug (2)
 - step8-fork-specific-low-risk-items — low
 - search-empty-state-never-renders — low
 
-### drift (2)
+### drift (1)
 - step6-headers-csp-build-guards — medium
-- step7-write-audit-and-datetime-cleanup — medium
 
-### missing-test (2)
-- step7-write-audit-and-datetime-cleanup — medium
+### missing-test (1)
 - dead-empty-fields-branch-handlenext — low
 
 ### refactor (1)
 - dead-empty-fields-branch-handlenext — low
 
-### doc (4)
-- owner-ops-checklist-before-release — high
+### doc (1)
 - held-csp-customer-deployments — medium
-- step9-ci-setup-and-docs — low
-- held-github-repo-security-settings — low
 
 ### perf (0)
 _none open_
@@ -101,11 +83,11 @@ _none open_
 | Area | Count |
 |---|---|
 | components | 3 |
-| auth | 1 |
 | routing | 2 |
-| commands | 2 |
-| services | 2 |
-| mp-provider | 1 |
+| services | 1 |
+| auth | 0 |
+| commands | 0 |
+| mp-provider | 0 |
 | testing | 0 |
 | utils | 0 |
 | mp-schema | 0 |

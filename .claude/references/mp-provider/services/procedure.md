@@ -62,7 +62,7 @@ function isDevProcedure(procedure: string): boolean {
 
 ## How it works
 - Both execute methods call `resolveHttpClient(procedure)` which branches on `isDevProcedure` and invokes the matching `ensureValid*Token` + `get*HttpClient` pair (`procedure.service.ts:87-95`).
-- Procedure name is validated with `sanitizeIdentifier` (`^[A-Za-z_][A-Za-z0-9_]*$`, ≤128) and then URL-encoded, before any token work; a bad name throws `Invalid procedure name`. There is **no** allowlist of callable procedures (held; see `.claude/TODO/2026-09-30-held-stored-procedure-allowlist.md`).
+- Procedure name is validated with `sanitizeIdentifier` (`^[A-Za-z_][A-Za-z0-9_]*$`, ≤128) and then URL-encoded, before any token work; a bad name throws `Invalid procedure name`. There is **no** allowlist of callable procedures — by design for this template; every caller is gated and passes a literal proc name. A downstream clone that wants defence in depth can add one here.
 - Errors propagate after `logger.error('mp.procs.execute_failed', { procedure, error: errorName(e) })`.
 
 ## Stored procedures called by this codebase

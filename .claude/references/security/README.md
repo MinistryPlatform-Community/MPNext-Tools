@@ -505,32 +505,6 @@ and no code-bearing URLs in logs.
 
 ### Still open — needs a human
 
-- **The MP OAuth client's registered redirect URI must be updated.** Better Auth
-  1.7 changed the callback path, so the `redirect_uri` this app sends is now
-  `<BETTER_AUTH_URL>/api/auth/callback/ministryplatform` — previously
-  `/api/auth/oauth2/callback/ministry-platform`. Note BOTH halves changed: the
-  1.7 upgrade moved `/oauth2/callback/` to `/callback/`, and the provider id was
-  renamed from `ministry-platform` to `ministryplatform`. Register the new value in the
-  Ministry Platform OAuth client **before** deploying, or MP will reject the
-  authorization request outright.
 - **The enforced-CSP browser walk has not been done.** Headers and nonce
   coverage were verified against `next start`; a human still needs to click
   through every Radix surface under enforcement.
-- **`BETTER_AUTH_SECRET` rotated** (done 2026-10-10; owner decision 2026-09-30) in every
-  Vercel environment and `.env.local` — this deployment was exposed to
-  F-UPDATE-USER from 2026-07-09 to 2026-09-13. Patching does not revoke sessions
-  already forged, and with `refreshCache` on (fixed 2026-09-30) they could keep
-  re-signing themselves; with no database there is no session table to clear.
-- **Repo settings**: GitHub private vulnerability reporting, secret scanning,
-  push protection and Dependabot security updates were all **disabled** on
-  2026-09-30 (public repo). `SECURITY.md` points reporters at private
-  vulnerability reporting, so it needs enabling.
-- **Check the MP client's redirect URIs** in every environment:
-  `MINISTRY_PLATFORM_CLIENT_ID`'s MP record must list exactly
-  `<BETTER_AUTH_URL>/api/auth/callback/ministryplatform` and post-logout
-  `<BETTER_AUTH_URL>`. Remove `MP_OIDC_CLIENT_ID` / `_SECRET` from any
-  environment that set them (ignored now, but stale secrets).
-- **Real-MP smoke test of Step 4 not yet done** (a real sign-in): sign in,
-  confirm `/api/auth/get-session` has a `userGuid`, no
-  `auth.oidc.discovery_failed` / `auth.userinfo.id_token_unverified` in the
-  log, and sign-out ends the MP session without a "log out?" prompt.
