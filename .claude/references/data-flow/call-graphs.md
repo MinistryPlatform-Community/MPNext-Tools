@@ -188,8 +188,8 @@ last_verified: 2026-04-17
 
 ## Flow 6: Sign-out (OIDC logout)
 
-**Trigger:** user submits the "Sign out" form on `/session-error` — the only sign-out control in the app (the dropdown `UserMenu` was removed 2026-10-10).
-**Entry point:** `src/app/session-error/page.tsx` — `<form action={handleSignOut}>`.
+**Trigger:** user submits a sign-out form — on `/no-access` (signed in, no MP security role) or `/session-error` (session without `userGuid`). These are the app's only sign-out controls (the dropdown `UserMenu` was removed 2026-10-10).
+**Entry points:** `src/app/(web)/no-access/page.tsx` and `src/app/session-error/page.tsx` — `<form action={handleSignOut}>`.
 
 **Stack trace:**
 1. `src/components/shared-actions/sign-out.ts` — `handleSignOut` (`'use server'`).
