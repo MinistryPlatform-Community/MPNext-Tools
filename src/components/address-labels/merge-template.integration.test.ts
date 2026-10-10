@@ -39,9 +39,15 @@ describe('mergeTemplate (integration)', () => {
   });
 
   it('rejects a zip bomb before decompressing it', async () => {
-    const bomb = new PizZip();
-    bomb.file('word/document.xml', Buffer.alloc(80 * 1024 * 1024));
-    const template = bomb.generate({ type: 'nodebuffer', compression: 'DEFLATE' }).toString('base64');
+    // An entry whose header understates its size: the shape that gets past a
+    // declared-size check and would make PizZip inflate it in full. (The
+    // honest-but-huge case is covered in src/lib/zip-guard.test.ts.)
+    const zip = new PizZip();
+    zip.file('word/document.xml', Buffer.alloc(4 * 1024 * 1024));
+    const buf = zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
+    const central = buf.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]));
+    buf.writeUInt32LE(100, central + 24);
+    const template = buf.toString('base64');
     const result = await mergeTemplate(template, labels, config);
     expect(result).toEqual({ success: false, error: 'Template is too large when uncompressed' });
   });
