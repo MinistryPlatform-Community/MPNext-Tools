@@ -18,7 +18,7 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **5 open TODOs**.
+Total: **4 open TODOs**.
 
 > **`step6`** and **`step8`** are the remaining steps from the 2026-09-30 MPNext
 > playbook audit (one PR each). `held-*` items wait on an owner decision.
@@ -39,11 +39,10 @@ _none open_
 | routing | security, drift | Step 6 — Headers, next.config, server-only, prerender + build in CI | [→](2026-09-30-step6-headers-csp-build-guards.md) |
 | routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
 
-### Low (3)
+### Low (2)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | components | security, bug | Step 8 — Address-label caps, error boundaries, tool-params decode, codegen escaping | [→](2026-09-30-step8-fork-specific-low-risk-items.md) |
-| components | bug | Add/Edit Family search: "No contacts found" empty state never renders | [→](2026-09-13-search-empty-state-never-renders.md) |
 | components | refactor, missing-test | Unreachable "empty STEP_FIELDS" branch in `GroupWizard.handleNext` | [→](2026-09-13-dead-empty-fields-branch-handlenext.md) |
 
 ---
@@ -55,9 +54,8 @@ _none open_
 - held-csp-customer-deployments — medium
 - step8-fork-specific-low-risk-items — low
 
-### bug (2)
+### bug (1)
 - step8-fork-specific-low-risk-items — low
-- search-empty-state-never-renders — low
 
 ### drift (1)
 - step6-headers-csp-build-guards — medium
@@ -80,7 +78,7 @@ _none open_
 
 | Area | Count |
 |---|---|
-| components | 3 |
+| components | 2 |
 | routing | 2 |
 | services | 0 |
 | auth | 0 |

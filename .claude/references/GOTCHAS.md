@@ -1,7 +1,7 @@
 ---
 title: Gotchas
 type: gotchas
-last_updated: 2026-04-17
+last_updated: 2026-10-10
 ---
 
 # Gotchas
@@ -61,6 +61,7 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 - GOTCHA-038: _Retired 2026-10-10 (template editor removed)_
 - GOTCHA-039: _Retired 2026-10-10 (template editor removed)_
 - GOTCHA-044: A flag set inside one `setState` updater is still `false` when the next setter runs
+- GOTCHA-045: `<CommandEmpty>` never renders even though the search returned nothing
 
 ### Utils / labels
 - GOTCHA-040: IMb barcode silently becomes POSTNET (or disappears) with no log
@@ -403,6 +404,14 @@ Retired 2026-10-10: applied only to the template editor's merge tokens; the edit
 **Fix:** Make the decision once, up front, from rendered state that both setters agree on (add it to the `useCallback` deps), then call both setters unconditionally.
 **Enforced where:** `src/components/field-management/use-field-order-state.ts` (`removeGroup`) and its tests.
 **Related:** [components/field-management.md](components/field-management.md)
+
+### GOTCHA-045: `<CommandEmpty>` never renders even though the search returned nothing
+
+**Symptom:** A cmdk combobox with `shouldFilter={false}` gets zero results back, but its `<CommandEmpty>` message never appears, even when it is wrapped in your own `results.length === 0` condition.
+**Root cause:** `CommandEmpty` renders only when the **whole** `Command` has zero registered items (`filtered.count === 0`), not just the group it sits in. A permanent item elsewhere, such as a "+ New …" action, keeps that count above zero.
+**Fix:** Don't use `CommandEmpty` alongside a permanent item. Render a plain `<div>` gated on your own state. Gate it on the term that was actually searched, too, or it flashes during the debounce while `results` still describes the previous term.
+**Enforced where:** `src/app/(web)/tools/addeditfamily/add-edit-family.tsx` (`FamilySearchBar`, `searchedTerm`) and its tests.
+**Related:** [components/](components/)
 
 ---
 
