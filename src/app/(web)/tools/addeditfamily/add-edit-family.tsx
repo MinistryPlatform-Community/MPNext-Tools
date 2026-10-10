@@ -24,7 +24,6 @@ import {
   Command,
   CommandInput,
   CommandList,
-  CommandEmpty,
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
@@ -392,18 +391,26 @@ function FamilySearchBar({ onLoadExisting, onCreateNew, disabled }: FamilySearch
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ContactSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  // The term the current `results` belong to. While the debounce is pending,
+  // `results` still describes an older term, so "No contacts found" must wait
+  // until the term on screen has actually been searched.
+  const [searchedTerm, setSearchedTerm] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const doSearch = useCallback(async (term: string) => {
-    if (term.trim().length < 2) {
+    const trimmed = term.trim();
+    if (trimmed.length < 2) {
       setResults([]);
+      setSearchedTerm(null);
       return;
     }
     setIsSearching(true);
     try {
       setResults(await searchContacts(term));
+      setSearchedTerm(trimmed);
     } catch {
       setResults([]);
+      setSearchedTerm(null);
     } finally {
       setIsSearching(false);
     }
@@ -454,9 +461,17 @@ function FamilySearchBar({ onLoadExisting, onCreateNew, disabled }: FamilySearch
                     Searching…
                   </div>
                 )}
-                {!isSearching && query.trim().length >= 2 && results.length === 0 && (
-                  <CommandEmpty>No contacts found.</CommandEmpty>
-                )}
+                {/* Not <CommandEmpty>: cmdk shows that only when the whole
+                    Command has zero items, and the "+ New Family" item below
+                    is always registered once the query is >= 2 characters. */}
+                {!isSearching &&
+                  query.trim().length >= 2 &&
+                  searchedTerm === query.trim() &&
+                  results.length === 0 && (
+                    <div className="py-4 text-center text-sm text-muted-foreground">
+                      No contacts found.
+                    </div>
+                  )}
                 {!isSearching && query.trim().length < 2 && (
                   <div className="py-4 text-center text-sm text-muted-foreground">
                     Type at least 2 characters
