@@ -4,25 +4,13 @@ type: index
 last_updated: 2026-10-10
 ---
 
-<!-- 2026-04-18: closed 3 routing TODOs (proxy-api-whitelist, signin-no-error-ui, home-page-roundtrip) — see commit fix(routing): tighten proxy API whitelist, add signin error UI, optimize /home redirect -->
-<!-- 2026-04-18: closed 3 utils TODOs (imb-fallback-silent, tool-params-missing-test, tool-params-parseint-nan) — see commit fix(utils): log barcode fallbacks, guard tool-params NaN, add tool-params tests -->
-<!-- 2026-04-18: closed 5 low TODOs (contexts-session-context-misnamed, dto-constants-batchsize-duplication, dto-constants-mailerid-not-validated, testing-claude-md-readme-counts-drift, verify-auth-oauth-flow) — see commit chore: rename contexts hook, dedupe BATCH_SIZE, validate mailerId, refresh docs -->
-<!-- 2026-05-21: opened 1 critical TODO (xmldom-critical-vulnerability) — see install-testing feedback; address before next ship -->
-<!-- 2026-05-21: closed 1 critical TODO (xmldom-critical-vulnerability) — replaced docxtemplater-image-module-free with maintained docxtemplater-image (uses @xmldom/xmldom@^0.9.7) -->
-<!-- 2026-09-30: playbook audit (5 MPNext port playbooks) opened 14 TODOs: 9 remediation steps, 2 ops, 3 held. -->
-<!-- 2026-09-30: closed 1 critical TODO (step1 F12/F3b) — see fix/step1-f12-f3b-signin-hardening PR. -->
-<!-- 2026-09-30: closed 1 high TODO (step2 authz + input validation) — see fix/step2-authz-input-validation PR. -->
-<!-- 2026-09-30: closed 1 high TODO (step4 OIDC lazy discovery + sub binding + sign-out); opened 1 medium (require dedicated OIDC client) — see fix/step4-oidc-lazy-discovery PR. -->
-<!-- 2026-09-30: closed 1 medium TODO (step5 MP HTTP client + provider hardening) — see fix/step5-mp-http-client-hardening PR. -->
-<!-- 2026-10-10: opened 1 high TODO (owner-ops-checklist-before-release) — consolidated owner checklist for the next /release. -->
-<!-- 2026-10-10: closed 1 medium TODO (require-dedicated-oidc-client) — superseded: MP_OIDC_* removed, one MP client for service account + sign-in (ADR-027, chore/single-mp-client). -->
-<!-- 2026-10-10: closed 2 medium TODOs (template-editor-no-mp-persistence, template-editor-merge-token-resolver) — won't fix, the template editor and all GrapesJS/MJML deps were removed (chore/remove-template-editor). -->
-<!-- 2026-09-13: coverage push 49.67% -> 98.84% statements. Opened 8 TODOs, closed 2 (template-editor-missing-tests, coverage-report-masked-untested-files). -->
-
-
 # TODO Index
 
-Open TODOs from the context-engineering review (2026-04-17) and later additions.
+This folder lists **open work only**. When a TODO is finished, or we decide not
+to do it, its file is **deleted**, not marked resolved. The commit that removes
+it is the record (`git log --diff-filter=D -- .claude/TODO/`). See
+[`SCHEMA.md`](SCHEMA.md) § Lifecycle.
+
 Severity tiers:
 
 - **critical**: security hole, data loss, auth bypass
@@ -30,27 +18,13 @@ Severity tiers:
 - **medium**: doc drift, missing test, refactor with real cost
 - **low**: nits, minor doc fixes, stylistic improvements
 
-Total: **12 open TODOs**.
+Total: **14 open TODOs**.
 
 > **Start here for owner (non-code) work:** [`2026-10-10-owner-ops-checklist-before-release.md`](2026-10-10-owner-ops-checklist-before-release.md)
 > collects every env-var, MP and GitHub setting to do before and right after the next `/release`.
 
-> **2026-09-30 — MPNext playbook audit.** The five `S:\MP\MPNext\.claude\playbooks`
-> port playbooks were audited against this fork. Remediation is split into nine
-> ordered steps (`step1`…`step9`, one PR each), two ops actions the owner performs
-> in Vercel, and three held items awaiting owner decisions.
-
-> **2026-09-13 — unit-test coverage push.** Statement coverage over authored
-> code went from 49.67% to 98.84% (3,610/3,652), lines to 99.70%, across 1,535
-> tests in 116 files. Most of the items below were opened during that work,
-> found by reading code while writing tests for it. A follow-up pass cleaned
-> the runner output from 1,507 lines to 17 with zero warnings.
->
-> **2026-09-13 (later) — remediation.** All three high-severity items and the
-> CI gap are fixed and closed; see each file's Resolution section. CI now runs
-> lint and `tsc --noEmit` as required steps, and installs with `npm ci`.
-> Everything still open is `medium` or below, and all of it sits in
-> `src/components`.
+> **`step6`…`step9`** are the remaining steps from the 2026-09-30 MPNext playbook
+> audit (one PR each). `held-*` items wait on an owner decision.
 
 ---
 
@@ -74,7 +48,7 @@ _none open_
 | routing | security, doc | Held — CSP notes for customer-deployed clones | [→](2026-09-30-held-csp-customer-deployments.md) |
 | mp-provider | security | Held — Deny-all stored-procedure allowlist | [→](2026-09-30-held-stored-procedure-allowlist.md) |
 
-### Low (5)
+### Low (7)
 | Area | Tags | Title | File |
 |---|---|---|---|
 | components | security, bug | Step 8 — Address-label caps, error boundaries, tool-params decode, codegen escaping | [→](2026-09-30-step8-fork-specific-low-risk-items.md) |
@@ -82,12 +56,14 @@ _none open_
 | commands | security, doc | Held — GitHub repo security settings | [→](2026-09-30-held-github-repo-security-settings.md) |
 | components | bug | Add/Edit Family search: "No contacts found" empty state never renders | [→](2026-09-13-search-empty-state-never-renders.md) |
 | components | refactor, missing-test | Unreachable "empty STEP_FIELDS" branch in `GroupWizard.handleNext` | [→](2026-09-13-dead-empty-fields-branch-handlenext.md) |
+| components | bug | Select fields treat a lookup id of 0 as "no selection" | [→](2026-10-10-select-falsy-id-zero-predicate.md) |
+| services | security | `ToolService.resolveContactIds` takes table/column names from its caller (dev panel) | [→](2026-10-10-dev-panel-resolvecontactids-caller-identifiers.md) |
 
 ---
 
 ## By tag
 
-### security (9)
+### security (10)
 - owner-ops-checklist-before-release — high
 - ops-rotate-better-auth-secret — high
 - ops-set-mp-security-roles-env — high
@@ -97,10 +73,12 @@ _none open_
 - step8-fork-specific-low-risk-items — low
 - step9-ci-setup-and-docs — low
 - held-github-repo-security-settings — low
+- dev-panel-resolvecontactids-caller-identifiers — low
 
-### bug (2)
+### bug (3)
 - step8-fork-specific-low-risk-items — low
 - search-empty-state-never-renders — low
+- select-falsy-id-zero-predicate — low
 
 ### drift (2)
 - step6-headers-csp-build-guards — medium
@@ -112,9 +90,6 @@ _none open_
 
 ### refactor (1)
 - dead-empty-fields-branch-handlenext — low
-
-### testing (0)
-_none open_
 
 ### doc (6)
 - owner-ops-checklist-before-release — high
@@ -133,42 +108,17 @@ _none open_
 
 | Area | Count |
 |---|---|
+| components | 4 |
 | auth | 3 |
-| components | 3 |
 | routing | 2 |
 | commands | 2 |
-| services | 1 |
+| services | 2 |
 | mp-provider | 1 |
 | testing | 0 |
 | utils | 0 |
 | mp-schema | 0 |
 | contexts | 0 |
 | dto-constants | 0 |
-| doc (cross-cutting) | 0 |
-
----
-
-## Recently resolved
-
-| Date | Title | File |
-|---|---|---|
-| 2026-10-10 | Require dedicated OIDC client — superseded: `MP_OIDC_*` removed, one MP client (ADR-027) | [→](2026-09-30-require-dedicated-oidc-client.md) |
-| 2026-10-10 | Template editor ignores pageID/recordID — won't fix, tool removed | [→](2026-04-17-components-template-editor-no-mp-persistence.md) |
-| 2026-10-10 | Merge tokens have no resolver — won't fix, tool removed | [→](2026-04-17-components-template-editor-merge-token-resolver.md) |
-| 2026-09-30 | Step 5 — MP HTTP client: timeouts, redirect:error, path guard, safe JSON, token validation, single-flight + negative cache, 401 retry; provider path guards, $ignorePermissions removed, identifier-only logging | [→](2026-09-30-step5-mp-http-client-and-provider-hardening.md) |
-| 2026-09-30 | Step 4 — OIDC lazy discovery (no MP call at boot), app-side id_token verification, sub binding, dedicated OIDC client, sign-out id_token_hint | [→](2026-09-30-step4-oidc-lazy-discovery-and-sub-binding.md) |
-| 2026-09-30 | Step 3 — 12 h session ceiling, JWE cookie, no user OAuth tokens, boot guards + env.ts, secrets hygiene, client-IP header | [→](2026-09-30-step3-session-lifetime-and-secrets-hygiene.md) |
-| 2026-09-30 | Step 2 — Fail-closed MP_SECURITY_ROLES, group-wizard mass assignment, page-metadata injection, F11, page self-gating, filter/error hygiene | [→](2026-09-30-step2-authorization-and-input-validation.md) |
-| 2026-09-30 | Step 1 — F12 id_token sign-in refused, F3b callbackUrl bypass closed, /sign-in/social boundary + no-store | [→](2026-09-30-step1-close-live-auth-holes-f12-f3b.md) |
-| 2026-09-13 | Coverage config omitted `coverage.include`, hiding every untested file | [→](2026-09-13-testing-coverage-report-masked-untested-files.md) |
-| 2026-09-13 | No tests for `src/components/template-editor/` | [→](2026-04-17-components-template-editor-missing-tests.md) |
-| 2026-09-13 | `vitest.config.ts` loaded as CommonJS (renamed to `.mts`) | [→](2026-09-13-testing-vitest-config-loaded-as-cjs.md) |
-| 2026-09-13 | Radix Select fields switched uncontrolled -> controlled | [→](2026-09-13-components-select-uncontrolled-to-controlled.md) |
-| 2026-09-13 | Unvalidated numeric fields reaching MP `$filter` strings | [→](2026-09-13-unvalidated-envelope-donor-ids-in-filter.md) |
-| 2026-09-13 | `removeGroup` dropped a non-empty group's fields from the save payload | [→](2026-09-13-removegroup-order-guard-mismatch.md) |
-| 2026-09-13 | Raw docxtemplater error logged household addresses | [→](2026-09-13-mergetemplate-logs-address-pii-on-error.md) |
-| 2026-09-13 | `AddEditFamilyPage` logged the raw error object | [→](2026-09-13-page-logs-raw-error-object.md) |
-| 2026-09-13 | No type-check gate in CI (also `npm ci`, lint, concurrency) | [→](2026-09-13-testing-no-typecheck-gate-in-ci.md) |
 
 ---
 

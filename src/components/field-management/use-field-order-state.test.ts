@@ -389,7 +389,6 @@ describe('useFieldOrderState > removeGroup', () => {
    * `buildSavePayload()` iterates `groupOrder`, those fields silently
    * disappeared from the payload — live Ministry Platform page configuration
    * lost with no error shown.
-   * See `.claude/TODO/2026-09-13-removegroup-order-guard-mismatch.md`.
    */
   it('is a complete no-op when the group still has fields', () => {
     const fields: PageField[] = [
