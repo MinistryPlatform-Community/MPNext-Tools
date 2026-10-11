@@ -56,7 +56,8 @@ Application service layer — singletons in `src/services/` that wrap `MPHelper`
 
 ## Authorization
 - Every MP-touching method calls `AuthorizationService.getInstance().requireSecurityRole({ table, operation })` first — reads included (CLAUDE.md rule 12). Writes take `$userId` from its return value (rule 13).
-- Methods with **no** gate: `UserService.getUserProfile` (rule-12 carve-out via `shared-actions/user.ts`), `FamilyService.getDefaults` (static data, no MP call), `DomainTimezoneService.*` (domain config only), `GooglePlacesService.*` (callers in `addeditfamily/actions.ts` gate `Addresses`/`read`).
+- Methods with **no** gate: `UserService.getUserProfile` (rule-12 carve-out via `shared-actions/user.ts`), `FamilyService.getDefaults` (static data, no MP call), `DomainTimezoneService.*` (domain config only).
+- `GooglePlacesService` gates every public method (`isEnabled`, `autocomplete`, `getPlaceDetails`) on `dp_Configuration_Settings`/`read` — on each call, not only on a cache miss, because the resolved API key and provider are cached per process. The gate runs outside `resolveApiKey`'s try/catch, so a refusal throws `UnauthorizedError` instead of falling back to the env var.
 
 ## Data flow
 ```

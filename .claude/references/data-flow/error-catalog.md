@@ -96,7 +96,7 @@ Validator messages name the field, never the value (`src/lib/validation.ts` head
 | `Error('Deploy did not return a tool row — check stored procedure permissions and dev credentials.')` | `src/services/toolService.ts:302` | `src/components/dev-panel/panels/deploy-tool-actions.ts` → panel catch | inline error | no |
 | `PartialSaveError(progress, underlying)` — any failure mid-`saveHousehold` | `src/services/familyService.ts:24-29` (wrapped by `wrap()` in `saveHousehold`) | `saveFamily` action → `{ success: false, error, progress }` | inline error; client keeps IDs already created | MP-layer logs only |
 | `Error('Could not find an available envelope number after 5 attempts ...')` | `src/services/familyService.ts:749` (`resolveUniqueEnvelopeNo`) | wrapped as `PartialSaveError` → `saveFamily` envelope | inline | no |
-| `Error('Google Places API key is not configured. ...')` | `src/services/googlePlacesService.ts:63` | `placeDetails` action envelope; `placeAutocomplete` short-circuits on `isEnabled()` | inline | no |
+| `Error('Google Places API key is not configured. ...')` | `src/services/googlePlacesService.ts:86` | `placeDetails` action envelope; `placeAutocomplete` short-circuits on `isEnabled()` | inline | no |
 | `Error('toMpSqlDatetime: value must be a non-empty string or Date')` / `'... could not be parsed as a date'` | `src/services/domainTimezoneService.ts:286,297` | write path (`GroupService`, `FamilyService`) → action envelope | inline | no |
 | `Error('parseMpDatetime: value could not be parsed as a date')` | `src/services/domainTimezoneService.ts:314` | caller | inline | no |
 | Procedure failure from `api_MPNextTools_UpdatePageFieldOrder` (propagates from http-client) | `http-client.ts:226`, via `src/services/fieldManagementService.ts:115-132` | `src/components/field-management/actions.ts:99-100` → `{ success: false, error }` | inline error | yes (http-client + procedure service) |
@@ -142,7 +142,7 @@ All errors from `http-client.ts` follow `${METHOD} ${redactedEndpoint} failed: $
 - **Barcode encoding cascade.** `src/lib/barcode-helpers.ts:60,71,79` — on IMb failure, fall through to POSTNET; on POSTNET failure, retry with first 5 digits; on second failure, return the label with no barcode. Each step logs a `console.warn` with the label index and error name only. Test coverage: `src/lib/barcode-helpers.test.ts`.
 - **`ToolService.getPageData` / `getUserTools` / `getSelectionRecordIds` length checks** — when the stored procedure returns empty/missing result sets, the services return `null` / `[]` rather than throwing. Callers must differentiate "no data" from "error" by checking the return value.
 - **`parseToolParams`** (`src/lib/tool-params.server.ts`) — a `getPageData` failure is swallowed to `pageData = undefined` with `console.warn('tool_params.page_data_unavailable', { pageID })`; bad integers become `undefined`, a malformed `recordDescription` escape falls back to the raw value.
-- **`GooglePlacesService.resolveApiKey`** — an MP lookup failure is swallowed and falls through to `GOOGLE_PLACES_API_KEY`.
+- **`GooglePlacesService.resolveApiKey`** — an MP lookup failure is swallowed and falls through to `GOOGLE_PLACES_API_KEY`. The `dp_Configuration_Settings`/`read` gate runs before this, outside the try/catch, so an `UnauthorizedError` is never swallowed.
 
 ### Uncaught errors → React error boundary
 - Boundaries: `src/app/(web)/error.tsx` (inside the app shell), `src/app/error.tsx`, `src/app/global-error.tsx` (root layout failures).
