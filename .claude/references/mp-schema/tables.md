@@ -2,21 +2,24 @@
 title: Ministry Platform Schema — Tables
 domain: mp-schema
 type: generated-reference
-last_verified: 2026-04-17
+last_verified: 2026-10-11
 source: npm run mp:generate:models
 ---
 
 ## Purpose
-Auto-generated catalog of Ministry Platform tables, primary keys, and foreign key relationships. Regenerate with `npm run mp:generate:models` (runs `src/lib/providers/ministry-platform/scripts/generate-types.ts` with `--clean --zod`, emitting to `src/lib/providers/ministry-platform/models/`).
+Auto-generated catalog of Ministry Platform tables, primary keys, and foreign key relationships. Regenerate with `npm run mp:generate:models` (runs `src/lib/providers/ministry-platform/scripts/generate-types.ts` with `--clean --zod`, emitting to `src/lib/providers/ministry-platform/models/`). Do not edit by hand — the generator overwrites this file.
 
 ## Generated metadata
 
-**Generated (source):** 2026-04-16T02:07:32.640Z | **Tables:** 301
+**Generated (source):** 2026-10-11T11:13:43.173Z | **Tables:** 307
 
 **Type files:** `src/lib/providers/ministry-platform/models/{PascalCaseTableName}.ts` and `{PascalCaseTableName}Schema.ts`
 **Access:** R=Read, RW=ReadWrite, RWAD=ReadWriteAssignDelete
 
 ---
+
+### _Deployment_Logs [RWAD] [None]
+PK: `Log_ID` | FK: Deployment_ID→_Deployments
 
 ### _Deployments [R] [None]
 PK: `Deployment_ID`
@@ -222,7 +225,7 @@ PK: `Donor_ID` | FK: Contact_ID→Contacts, Statement_Frequency_ID→Statement_F
 ### dp_Account_Information [RWAD] [None]
 PK: `Account_Information_ID` | FK: Congregation_ID→Congregations, Integration_Definition_Type_ID→dp_Integration_Definition_Types
 
-### dp_API_Clients [RWAD] [FileAttach, DataExport]
+### dp_API_Clients [RWAD] [FileAttach, DataExport, SecureRecord]
 PK: `API_Client_ID` | FK: Client_User_ID→dp_Users, Authentication_Flow_ID→dp_Authentication_Flows
 
 ### dp_Application_Labels [RWAD] [FileAttach, DataExport]
@@ -234,14 +237,23 @@ PK: `Audit_Retention_Message_ID` | FK: _Audit_Retention_Policy_ID→dp_Audit_Ret
 ### dp_Audit_Retention_Policies [RWAD] [FileAttach, DataExport]
 PK: `Audit_Retention_Policy_ID` | FK: Retention_Type_ID→dp_Audit_Retention_Types, Audit_Type_ID→dp_Audit_Types
 
+### dp_Audit_Retention_Runs [RWAD] [DataExport]
+PK: `Audit_Retention_Run_ID`
+
 ### dp_Authentication_Log [RWAD] [FileAttach, DataExport, SecureRecord]
 PK: `Authentication_ID`
 
 ### dp_Bookmarks [RWAD] [FileAttach, DataExport]
 PK: `Bookmark_ID`
 
+### dp_Charts [R] [None]
+PK: `Chart_ID` | FK: Page_ID→dp_Pages, Aggregation_Type_ID→dp_Aggregation_Types, Default_Chart_Type_ID→dp_Chart_Types
+
 ### dp_Communication_Messages [RWAssign] [DataExport]
 PK: `Communication_Message_ID` | FK: Communication_ID→dp_Communications, Action_Status_ID→dp_Communication_Action_Statuses, Contact_ID→Contacts
+
+### dp_Communication_Messages_Archived [RWAssign] [DataExport]
+PK: `Communication_Message_Archived_ID` | FK: Original_Communication_ID→dp_Communications, Action_Status_ID→dp_Communication_Action_Statuses, Contact_ID→Contacts
 
 ### dp_Communication_Publications [RWAD] [FileAttach, DataExport]
 PK: `Communication_Publication_ID` | FK: Communication_ID→dp_Communications, Publication_ID→dp_Publications
@@ -424,7 +436,7 @@ PK: `Form_Response_Answer_ID` | FK: Form_Field_ID→Form_Fields, Form_Response_I
 PK: `Form_Response_ID` | FK: Form_ID→Forms, Contact_ID→Contacts, Event_ID→Events, Pledge_Campaign_ID→Pledge_Campaigns, Opportunity_ID→Opportunities, Opportunity_Response→Responses, Congregation_ID→Congregations, Event_Participant_ID→Event_Participants
 
 ### Forms [RWAD] [FileAttach, DataExport, SecureRecord]
-PK: `Form_ID` | FK: Congregation_ID→Congregations, Primary_Contact→Contacts, Response_Message→dp_Communication_Templates
+PK: `Form_ID` | FK: Congregation_ID→Congregations, Primary_Contact→Contacts, Response_Message→dp_Communication_Templates, Product_ID→Products, Program_ID→Programs
 
 ### Frequencies [RWAD] [None]
 PK: `Frequency_ID`
@@ -511,7 +523,7 @@ PK: `Invoice_Source_ID`
 PK: `Invoice_Status_ID`
 
 ### Invoices [RWAD] [FileAttach, DataExport, SecureRecord]
-PK: `Invoice_ID` | FK: Purchaser_Contact_ID→Contacts, Invoice_Status_ID→Invoice_Statuses, Congregation_ID→Congregations, Invoice_Source→Invoice_Sources
+PK: `Invoice_ID` | FK: Purchaser_Contact_ID→Contacts, Invoice_Status_ID→Invoice_Statuses, Congregation_ID→Congregations, Invoice_Source→Invoice_Sources, Form_Response_ID→Form_Responses
 
 ### Item_Priorities [R] [None]
 PK: `Item_Priority_ID`
@@ -726,6 +738,9 @@ PK: `Device_ID` | FK: User_ID→dp_Users, App_ID→Pocket_Platform_Apps
 ### Pocket_Platform_Migrations [R] [None]
 PK: `Pocket_Platform_Migrations_ID`
 
+### Pocket_Platform_Social_Media_Providers [R] [None]
+PK: `Social_Media_Provider_ID`
+
 ### Prefixes [R] [None]
 PK: `Prefix_ID`
 
@@ -849,6 +864,9 @@ PK: `Statement_Method_ID`
 ### Statement_Types [R] [None]
 PK: `Statement_Type_ID`
 
+### Statistics_Logs [R] [None]
+PK: `Log_ID`
+
 ### Suffixes [R] [None]
 PK: `Suffix_ID`
 
@@ -879,7 +897,7 @@ PK: `ID`
 ### vw_mp_contact_mail_name [R] [DataExport]
 PK: `Contact_ID`
 
-### vw_mp_giving_unit_summary [R] [DataExport]
+### vw_mp_giving_unit_summary_standard [R] [DataExport]
 PK: `Household_ID` | FK: Household_ID→Households, Contact_ID→Contacts
 
 ### vw_mp_Participation_Compliance [R] [DataExport]
@@ -903,6 +921,15 @@ PK: `ID` | FK: Response_ID→Responses, Group_Role_ID→Group_Roles, Participant
 ### vw_mp_User_Rights [R] [DataExport]
 PK: `View_ID` | FK: Contact_ID→Contacts, User_ID→dp_Users
 
+### Wait_Stats_Baseline [R] [None]
+PK: `WaitType`
+
+### Wait_Stats_History [R] [None]
+PK: `WaitStatsID`
+
+### Wait_Types [R] [None]
+PK: `Wait_Type_ID`
+
 ### Weekly_Snapshots [R] [None]
 PK: `Weekly_Snapshot_ID` | FK: Congregation_ID→Congregations
 
@@ -912,11 +939,3 @@ PK: `Wifi_Device_Session_ID` | FK: Wifi_Device_ID→Wifi_Devices
 ### Wifi_Devices [RWAD] [None]
 PK: `Wifi_Device_ID` | FK: Contact_ID→Contacts
 
-### Z_Event_Notifications [R] [None]
-PK: `Z_Event_Notifications_ID`
-
-### Z_Form_Notifications [R] [None]
-PK: `Z_Form_Notifications_ID`
-
-### Z_Opp_Notifications [R] [None]
-PK: `Z_Opp_Notifications_ID`

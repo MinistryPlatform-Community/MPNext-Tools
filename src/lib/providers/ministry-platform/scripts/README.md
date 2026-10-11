@@ -138,6 +138,9 @@ export const ContactsSchema = z.object({
   Email_Address: z.string().email().max(254).nullable(),
   Mobile_Phone: z.string().nullable(),
   Contact_GUID: z.string().uuid(),
+  // Date columns: YYYY-MM-DD with an optional time part. DateTime columns use the
+  // same shape with the time required — MP wall-clock ("2026-05-17 14:30:00") or ISO.
+  Date_of_Birth: z.string().regex(/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/, "...").nullable(),
   // ... additional fields
 });
 
@@ -170,7 +173,7 @@ await mp.createTableRecords('Contacts', [validatedContact]);
    ```bash
    npm run mp:generate:models
    ```
-   Do **not** combine `-o src/lib/providers/ministry-platform/models` with `--search`: `index.ts` is rewritten from only the tables generated in that run, so the barrel would lose every other table.
+   A `--search` run into the same directory is safe: `index.ts` is rebuilt from every type file in the output directory, so other tables stay exported, and the `mp-schema/tables.md` catalog is left untouched (it is only rewritten on a full run).
 
 2. Import and use in your app:
    ```typescript
@@ -197,8 +200,8 @@ Already defined in `package.json`:
 
 ## Other scripts in this folder
 
-- `generate-storedprocs.ts` — writes a stored-procedure reference (default `.claude/references/ministryplatform.storedprocs.md`; `-o`, `-s`, `-h`). The curated copy lives at `.claude/references/mp-schema/stored-procs.md`.
+- `generate-storedprocs.ts` — writes the stored-procedure reference to `.claude/references/mp-schema/stored-procs.md` (with frontmatter; `-o`, `-s`, `-h` — a `-s` run requires `-o` so it cannot overwrite the full catalog).
 - `build-sql-install.ts` — combines `../db/*.sql` into `_INSTALL/ministryplatform-install.sql`; skips when the content hash is unchanged. Imports nothing from the provider, so it needs no `--conditions` flag.
 - `codegen-escape.ts` — escaping helpers (`propertyKey`, `commentText`, `positiveInt`) for MP metadata interpolated into generated source.
 
-The type generator also writes a schema summary to `.claude/references/ministryplatform.schema.md`; the curated copy is `.claude/references/mp-schema/tables.md`.
+The type generator also writes the table catalog `.claude/references/mp-schema/tables.md` (with frontmatter) on full runs; a `--search` run skips it, and rebuilds `models/index.ts` from every type file in the output directory so other tables stay exported.

@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const ProceduresSchema = z.object({
   Procedure_ID: z.number().int(),
   Procedure_Title: z.string().max(50),
-  Creation_Date: z.string().datetime().nullable(),
+  Creation_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Active: z.boolean(),
   User_ID: z.number().int(),
   Ministry_ID: z.number().int().nullable(),

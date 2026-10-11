@@ -28,6 +28,8 @@ export interface DpRoles {
   Parish_Assignable: boolean; // Has Default
 
   Texting_Override: boolean; // Has Default
+
+  Texting_Character_Limit: number /* 32-bit integer */; // Has Default
 }
 
 export type DpRolesRecord = DpRoles;

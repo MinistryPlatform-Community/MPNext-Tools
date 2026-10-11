@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const FormResponsesSchema = z.object({
   Form_Response_ID: z.number().int(),
   Form_ID: z.number().int(),
-  Response_Date: z.string().datetime(),
+  Response_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
   IP_Address: z.string().max(45).nullable(),
   Contact_ID: z.number().int().nullable(),
   First_Name: z.string().max(50).nullable(),
@@ -21,7 +21,7 @@ export const FormResponsesSchema = z.object({
   Opportunity_Response: z.number().int().nullable(),
   Congregation_ID: z.number().int().nullable(),
   Notification_Sent: z.boolean(),
-  Expires: z.string().datetime().nullable(),
+  Expires: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Event_Participant_ID: z.number().int().nullable(),
 });
 

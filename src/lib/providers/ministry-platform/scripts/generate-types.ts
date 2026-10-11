@@ -37,13 +37,6 @@ interface ColumnMetadata {
   HasDefault?: boolean;
 }
 
-// API returns 'Name' but TableMetadata type defines 'Table_Name'
-// Use Omit to avoid type conflict and support both
-interface TableMetadataWithName extends Omit<TableMetadata, 'Table_Name'> {
-  Name?: string;
-  Table_Name?: string;
-}
-
 interface CLIOptions {
   outputDir: string;
   search?: string;
@@ -138,12 +131,6 @@ Examples:
 `);
 }
 
-function getTableName(table: TableMetadata): string | undefined {
-  // API returns 'Name' but types define 'Table_Name' - support both
-  const extendedTable = table as TableMetadataWithName;
-  return extendedTable.Name ?? extendedTable.Table_Name;
-}
-
 function sanitizeTypeName(name: string): string {
   // Convert table name to PascalCase and remove special characters
   let result = name
@@ -224,7 +211,22 @@ function mapDataTypeToTypeScript(dataType: ParameterDataType, isRequired: boolea
   return isRequired ? baseType : `${baseType} | null`;
 }
 
-function mapDataTypeToZod(col: ColumnMetadata): string {
+// MP stores datetimes as wall-clock values in the domain's time zone and returns
+// them without a zone marker; DomainTimezoneService.toMpSqlDatetime() emits
+// `YYYY-MM-DD HH:MM:SS`. Zod's z.string().datetime() / .date() accept only ISO
+// forms (and .datetime() demands T + Z/offset), so they would reject exactly the
+// values CLAUDE.md rule 17 requires. These patterns accept both: space or `T`
+// separator, optional seconds/fraction, optional `Z` or `±HH:MM` offset.
+// Emitted inline (as regex literal source) so each generated *Schema.ts stays a
+// standalone file that only imports zod.
+export const MP_DATETIME_PATTERN =
+  String.raw`^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$`;
+// Date columns: a bare date, or a date with a time part (MP returns Date columns
+// as `YYYY-MM-DDT00:00:00`, and toMpSqlDatetime('YYYY-MM-DD') yields `... 00:00:00`).
+export const MP_DATE_PATTERN =
+  String.raw`^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$`;
+
+export function mapDataTypeToZod(col: ColumnMetadata): string {
   let zodType = "";
   // `.max(${size})` is executable code in the generated schema, not a comment.
   const size = positiveInt(col.Size);
@@ -268,14 +270,14 @@ function mapDataTypeToZod(col: ColumnMetadata): string {
       zodType = "z.boolean()";
       break;
     case "Date":
-      zodType = "z.string().date()";
+      zodType = `z.string().regex(/${MP_DATE_PATTERN}/, "Expected YYYY-MM-DD (optionally with a time)")`;
       break;
     case "Time":
       zodType = "z.string()"; // Could add time format validation
       break;
     case "DateTime":
     case "Timestamp":
-      zodType = "z.string().datetime()";
+      zodType = `z.string().regex(/${MP_DATETIME_PATTERN}/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)")`;
       break;
     case "Guid":
       zodType = "z.string().uuid()";
@@ -291,7 +293,7 @@ function mapDataTypeToZod(col: ColumnMetadata): string {
   return zodType;
 }
 
-function generateZodSchema(table: TableMetadata, tableName: string): string {
+export function generateZodSchema(table: TableMetadata, tableName: string): string {
   const typeName = sanitizeTypeName(tableName);
   const schemaName = `${typeName}Schema`;
   
@@ -345,7 +347,7 @@ function generateDetailedTypeDefinition(
   sampleRecords?: Record<string, unknown>[],
   tableName?: string
 ): string {
-  const name = tableName || getTableName(table) || 'Unknown';
+  const name = tableName || table.Name || 'Unknown';
   const interfaceName = sanitizeTypeName(name);
   const typeName = `${interfaceName}Record`;
   
@@ -465,52 +467,76 @@ function generateTableDocumentation(table: TableMetadata, tableName: string): st
   return md;
 }
 
-function generateSchemaDocument(tables: TableMetadata[], outputDir: string): string {
+export const SCHEMA_DOC_PATH = '.claude/references/mp-schema/tables.md';
+
+/** Forward-slash, no leading `./` — the form the committed doc uses. */
+function displayPath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
+}
+
+export function generateSchemaDocument(
+  tables: TableMetadata[],
+  outputDir: string,
+  now: Date = new Date(),
+): string {
   const validTables = tables
     .filter(table => {
-      const name = getTableName(table);
+      const name = table.Name;
       return name && typeof name === 'string';
     })
     .sort((a, b) => {
-      const nameA = getTableName(a) || '';
-      const nameB = getTableName(b) || '';
+      const nameA = a.Name || '';
+      const nameB = b.Name || '';
       return nameA.localeCompare(nameB);
     });
 
-  let md = `# Ministry Platform Schema Reference\n\n`;
-  md += `**Generated:** ${new Date().toISOString()} | **Tables:** ${validTables.length}\n\n`;
-  md += `**Type files:** \`${outputDir}/{PascalCaseTableName}.ts\` and \`{PascalCaseTableName}Schema.ts\`\n`;
+  const dir = displayPath(outputDir);
+
+  let md = `---\n`;
+  md += `title: Ministry Platform Schema — Tables\n`;
+  md += `domain: mp-schema\n`;
+  md += `type: generated-reference\n`;
+  md += `last_verified: ${now.toISOString().slice(0, 10)}\n`;
+  md += `source: npm run mp:generate:models\n`;
+  md += `---\n\n`;
+  md += `## Purpose\n`;
+  md += `Auto-generated catalog of Ministry Platform tables, primary keys, and foreign key relationships. Regenerate with \`npm run mp:generate:models\` (runs \`src/lib/providers/ministry-platform/scripts/generate-types.ts\` with \`--clean --zod\`, emitting to \`src/lib/providers/ministry-platform/models/\`). Do not edit by hand — the generator overwrites this file.\n\n`;
+  md += `## Generated metadata\n\n`;
+  md += `**Generated (source):** ${now.toISOString()} | **Tables:** ${validTables.length}\n\n`;
+  md += `**Type files:** \`${dir}/{PascalCaseTableName}.ts\` and \`{PascalCaseTableName}Schema.ts\`\n`;
   md += `**Access:** R=Read, RW=ReadWrite, RWAD=ReadWriteAssignDelete\n\n`;
   md += `---\n\n`;
 
   validTables.forEach(table => {
-    const tableName = getTableName(table)!;
+    const tableName = table.Name;
     md += generateTableDocumentation(table, tableName);
   });
 
   return md;
 }
 
-function generateIndexFile(tables: TableMetadata[], generatedFiles: string[]): string {
-  // Filter tables to only include those that were successfully generated
-  const validTables = tables.filter(table => {
-    const name = getTableName(table);
-    return name && 
-      typeof name === 'string' &&
-      generatedFiles.includes(`${sanitizeTypeName(name)}.ts`);
-  });
+/**
+ * Builds the models barrel from every type file present in the output
+ * directory — not just the tables fetched this run — so a `--search` run adds
+ * or refreshes its tables without dropping the rest from `index.ts`.
+ * Zod schema files (`FooSchema.ts` next to `Foo.ts`) are not re-exported;
+ * import them by path.
+ */
+export function generateIndexFile(fileNames: string[], now: Date = new Date()): string {
+  const tsFiles = new Set(
+    fileNames.filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts') && !f.endsWith('.test.ts') && f !== 'index.ts'),
+  );
+  const typeFiles = [...tsFiles]
+    .filter(f => !(f.endsWith('Schema.ts') && tsFiles.has(f.replace(/Schema\.ts$/, '.ts'))))
+    .sort((a, b) => a.localeCompare(b));
 
-  const exports = validTables
-    .map(table => {
-      const name = getTableName(table)!;
-      const typeName = sanitizeTypeName(name);
-      return `export * from "./${typeName}";`;
-    })
+  const exports = typeFiles
+    .map(f => `export * from "./${f.replace(/\.ts$/, '')}";`)
     .join("\n");
 
   return `// Auto-generated index file
-// Generated on: ${new Date().toISOString()}
-// Successfully generated ${validTables.length} of ${tables.length} tables
+// Generated on: ${now.toISOString()}
+// Exports all ${typeFiles.length} table type files in this directory
 
 ${exports}
 `;
@@ -563,7 +589,7 @@ async function main() {
 
     // Debug: Check for tables with invalid names
     const invalidTables = tables.filter(table => {
-      const name = getTableName(table);
+      const name = table.Name;
       return !name || typeof name !== 'string';
     });
     if (invalidTables.length > 0) {
@@ -599,7 +625,7 @@ async function main() {
     
     for (const table of tables) {
       // Skip tables with invalid names
-      const rawName = getTableName(table);
+      const rawName = table.Name;
       if (!rawName || typeof rawName !== 'string') {
         console.log(`  ⚠ Skipping table with invalid name:`, table);
         continue;
@@ -655,23 +681,28 @@ async function main() {
 
     // Generate index file
     const indexPath = path.join(options.outputDir, "index.ts");
-    const indexContent = generateIndexFile(tables, generatedFiles);
+    const indexContent = generateIndexFile(fs.readdirSync(options.outputDir));
     fs.writeFileSync(indexPath, indexContent);
 
     console.log(`  ✓ index.ts (barrel export)`);
 
-    // Generate schema documentation
-    console.log("\n📝 Generating schema documentation...");
-    const schemaDocPath = path.resolve(process.cwd(), '.claude/references/ministryplatform.schema.md');
-    const schemaDocContent = generateSchemaDocument(tables, options.outputDir);
+    // Generate schema documentation — only on a full run: a --search run sees
+    // a subset of tables and would overwrite the committed catalog with it.
+    if (options.search) {
+      console.log(`\n📝 Skipping ${SCHEMA_DOC_PATH} (partial --search run; regenerate without -s to refresh it)`);
+    } else {
+      console.log("\n📝 Generating schema documentation...");
+      const schemaDocPath = path.resolve(process.cwd(), SCHEMA_DOC_PATH);
+      const schemaDocContent = generateSchemaDocument(tables, options.outputDir);
 
-    const schemaDocDir = path.dirname(schemaDocPath);
-    if (!fs.existsSync(schemaDocDir)) {
-      fs.mkdirSync(schemaDocDir, { recursive: true });
+      const schemaDocDir = path.dirname(schemaDocPath);
+      if (!fs.existsSync(schemaDocDir)) {
+        fs.mkdirSync(schemaDocDir, { recursive: true });
+      }
+
+      fs.writeFileSync(schemaDocPath, schemaDocContent);
+      console.log(`  ✓ ${SCHEMA_DOC_PATH}`);
     }
-
-    fs.writeFileSync(schemaDocPath, schemaDocContent);
-    console.log(`  ✓ ministryplatform.schema.md`);
 
     const zodSchemaCount = options.zodSchemas ? successfulTables : 0;
     console.log(`\n🎉 Successfully generated ${successfulTables} table types${zodSchemaCount > 0 ? ` + ${zodSchemaCount} Zod schemas` : ''} (${generatedFiles.length} total files) in ${options.outputDir}`);
@@ -716,6 +747,7 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+// Guarded so tests can import the pure generators without running main().
+if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
   main().catch(console.error);
 }

@@ -41,7 +41,7 @@ Returns the SQL datetime string MP's table API expects (`YYYY-MM-DD HH:MM:SS`).
 
 The rule: **strings with no zone marker are wall-clock**, strings/Dates with explicit zone info are instants that get converted.
 
-**Zod conflict:** generated `*Schema.ts` files type `DateTime` columns as `z.string().datetime()`, which rejects this `YYYY-MM-DD HH:MM:SS` output (verified on Zod 4.6.5). Do not pass a generated `schema` to `createTableRecords`/`updateTableRecords` for records whose datetime fields came from `toMpSqlDatetime` — it throws `MPValidationError` before the API call.
+**Zod validation:** generated `*Schema.ts` files validate `DateTime`/`Timestamp` columns with a regex that accepts this `YYYY-MM-DD HH:MM:SS` output as well as ISO forms — `^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$` (space or `T`, optional seconds/fraction, optional `Z`/offset). `Date` columns accept a bare `YYYY-MM-DD` or the same date with a time part. So passing a generated `schema` to `createTableRecords`/`updateTableRecords` is compatible with `toMpSqlDatetime`. The regex checks shape only — it does not stop an ISO-`Z` value from being sent; routing through `toMpSqlDatetime` is still what keeps the stored time right.
 
 ### `parseMpDatetime(value)` — read path arithmetic
 

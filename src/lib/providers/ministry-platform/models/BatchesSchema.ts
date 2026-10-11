@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const BatchesSchema = z.object({
   Batch_ID: z.number().int(),
   Batch_Name: z.string().max(75),
-  Setup_Date: z.string().datetime(),
+  Setup_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
   Batch_Total: z.number(),
   Item_Count: z.number().int(),
   Batch_Entry_Type_ID: z.number().int(),
@@ -11,7 +11,7 @@ export const BatchesSchema = z.object({
   Default_Program: z.number().int().nullable(),
   Source_Event: z.number().int().nullable(),
   Deposit_ID: z.number().int().nullable(),
-  Finalize_Date: z.string().datetime().nullable(),
+  Finalize_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Congregation_ID: z.number().int().nullable(),
   _Import_Counter: z.number().int().nullable(),
   _Source_File: z.string().max(50).nullable(),

@@ -9,6 +9,7 @@ export const DpRolesSchema = z.object({
   Role_Type_ID: z.number().int().nullable(),
   Parish_Assignable: z.boolean(),
   Texting_Override: z.boolean(),
+  Texting_Character_Limit: z.number().int(),
 });
 
 export type DpRolesInput = z.infer<typeof DpRolesSchema>;

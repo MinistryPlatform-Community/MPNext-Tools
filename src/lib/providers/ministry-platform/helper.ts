@@ -176,9 +176,10 @@ export class MPHelper {
    * });
    *
    * @example
-   * // Create with a datetime (no `schema`: generated Zod schemas currently reject
-   * // MP wall-clock datetimes — see .claude/TODO/2026-10-10-generated-zod-rejects-mp-datetimes.md)
+   * // Create with a datetime, validated against the generated schema
+   * // (its datetime rule accepts MP wall-clock `YYYY-MM-DD HH:MM:SS`)
    * import { DomainTimezoneService } from '@/services/domainTimezoneService';
+   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
    *
    * // MP stores datetimes as wall-clock in the domain's TZ, not UTC.
    * // Route every datetime write through DomainTimezoneService.
@@ -190,6 +191,7 @@ export class MPHelper {
    *   Made_By: 1,
    *   Notes: 'Follow-up call completed'
    * }], {
+   *   schema: ContactLogSchema,
    *   $userId: 1
    * });
    */

@@ -37,6 +37,8 @@ export interface Invoices {
    * Max length: 255 characters
    */
   Cancel_Reason?: string /* max 255 chars */ | null;
+
+  Form_Response_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Form_Responses.Form_Response_ID
 }
 
 export type InvoicesRecord = Invoices;

@@ -57,6 +57,11 @@ export interface Pledges {
   _Last_Installment_Date?: string /* ISO datetime */ | null; // Read Only, Computed
 
   Batch_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Batches.Batch_ID
+
+  /**
+   * Max length: 16 characters
+   */
+  _Vendor_Pledge_Code?: string /* max 16 chars */ | null; // Read Only
 }
 
 export type PledgesRecord = Pledges;

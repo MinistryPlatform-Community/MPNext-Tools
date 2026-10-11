@@ -45,6 +45,10 @@ export interface Forms {
   Expiring_Soon_Days?: number /* 32-bit integer */ | null;
 
   Force_Login: boolean; // Has Default
+
+  Product_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Products.Product_ID
+
+  Program_ID?: number /* 32-bit integer */ | null; // Foreign Key -> Programs.Program_ID
 }
 
 export type FormsRecord = Forms;
