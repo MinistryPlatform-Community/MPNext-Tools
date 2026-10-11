@@ -3,21 +3,21 @@ title: GroupService
 domain: services
 type: reference
 applies_to: [src/services/groupService.ts, src/services/groupService.test.ts]
-symbols: [GroupService]
-related: [query-patterns.md, ../components/group-wizard.md]
-last_verified: 2026-04-17
+symbols: [GroupService, GROUP_WRITABLE_FIELDS, GetGroupResult, GroupWizardDisplayNames]
+related: [query-patterns.md, ../components/group-wizard.md, ../ministryplatform.datetimehandling.md]
+last_verified: 2026-10-10
 ---
 
 ## Purpose
-Backs the group-wizard feature: parallel lookup-table fetch, contact/group search, and group create/update with date-string coercion and `$userId` audit.
+Backs the group-wizard feature: parallel lookup-table fetch, contact/group search, group read (with display names for FK fields), and group create/update through a column allowlist, MP-TZ date conversion and gate-sourced `$userId` audit.
 
 ## Files
-- `src/services/groupService.ts` — 252 lines
-- `src/services/groupService.test.ts` — 401 lines
+- `src/services/groupService.ts` — 405 lines
+- `src/services/groupService.test.ts` — 581 lines
 
 ## Singleton
 ```typescript
-// src/services/groupService.ts:27-45
+// src/services/groupService.ts:113-131
 export class GroupService {
   private static instance: GroupService;
   private mp: MPHelper | null = null;
@@ -27,6 +27,18 @@ export class GroupService {
 }
 ```
 
+## Authorization
+Every method calls `AuthorizationService.getInstance().requireSecurityRole(...)` first (see `../security/README.md`). Writes use its return value as `$userId` — callers never pass a user ID.
+
+| Method | Gate `table` / `operation` |
+|--------|---------------------------|
+| `fetchAllLookups` | `Groups` / `read` |
+| `searchContacts` | `Contacts` / `read` |
+| `searchGroups` | `Groups` / `read` |
+| `getGroup` | `Groups` / `read` |
+| `createGroup` | `Groups` / `create` |
+| `updateGroup` | `Groups` / `update` |
+
 ## API
 
 | Method | Returns | Notes |
@@ -34,14 +46,14 @@ export class GroupService {
 | `fetchAllLookups()` | `GroupWizardLookups` | 13 lookup tables via `Promise.all` |
 | `searchContacts(term)` | `ContactSearchResult[]` (≤20) | `escapeFilterString()`, `Display_Name LIKE '{escaped}%'` |
 | `searchGroups(term)` | `GroupSearchResult[]` (≤20) | `escapeFilterString()`, `Group_Name LIKE '{escaped}%' AND End_Date IS NULL`, FK-traverses `Group_Type` |
-| `getGroup(groupId)` | `GroupWizardFormData \| null` | `validatePositiveInt(groupId)`, strips time from ISO dates |
-| `createGroup(data, userId)` | `{ Group_ID, Group_Name }` | `prepareForApi()` coerces date strings, passes `$userId` |
-| `updateGroup(groupId, data, userId)` | `{ Group_ID, Group_Name }` | `partial: true`, `$userId` |
+| `getGroup(groupId)` | `GetGroupResult \| null` (`{ data, displayNames }`) | `validatePositiveInt(groupId)`, FK display-name joins, strips time from ISO dates |
+| `createGroup(data)` | `{ Group_ID, Group_Name }` | `prepareForApi()` allowlist + date conversion; `$userId` from gate |
+| `updateGroup(groupId, data)` | `{ Group_ID, Group_Name }` | `validatePositiveInt(groupId)`, `partial: true`, `Group_ID` written last; `$userId` from gate |
 
 ## fetchAllLookups — 13 parallel queries
 
 ```typescript
-// src/services/groupService.ts:47-149 (abridged — 13 entries)
+// src/services/groupService.ts:133-239 (abridged — 13 entries)
 const [groupTypes, ministries, congregations, meetingDays, ...] = await Promise.all([
   this.mp!.getTableRecords({ table: 'Group_Types',  select: 'Group_Type_ID, Group_Type', orderBy: 'Group_Type' }),
   this.mp!.getTableRecords({ table: 'Ministries',   select: 'Ministry_ID, Ministry_Name', filter: 'End_Date IS NULL', orderBy: 'Ministry_Name' }),
@@ -66,7 +78,7 @@ Active-only filters applied on `Ministries`, `Congregations`, `Rooms` (`Bookable
 ## searchContacts / searchGroups
 
 ```typescript
-// src/services/groupService.ts:151-171
+// src/services/groupService.ts:241-270 (gate calls omitted)
 async searchContacts(term: string): Promise<ContactSearchResult[]> {
   const escaped = escapeFilterString(term);
   return this.mp!.getTableRecords<ContactSearchResult>({
@@ -90,99 +102,110 @@ async searchGroups(term: string): Promise<GroupSearchResult[]> {
 }
 ```
 
-- `escapeFilterString()` from `src/lib/validation.ts` — escapes `'`, `%`, `_`
+- `escapeFilterString()` from `src/lib/validation.ts` — bracket-escapes `[`, `%`, `_`, doubles `'`; throws on >100 chars or control characters
 - `searchGroups` FK-traverses `Group_Type_ID_TABLE.Group_Type` to inline the type name
 
-## getGroup — date coercion on read
+## getGroup — display names + date strip on read
 
 ```typescript
-// src/services/groupService.ts:173-225 (abridged)
-async getGroup(groupId: number): Promise<GroupWizardFormData | null> {
-  const records = await this.mp!.getTableRecords<Record<string, unknown>>({
-    table: 'Groups',
-    filter: `Group_ID = ${validatePositiveInt(groupId)}`,
-    top: 1,
-  });
-  if (!records || records.length === 0) return null;
+// src/services/groupService.ts:272-363 (abridged)
+const records = await this.mp!.getTableRecords<Record<string, unknown>>({
+  table: 'Groups',
+  select: [
+    'Groups.*',
+    'Primary_Contact_TABLE.Display_Name AS Primary_Contact_Display_Name',
+    'Parent_Group_TABLE.Group_Name AS Parent_Group_Name',
+    'Promote_to_Group_TABLE.Group_Name AS Promote_to_Group_Name',
+    'Descended_From_TABLE.Group_Name AS Descended_From_Name',
+  ].join(', '),
+  filter: `Groups.Group_ID = ${validatePositiveInt(groupId)}`,
+  top: 1,
+});
+if (!records || records.length === 0) return null;
+// ...map ~40 fields into GroupWizardFormData, e.g.
+//   Start_Date: r.Start_Date ? (r.Start_Date as string).split('T')[0] : '',
+//   'Secure_Check-in': (r['Secure_Check-in'] as boolean) ?? false,
+return { data, displayNames: { contacts, groups } };
+```
 
-  const r = records[0];
-  return {
-    Group_Name: r.Group_Name as string,
-    // ...48+ fields mapped
-    Start_Date: r.Start_Date ? (r.Start_Date as string).split('T')[0] : '',
-    End_Date:   r.End_Date   ? (r.End_Date   as string).split('T')[0] : null,
-    Promotion_Date: r.Promotion_Date ? (r.Promotion_Date as string).split('T')[0] : null,
-    'Secure_Check-in': (r['Secure_Check-in'] as boolean) ?? false,
-    // ...
-  };
+- `Groups.*` / `Groups.Group_ID` are prefixed because the FK joins make bare names ambiguous.
+- `AS` aliases seed `displayNames.contacts` (`Primary_Contact`) and `displayNames.groups` (`Parent_Group`, `Promote_to_Group`, `Descended_From`) so edit mode needs no second round trip.
+- MP returns wall-clock datetimes; the form expects `YYYY-MM-DD`, so `split('T')[0]` strips the time.
+
+## createGroup / updateGroup — allowlist + MP-TZ dates on write
+
+```typescript
+// src/services/groupService.ts:88-111
+const DATE_FIELDS = ['Start_Date', 'End_Date', 'Promotion_Date'] as const;
+
+async function prepareForApi(data: Partial<GroupWizardFormData>): Promise<Record<string, unknown>> {
+  const source = data as Record<string, unknown>;
+  const picked: Record<string, unknown> = {};
+  for (const field of GROUP_WRITABLE_FIELDS) {
+    if (Object.hasOwn(source, field)) picked[field] = source[field];
+  }
+  const tz = DomainTimezoneService.getInstance();
+  for (const field of DATE_FIELDS) {
+    if (!Object.hasOwn(picked, field)) continue;
+    const value = picked[field] as string | null | undefined;
+    picked[field] = value ? await tz.toMpSqlDatetime(value) : null;
+  }
+  return picked;
 }
 ```
 
-- MP returns ISO datetimes; form expects `YYYY-MM-DD`. `split('T')[0]` strips the time.
-- `Secure_Check-in` uses bracket access — hyphen in the column name.
-
-## createGroup / updateGroup — date coercion on write
+- `GROUP_WRITABLE_FIELDS` (`src/services/groupService.ts:40-86`) — frozen allowlist of exactly the columns the wizard edits; equals the union of `STEP_FIELDS` in `src/components/group-wizard/schema.ts` (pinned by a test). Any other key (`Domain_ID`, `_Last_Attendance_Posted`, a smuggled `Group_ID`) is dropped.
+- Dates go through `DomainTimezoneService.toMpSqlDatetime` (MP-TZ wall clock) — see `../ministryplatform.datetimehandling.md`.
 
 ```typescript
-// src/services/groupService.ts:10-25
-function toDatetime(value: string | null | undefined): string | null {
-  if (!value) return null;
-  if (value.includes('T')) return value;
-  return `${value}T00:00:00Z`;
-}
-
-function prepareForApi(data: GroupWizardFormData): Record<string, unknown> {
-  return {
-    ...data,
-    Start_Date:     toDatetime(data.Start_Date),
-    End_Date:       toDatetime(data.End_Date),
-    Promotion_Date: toDatetime(data.Promotion_Date),
-  };
-}
-```
-
-```typescript
-// src/services/groupService.ts:227-251
-async createGroup(data, userId) {
-  const apiData = prepareForApi(data);
+// src/services/groupService.ts:365-404 (abridged)
+async createGroup(data: GroupWizardFormData) {
+  const $userId = await AuthorizationService.getInstance().requireSecurityRole({ table: 'Groups', operation: 'create' });
+  const apiData = await prepareForApi(data);
   const result = await this.mp!.createTableRecords('Groups', [apiData], {
     $select: 'Group_ID, Group_Name',
-    $userId: userId,
+    $userId,
   });
   return result[0] as unknown as { Group_ID: number; Group_Name: string };
 }
 
-async updateGroup(groupId, data, userId) {
-  const apiData = { Group_ID: groupId, ...prepareForApi(data as GroupWizardFormData) };
+async updateGroup(groupId: number, data: Partial<GroupWizardFormData>) {
+  const $userId = await AuthorizationService.getInstance().requireSecurityRole({ table: 'Groups', operation: 'update' });
+  validatePositiveInt(groupId);
+  const apiData = { ...(await prepareForApi(data)), Group_ID: groupId };
   const result = await this.mp!.updateTableRecords('Groups', [apiData], {
     partial: true,
     $select: 'Group_ID, Group_Name',
-    $userId: userId,
+    $userId,
   });
   return result[0] as unknown as { Group_ID: number; Group_Name: string };
 }
 ```
 
-- `$userId` — numeric MP User ID for audit. Resolve from session via `UserService.getUserIdByGuid(session.user.userGuid)`.
+- `$userId` — numeric MP `User_ID` returned by the gate; the only source of write attribution (CLAUDE.md rule 13).
+- `Group_ID` is spread **last** from the validated argument, so nothing in the payload can retarget the update.
 - `partial: true` on update — omitted fields are left untouched.
 - `$select` limits returned columns to `Group_ID, Group_Name`.
 
 ## Consumers
 
-| Action | File |
-|--------|------|
-| `fetchGroupWizardLookups` | `src/components/group-wizard/actions.ts` |
-| `searchContacts` / `searchGroups` | `src/components/group-wizard/actions.ts` |
-| `fetchGroupRecord` | `src/components/group-wizard/actions.ts` |
-| `createGroup` / `updateGroup` | `src/components/group-wizard/actions.ts` |
+All in `src/components/group-wizard/actions.ts`; each action calls `requireAccess()` (→ `requireSecurityRole`) first.
+
+| Action | Service method |
+|--------|----------------|
+| `fetchGroupWizardLookups` | `fetchAllLookups` |
+| `searchContacts` / `searchGroups` | `searchContacts` / `searchGroups` (action returns `[]` for terms < 2 chars) |
+| `fetchGroupRecord` | `getGroup` |
+| `createGroup` / `updateGroup` | `createGroup` / `updateGroup` (action Zod-parses the payload with `groupWizardSchema` first) |
 
 ## Gotchas
-- `searchContacts(term)` assumes `term.length >= 2` — the action validates that; if a service caller forgets, an empty prefix query returns everything up to `top: 20`.
+- `searchContacts(term)` assumes `term.length >= 2` — the action enforces that; if a service caller forgets, an empty prefix query returns everything up to `top: 20`.
 - `getGroup` returns `null` on "not found"; `createGroup`/`updateGroup` do not — they throw on API error.
-- All three lookup active-filters (`End_Date IS NULL` for Ministries/Congregations, `Bookable = 1` for Rooms, `Active = 1` for SMS) must stay — UI relies on active-only lists.
-- Passing `userId = session.user.id` instead of the MP User_ID produces corrupt audit rows. Always resolve via `UserService.getUserIdByGuid()`.
+- All lookup active-filters (`End_Date IS NULL` for Ministries/Congregations, `Bookable = 1` for Rooms, `Active = 1` for SMS) must stay — UI relies on active-only lists.
+- A new wizard field must go into **both** `STEP_FIELDS` and `GROUP_WRITABLE_FIELDS`; otherwise the allowlist test fails and the field is never written.
 
 ## Related docs
 - `query-patterns.md` — validation, escaping, FK traversal, `$userId`
 - `../components/group-wizard.md` — consuming UI and schema
-- `user-service.md` — `getUserIdByGuid` for `$userId` resolution
+- `../ministryplatform.datetimehandling.md` — `DomainTimezoneService` conversion rules
+- `../security/README.md` — authorization gate and write attribution

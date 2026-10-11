@@ -1,7 +1,8 @@
 import { MinistryPlatformClient } from "../client";
 import { ProcedureInfo, QueryParams } from "../types";
 import { HttpClient } from "../utils/http-client";
-import { logger } from "../utils/logger";
+import { errorName, logger } from "../utils/logger";
+import { sanitizeIdentifier } from "./guards";
 
 const DEV_PROC_PREFIX = 'api_dev_';
 
@@ -22,7 +23,7 @@ export class ProcedureService {
             const params: QueryParams | undefined = search ? { $search: search } : undefined;
             return await this.client.getHttpClient().get<ProcedureInfo[]>('/procs', params);
         } catch (error) {
-            logger.error('Error getting procedures:', error);
+            logger.error('mp.procs.list_failed', { error: errorName(error) });
             throw error;
         }
     }
@@ -36,16 +37,16 @@ export class ProcedureService {
         procedure: string,
         params?: QueryParams
     ): Promise<unknown[][]> {
+        // Validated before any token or network work; the name is then safe to log.
+        const name = sanitizeIdentifier(procedure, 'procedure name');
+        const endpoint = `/procs/${encodeURIComponent(name)}`;
         try {
-            const http = await this.resolveHttpClient(procedure);
-
-
-            const endpoint = `/procs/${encodeURIComponent(procedure)}`;
+            const http = await this.resolveHttpClient(name);
             const data = await http.get<unknown[][]>(endpoint, params);
 
             return data;
         } catch (error) {
-            logger.error(`Error executing procedure ${procedure}:`, error);
+            logger.error('mp.procs.execute_failed', { procedure: name, error: errorName(error) });
             throw error;
         }
     }
@@ -64,16 +65,16 @@ export class ProcedureService {
         parameters: Record<string, unknown>,
         queryParams?: QueryParams
     ): Promise<unknown[][]> {
+        // Validated before any token or network work; the name is then safe to log.
+        const name = sanitizeIdentifier(procedure, 'procedure name');
+        const endpoint = `/procs/${encodeURIComponent(name)}`;
         try {
-            const http = await this.resolveHttpClient(procedure);
-
-
-            const endpoint = `/procs/${encodeURIComponent(procedure)}`;
+            const http = await this.resolveHttpClient(name);
             const data = await http.post<unknown[][]>(endpoint, parameters, queryParams);
 
             return data;
         } catch (error) {
-            logger.error(`Error executing procedure ${procedure}:`, error);
+            logger.error('mp.procs.execute_failed', { procedure: name, error: errorName(error) });
             throw error;
         }
     }
@@ -95,5 +96,5 @@ export class ProcedureService {
 }
 
 function isDevProcedure(procedure: string): boolean {
-    return procedure.trim().toLowerCase().startsWith(DEV_PROC_PREFIX);
+    return procedure.toLowerCase().startsWith(DEV_PROC_PREFIX);
 }

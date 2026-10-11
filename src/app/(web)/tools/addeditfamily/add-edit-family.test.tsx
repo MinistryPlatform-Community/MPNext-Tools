@@ -305,13 +305,7 @@ describe("AddEditFamily — search bar", () => {
     expect(await screen.findByDisplayValue("Jones")).toBeInTheDocument();
   });
 
-  it("finds no CommandEmpty text when the search returns nothing (see TODO: cmdk always counts the '+ New Family' item)", async () => {
-    // NOTE: the source renders <CommandEmpty>No contacts found.</CommandEmpty>
-    // whenever query.length >= 2 && results.length === 0, but cmdk's
-    // CommandEmpty only paints when its *global* registered-item count is 0.
-    // The "+ New Family" CommandItem is always registered once the query is
-    // >= 2 chars, so that count is never 0 and this message never renders.
-    // See .claude/TODO/2026-09-13-search-empty-state-never-renders.md
+  it("shows 'No contacts found.' alongside the new-family option when the search returns nothing", async () => {
     const user = userEvent.setup();
     mockSearchContacts.mockResolvedValue([]);
     setup();
@@ -319,8 +313,25 @@ describe("AddEditFamily — search bar", () => {
     await user.click(screen.getByRole("combobox", { name: "" }));
     await user.type(screen.getByPlaceholderText("Type a name…"), "zz");
     await waitFor(() => expect(mockSearchContacts).toHaveBeenCalledWith("zz"));
+    expect(await screen.findByText("No contacts found.")).toBeInTheDocument();
+    expect(screen.getByText(/\+ New Family with last name/)).toBeInTheDocument();
+  });
+
+  it("does not claim 'No contacts found.' before the debounced search for the current term has run", async () => {
+    const user = userEvent.setup();
+    mockSearchContacts.mockResolvedValue([]);
+    setup();
+    await screen.findByText(/Search to find an existing household/i);
+    await user.click(screen.getByRole("combobox", { name: "" }));
+    const input = screen.getByPlaceholderText("Type a name…");
+    await user.type(input, "zz");
+    expect(await screen.findByText("No contacts found.")).toBeInTheDocument();
+
+    // A new term invalidates the previous answer until it has been searched.
+    await user.type(input, "y");
     expect(screen.queryByText("No contacts found.")).not.toBeInTheDocument();
-    expect(await screen.findByText(/\+ New Family with last name/)).toBeInTheDocument();
+    await waitFor(() => expect(mockSearchContacts).toHaveBeenCalledWith("zzy"));
+    expect(await screen.findByText("No contacts found.")).toBeInTheDocument();
   });
 
   it("clears results silently when the search action throws", async () => {
@@ -331,8 +342,9 @@ describe("AddEditFamily — search bar", () => {
     await user.click(screen.getByRole("combobox", { name: "" }));
     await user.type(screen.getByPlaceholderText("Type a name…"), "zz");
     await waitFor(() => expect(mockSearchContacts).toHaveBeenCalledWith("zz"));
-    // No crash, and no stale results rendered.
+    // No crash, no stale results rendered, and no false "not found" claim.
     expect(screen.queryByText("Existing households")).not.toBeInTheDocument();
+    expect(screen.queryByText("No contacts found.")).not.toBeInTheDocument();
   });
 
   it("creates a new family from the search box", async () => {

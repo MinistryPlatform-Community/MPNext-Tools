@@ -8,18 +8,22 @@ applies_to:
   - src/components/layout/index.ts
   - src/components/shared-actions/user.ts
   - src/components/shared-actions/user.test.ts
+  - src/components/shared-actions/sign-out.ts
+  - src/components/shared-actions/sign-out.test.ts
+  - src/components/shared-actions/domain.ts
+  - src/components/shared-actions/domain.test.ts
   - src/components/shared-actions/README.md
-symbols: [AuthWrapper, getCurrentUserProfile]
+symbols: [AuthWrapper, getCurrentUserProfile, getMpTimezone, handleSignOut]
 related:
   - ../auth/README.md
   - ../routing/README.md
   - ../services/README.md
   - tool-framework.md
-last_verified: 2026-09-13
+last_verified: 2026-10-10
 ---
 
 ## Purpose
-`AuthWrapper` is the server-side session gate used at the app-shell level; it redirects unauthenticated requests to `/signin` while preserving the original path+query as `callbackUrl`. `shared-actions/` holds server actions used across multiple features (currently just `getCurrentUserProfile`).
+`AuthWrapper` is the server-side session gate used at the app-shell level; it redirects unauthenticated requests to `/signin` while preserving the original path+query as `callbackUrl`. `shared-actions/` holds server actions used across multiple features (`getCurrentUserProfile`, `getMpTimezone` in `domain.ts`, and `handleSignOut`).
 
 ## Files
 - `src/components/layout/auth-wrapper.tsx` — server component, 31 lines
@@ -27,6 +31,10 @@ last_verified: 2026-09-13
 - `src/components/layout/index.ts` — barrel: `AuthWrapper`
 - `src/components/shared-actions/user.ts` — `getCurrentUserProfile` server action
 - `src/components/shared-actions/user.test.ts` — unit tests for the action
+- `src/components/shared-actions/sign-out.ts` — `handleSignOut` server action (see `../auth/oauth-flow.md` § Sign-out flow); bound to the sign-out `<form action>` on `/no-access` and `/session-error`, the app's only sign-out controls
+- `src/components/shared-actions/sign-out.test.ts` — end-session URL / `id_token_hint` / env-guard tests
+- `src/components/shared-actions/domain.ts` — `getMpTimezone` server action (session-only carve-out; see source docstring)
+- `src/components/shared-actions/domain.test.ts` — unit tests for the action
 - `src/components/shared-actions/README.md` — when-to-shard-vs-colocate guidelines
 
 ## Key concepts
@@ -34,7 +42,7 @@ last_verified: 2026-09-13
 - Session validation is stateless: `auth.api.getSession({ headers })` reads the Better Auth JWT cookie (see `../auth/README.md`).
 - Redirect uses a synthetic `http://placeholder` base so we can use `URL` + `searchParams` to build the querystring safely without string concat.
 - The `x-pathname` header is set upstream by the proxy (`src/proxy.ts`) so the server component can see the original requested URL; it falls back to `/` when absent.
-- `shared-actions/user.ts` is marked `'use server'` at the top of the file — all exports are server actions.
+- `user.ts`, `domain.ts` and `sign-out.ts` are each marked `'use server'` at the top of the file — all exports are server actions.
 - Shared actions re-validate auth inside each action (`auth.api.getSession(...)`) — they do not trust the caller.
 - `getCurrentUserProfile` takes **no parameters**. The MP `User_GUID` is derived from the session inside the action. A caller-supplied GUID would be a live IDOR: server actions are caller-shaped POST endpoints, so any authenticated MP user could have read another user's contact details, roles, and user groups.
 - The guard keys on a non-empty-string `session.user.userGuid` (declared `required: true` in `src/lib/auth.ts`), not `session.user.id` — the latter is Better Auth's internal ID and its presence does not prove an MP identity exists.
@@ -123,7 +131,9 @@ export async function getCurrentUserProfile(): Promise<MPUserProfile | undefined
 ## Shared Actions catalog
 | Export | File | Purpose |
 |---|---|---|
-| `getCurrentUserProfile()` | `src/components/shared-actions/user.ts:25` | Fetch the **calling** user's MP profile (`MPUserProfile`); `User_GUID` comes from the session, never from a parameter. Throws `Unauthorized` if the session has no `userGuid`. Backed by `UserService.getUserProfile`. |
+| `getCurrentUserProfile()` | `src/components/shared-actions/user.ts:25` | Fetch the **calling** user's MP profile (`MPUserProfile`); `User_GUID` comes from the session, never from a parameter. Throws `Unauthorized` if the session has no `userGuid`. Backed by `UserService.getUserProfile`. Consumer: `src/contexts/user-context.tsx`. |
+| `getMpTimezone()` | `src/components/shared-actions/domain.ts:29` | IANA time zone of the MP domain. Requires a session (`session.user.id`), throws `Authentication required` otherwise; deliberately not role-gated (rule-12 carve-out). Backed by `DomainTimezoneService`. Consumer: `src/app/(web)/tools/groupwizard/page.tsx`. |
+| `handleSignOut()` | `src/components/shared-actions/sign-out.ts:50` | `auth.api.signOut` first, then `redirect()` to MP `/oauth/connect/endsession` with `post_logout_redirect_uri` + `client_id` (+ `id_token_hint` only from an MP-origin logout URL). Consumers: `src/app/(web)/no-access/page.tsx`, `src/app/session-error/page.tsx`. |
 
 Guidelines (verbatim from `src/components/shared-actions/README.md`):
 - Place actions here when they are **used by multiple components across different features**, provide **shared utility**, or handle **cross-cutting concerns**.
@@ -144,14 +154,16 @@ Guidelines (verbatim from `src/components/shared-actions/README.md`):
   - throws `Unauthorized` when `userGuid` is an empty string
   - throws `Unauthorized` when `auth.api.getSession()` returns `null`
   - propagates service-layer errors
+- `src/components/shared-actions/domain.test.ts` — 6 cases (session required, service delegation, error propagation)
+- `src/components/shared-actions/sign-out.test.ts` — 13 cases (9 `it` + one 4-row `it.each`): session cleared first, end-session URL shape, MP-origin-only `id_token_hint`, env guards (missing/non-https MP URL, missing auth URL, missing client secret), `NEXTAUTH_URL` fallback, trailing-slash normalization
 
-Both test files use `vi.hoisted()` to share mock references (required pattern — see `../testing/README.md`).
+All four test files use `vi.hoisted()` to share mock references (required pattern — see `../testing/README.md`).
 
 ## Gotchas
 - **Must stay a server component.** Adding `"use client"` to `auth-wrapper.tsx` silently breaks auth — client components cannot call `auth.api.getSession()` with server headers. Put any interactive state into a child that you render from inside `<AuthWrapper>`.
 - **`redirect()` throws.** `next/navigation` `redirect()` aborts rendering by throwing a magic error. Do not wrap in try/catch; do not add code after the redirect call expecting it to run on the unauthenticated branch.
 - **`callbackUrl` relies on `x-pathname`.** If a route bypasses the proxy (or a future proxy matcher excludes it), `x-pathname` will be missing and unauthenticated users land on `/` after sign-in. Verify proxy matcher coverage in `src/proxy.ts` when adding new protected routes.
-- **Shared actions must re-validate auth.** `getCurrentUserProfile` calls `auth.api.getSession()` itself rather than trusting caller context. Any new action added here must do the same (see `../auth/README.md` for session access patterns).
+- **Shared actions must re-validate auth.** `getCurrentUserProfile` and `getMpTimezone` call `auth.api.getSession()` themselves rather than trusting caller context. Any new action added here must do the same (see `../auth/README.md` for session access patterns).
 - **Never re-add an identity parameter.** `getCurrentUserProfile` is a CLAUDE.md rule-12 carve-out from the `AuthorizationService` gate on the grounds that it returns only the caller's own profile. That justification holds only because there is no GUID argument to forge; adding one re-opens the IDOR.
 
 ## Related docs

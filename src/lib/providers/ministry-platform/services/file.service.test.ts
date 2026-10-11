@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { FileService } from '@/lib/providers/ministry-platform/services/file.service';
+import { FILE_CONTENT_TIMEOUT_MS, FileService } from '@/lib/providers/ministry-platform/services/file.service';
 import type { MinistryPlatformClient } from '@/lib/providers/ministry-platform/client';
 import type { HttpClient } from '@/lib/providers/ministry-platform/utils/http-client';
 
@@ -247,10 +247,14 @@ describe('FileService', () => {
         blob: async () => blob,
       }) as any;
 
-      const result = await service.getFileContentByUniqueId('abc');
+      const result = await service.getFileContentByUniqueId('0f8fad5b-d9cb-469f-a165-70867728950e');
 
-      expect(mockHttpClient.buildUrl).toHaveBeenCalledWith('/files/abc', {});
-      expect(global.fetch).toHaveBeenCalledWith('https://example.com/files/abc', { method: 'GET' });
+      expect(mockHttpClient.buildUrl).toHaveBeenCalledWith('/files/0f8fad5b-d9cb-469f-a165-70867728950e', {});
+      expect(global.fetch).toHaveBeenCalledWith('https://example.com/files/abc', {
+        method: 'GET',
+        signal: expect.any(AbortSignal),
+        redirect: 'error',
+      });
       expect(result).toBe(blob);
     });
 
@@ -261,9 +265,9 @@ describe('FileService', () => {
         blob: async () => new Blob(),
       }) as any;
 
-      await service.getFileContentByUniqueId('abc', true);
+      await service.getFileContentByUniqueId('0f8fad5b-d9cb-469f-a165-70867728950e', true);
 
-      expect(mockHttpClient.buildUrl).toHaveBeenCalledWith('/files/abc', { $thumbnail: 'true' });
+      expect(mockHttpClient.buildUrl).toHaveBeenCalledWith('/files/0f8fad5b-d9cb-469f-a165-70867728950e', { $thumbnail: 'true' });
     });
 
     it('should pass $thumbnail=false', async () => {
@@ -273,9 +277,9 @@ describe('FileService', () => {
         blob: async () => new Blob(),
       }) as any;
 
-      await service.getFileContentByUniqueId('abc', false);
+      await service.getFileContentByUniqueId('0f8fad5b-d9cb-469f-a165-70867728950e', false);
 
-      expect(mockHttpClient.buildUrl).toHaveBeenCalledWith('/files/abc', { $thumbnail: 'false' });
+      expect(mockHttpClient.buildUrl).toHaveBeenCalledWith('/files/0f8fad5b-d9cb-469f-a165-70867728950e', { $thumbnail: 'false' });
     });
 
     it('should not call ensureValidToken', async () => {
@@ -285,7 +289,7 @@ describe('FileService', () => {
         blob: async () => new Blob(),
       }) as any;
 
-      await service.getFileContentByUniqueId('abc');
+      await service.getFileContentByUniqueId('0f8fad5b-d9cb-469f-a165-70867728950e');
 
       expect(mockClient.ensureValidToken).not.toHaveBeenCalled();
     });
@@ -298,8 +302,8 @@ describe('FileService', () => {
         statusText: 'Not Found',
       }) as any;
 
-      await expect(service.getFileContentByUniqueId('abc')).rejects.toThrow(
-        'GET /files/abc failed: 404 Not Found'
+      await expect(service.getFileContentByUniqueId('0f8fad5b-d9cb-469f-a165-70867728950e')).rejects.toThrow(
+        'GET /files/{uniqueId} failed: 404 Not Found'
       );
     });
   });
@@ -328,17 +332,115 @@ describe('FileService', () => {
       const meta = { FileId: 1, FileName: 'doc.pdf' };
       (mockHttpClient.get as any).mockResolvedValueOnce(meta);
 
-      const result = await service.getFileMetadataByUniqueId('abc-123');
+      const result = await service.getFileMetadataByUniqueId('0f8fad5b-d9cb-469f-a165-70867728950e');
 
       expect(mockClient.ensureValidToken).toHaveBeenCalledTimes(1);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/files/abc-123/metadata');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/files/0f8fad5b-d9cb-469f-a165-70867728950e/metadata');
       expect(result).toEqual(meta);
     });
 
     it('should propagate errors', async () => {
       (mockHttpClient.get as any).mockRejectedValueOnce(new Error('404 Not Found'));
 
-      await expect(service.getFileMetadataByUniqueId('abc')).rejects.toThrow('404 Not Found');
+      await expect(service.getFileMetadataByUniqueId('0f8fad5b-d9cb-469f-a165-70867728950e')).rejects.toThrow('404 Not Found');
     });
+  });
+});
+
+describe('FileService - path and ID guards', () => {
+  let service: FileService;
+  let mockClient: MinistryPlatformClient;
+  let mockHttpClient: HttpClient;
+  const GUID = '0f8fad5b-d9cb-469f-a165-70867728950e';
+
+  beforeEach(() => {
+    mockHttpClient = {
+      get: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue(undefined),
+      buildUrl: vi.fn().mockReturnValue('https://example.com/files/x'),
+      postFormData: vi.fn().mockResolvedValue([]),
+      putFormData: vi.fn().mockResolvedValue({}),
+    } as unknown as HttpClient;
+    mockClient = {
+      ensureValidToken: vi.fn().mockResolvedValue(undefined),
+      getHttpClient: vi.fn().mockReturnValue(mockHttpClient),
+    } as unknown as MinistryPlatformClient;
+    service = new FileService(mockClient);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function expectNothingSent() {
+    expect(mockClient.ensureValidToken).not.toHaveBeenCalled();
+    expect(mockHttpClient.get).not.toHaveBeenCalled();
+    expect(mockHttpClient.delete).not.toHaveBeenCalled();
+    expect(mockHttpClient.postFormData).not.toHaveBeenCalled();
+    expect(mockHttpClient.putFormData).not.toHaveBeenCalled();
+    expect(mockHttpClient.buildUrl).not.toHaveBeenCalled();
+  }
+
+  it.each(['..', '../tables/Contacts', 'Contacts/1', '%2e%2e'])(
+    'should refuse the table name %j',
+    async (table) => {
+      await expect(service.getFilesByRecord(table, 1)).rejects.toThrow(/^Invalid table name$/);
+      await expect(service.uploadFiles(table, 1, [])).rejects.toThrow(/^Invalid table name$/);
+      expectNothingSent();
+    }
+  );
+
+  it.each([['a traversal', '1/../../tables/Contacts'], ['zero', 0], ['a fraction', 1.5]])(
+    'should refuse %s as a record or file ID',
+    async (_label, id) => {
+      const bad = id as unknown as number;
+      await expect(service.getFilesByRecord('Contacts', bad)).rejects.toThrow(/^Expected positive integer for record ID$/);
+      await expect(service.uploadFiles('Contacts', bad, [])).rejects.toThrow(/^Expected positive integer for record ID$/);
+      await expect(service.updateFile(bad)).rejects.toThrow(/^Expected positive integer for file ID$/);
+      await expect(service.deleteFile(bad)).rejects.toThrow(/^Expected positive integer for file ID$/);
+      await expect(service.getFileMetadata(bad)).rejects.toThrow(/^Expected positive integer for file ID$/);
+      expectNothingSent();
+    }
+  );
+
+  it.each(['abc', '..', `${GUID}/../../tables/Contacts`, `${GUID}?x=1`])(
+    'should refuse the unique ID %j',
+    async (uniqueId) => {
+      await expect(service.getFileContentByUniqueId(uniqueId)).rejects.toThrow(/^Invalid GUID format$/);
+      await expect(service.getFileMetadataByUniqueId(uniqueId)).rejects.toThrow(/^Invalid GUID format$/);
+      expectNothingSent();
+    }
+  );
+
+  it('should keep the unique ID (a download capability) out of logs and messages on a failed download', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' }));
+
+    const err = await service.getFileContentByUniqueId(GUID).catch((e: Error) => e);
+
+    expect((err as Error).message).toBe('GET /files/{uniqueId} failed: 404 Not Found');
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(GUID);
+    expect(errorSpy).toHaveBeenCalledWith('[MP]', 'mp.files.get_content_failed', { error: 'Error' });
+  });
+
+  it('should give the unauthenticated download its own deadline and refuse redirects', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob([]) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await service.getFileContentByUniqueId(GUID);
+
+    expect(timeoutSpy).toHaveBeenCalledWith(FILE_CONTENT_TIMEOUT_MS);
+    expect(fetchMock.mock.calls[0][1].redirect).toBe('error');
+  });
+
+  it('should report a download timeout by name only', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException(`timed out ${GUID}`, 'TimeoutError')));
+
+    await expect(service.getFileContentByUniqueId(GUID)).rejects.toThrow();
+
+    expect(errorSpy).toHaveBeenCalledWith('[MP]', 'mp.files.get_content_failed', { error: 'TimeoutError' });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(GUID);
   });
 });

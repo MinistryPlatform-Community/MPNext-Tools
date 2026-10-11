@@ -41,6 +41,12 @@ vi.mock("./add-edit-family", () => ({
   ),
 }));
 
+const mockRequireToolAccess = vi.hoisted(() => vi.fn(async () => 42));
+
+vi.mock('@/app/(web)/tools/require-tool-access', () => ({
+  requireToolAccess: mockRequireToolAccess,
+}));
+
 import AddEditFamilyPage, { generateMetadata } from "./page";
 
 function searchParamsOf(obj: Record<string, string | string[] | undefined>) {
@@ -191,5 +197,20 @@ describe("AddEditFamilyPage", () => {
 
   it("generateMetadata returns the tool title", async () => {
     await expect(generateMetadata()).resolves.toEqual({ title: "Add/Edit Family" });
+  });
+});
+
+describe('AddEditFamilyPage self-gate', () => {
+  it('gates before parsing params and renders nothing when refused', async () => {
+    // Adversarial: the tools layout's redirect does not stop a page segment
+    // rendering in Next 16, so the page itself must refuse.
+    mockParseToolParams.mockClear();
+    mockRequireToolAccess.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/no-access'));
+
+    await expect(AddEditFamilyPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+      'NEXT_REDIRECT:/no-access',
+    );
+    expect(mockRequireToolAccess).toHaveBeenCalledWith({ table: 'Contacts', operation: 'read' });
+    expect(mockParseToolParams).not.toHaveBeenCalled();
   });
 });

@@ -8,9 +8,9 @@ import { Loader2, Download, Upload, FileText } from 'lucide-react';
 import { AddressLabelsSummary } from './address-labels-summary';
 import { generateSampleTemplate } from './sample-template';
 import { mergeTemplate } from './actions';
+import { MAX_TEMPLATE_BYTES, MAX_TEMPLATE_LABEL } from './limits';
 import type { LabelData, SkipRecord, LabelConfig } from '@/lib/dto';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 interface MailMergeTabProps {
   printable: LabelData[];
@@ -88,8 +88,8 @@ export function MailMergeTab({ printable, skipped, config }: MailMergeTabProps) 
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      setError('Template file must be under 5MB');
+    if (file.size > MAX_TEMPLATE_BYTES) {
+      setError(`Template file must be under ${MAX_TEMPLATE_LABEL}`);
       return;
     }
 
@@ -154,7 +154,7 @@ export function MailMergeTab({ printable, skipped, config }: MailMergeTabProps) 
           </Button>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="template-upload">Upload your template (.docx, max 5MB)</Label>
+          <Label htmlFor="template-upload">Upload your template (.docx, max {MAX_TEMPLATE_LABEL})</Label>
           <Input
             id="template-upload"
             type="file"

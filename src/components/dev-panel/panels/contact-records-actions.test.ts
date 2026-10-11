@@ -34,10 +34,10 @@ describe('resolveContactRecords', () => {
     };
     mockResolveContactIds.mockResolvedValueOnce(expected);
 
-    const result = await resolveContactRecords('Contacts', 'Contact_ID', 'Contact_ID', [1, 2, 3]);
+    const result = await resolveContactRecords(7, [1, 2, 3]);
 
     expect(mockRequireDevSession).toHaveBeenCalledWith('Dev panel');
-    expect(mockResolveContactIds).toHaveBeenCalledWith('Contacts', 'Contact_ID', 'Contact_ID', [1, 2, 3]);
+    expect(mockResolveContactIds).toHaveBeenCalledWith(7, [1, 2, 3]);
     expect(result).toEqual(expected);
   });
 
@@ -45,7 +45,7 @@ describe('resolveContactRecords', () => {
     mockRequireDevSession.mockRejectedValueOnce(new Error('Unauthorized - Missing user session data'));
 
     await expect(
-      resolveContactRecords('Contacts', 'Contact_ID', 'Contact_ID', [1])
+      resolveContactRecords(7, [1])
     ).rejects.toThrow('Unauthorized - Missing user session data');
     expect(mockResolveContactIds).not.toHaveBeenCalled();
   });
@@ -54,7 +54,7 @@ describe('resolveContactRecords', () => {
     mockResolveContactIds.mockRejectedValueOnce(new Error('Not authorized'));
 
     await expect(
-      resolveContactRecords('Contacts', 'Contact_ID', 'Contact_ID', [1])
+      resolveContactRecords(7, [1])
     ).rejects.toThrow('Not authorized');
   });
 });

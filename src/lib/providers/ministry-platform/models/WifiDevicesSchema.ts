@@ -8,7 +8,7 @@ export const WifiDevicesSchema = z.object({
   Last_Name: z.string().max(50).nullable(),
   Email_Address: z.string().email().max(254).nullable(),
   Mobile_Phone: z.string().nullable(),
-  Start_Date: z.string().datetime(),
+  Start_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
 });
 
 export type WifiDevicesInput = z.infer<typeof WifiDevicesSchema>;

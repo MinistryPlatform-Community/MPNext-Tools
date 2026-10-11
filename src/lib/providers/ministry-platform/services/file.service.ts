@@ -1,6 +1,33 @@
 import { MinistryPlatformClient } from "../client";
 import { FileDescription, FileUpdateParams, FileUploadParams } from "../types";
 import { logger } from "../utils/logger";
+import { errorName, sanitizeIdentifier, sanitizeRecordId, sanitizeUniqueId } from "./guards";
+
+/**
+ * Timeout for the one fetch this service makes itself (the public file-content
+ * download). Every other call goes through HttpClient.
+ */
+export const FILE_CONTENT_TIMEOUT_MS = 20_000;
+
+/*
+ * Path segments for the `/files` endpoints. Each value is validated for its
+ * shape (identifier / positive integer / GUID) and then encoded, so a caller
+ * cannot aim the service bearer at another MP path with `..`, `/`, `?` or `#`.
+ * They run before any token or network work, and throw a fixed message that
+ * never echoes the input. File unique IDs are download capabilities (MP serves
+ * `/files/{uniqueId}` unauthenticated), so they never reach a log or message.
+ */
+function tableSegment(table: unknown): string {
+    return encodeURIComponent(sanitizeIdentifier(table, 'table name'));
+}
+
+function idSegment(id: unknown, field: string): string {
+    return encodeURIComponent(String(sanitizeRecordId(id, field)));
+}
+
+function guidSegment(uniqueFileId: unknown): string {
+    return encodeURIComponent(sanitizeUniqueId(uniqueFileId));
+}
 
 export class FileService {
     private client: MinistryPlatformClient;
@@ -17,6 +44,7 @@ export class FileService {
         recordId: number,
         defaultOnly?: boolean
     ): Promise<FileDescription[]> {
+        const endpoint = `/files/${tableSegment(table)}/${idSegment(recordId, 'record ID')}`;
         try {
             await this.client.ensureValidToken();
 
@@ -26,11 +54,11 @@ export class FileService {
             }
 
             return await this.client.getHttpClient().get<FileDescription[]>(
-                `/files/${table}/${recordId}`,
+                endpoint,
                 queryParams
             );
         } catch (error) {
-            logger.error('Error getting files by record:', error);
+            logger.error('mp.files.get_by_record_failed', { table, error: errorName(error) });
             throw error;
         }
     }
@@ -44,6 +72,7 @@ export class FileService {
         files: File[],
         params?: FileUploadParams
     ): Promise<FileDescription[]> {
+        const endpoint = `/files/${tableSegment(table)}/${idSegment(recordId, 'record ID')}`;
         try {
             await this.client.ensureValidToken();
 
@@ -71,12 +100,12 @@ export class FileService {
             if (params?.userId) queryParams['$userId'] = params.userId.toString();
 
             return await this.client.getHttpClient().postFormData<FileDescription[]>(
-                `/files/${table}/${recordId}`,
+                endpoint,
                 formData,
                 queryParams
             );
         } catch (error) {
-            logger.error('Error uploading files:', error);
+            logger.error('mp.files.upload_failed', { table, count: files.length, error: errorName(error) });
             throw error;
         }
     }
@@ -89,6 +118,7 @@ export class FileService {
         file?: File,
         params?: FileUpdateParams
     ): Promise<FileDescription> {
+        const endpoint = `/files/${idSegment(fileId, 'file ID')}`;
         try {
             await this.client.ensureValidToken();
 
@@ -120,12 +150,12 @@ export class FileService {
             if (params?.userId) queryParams['$userId'] = params.userId.toString();
 
             return await this.client.getHttpClient().putFormData<FileDescription>(
-                `/files/${fileId}`,
+                endpoint,
                 formData,
                 queryParams
             );
         } catch (error) {
-            logger.error('Error updating file:', error);
+            logger.error('mp.files.update_failed', { error: errorName(error) });
             throw error;
         }
     }
@@ -137,6 +167,7 @@ export class FileService {
         fileId: number,
         userId?: number
     ): Promise<void> {
+        const endpoint = `/files/${idSegment(fileId, 'file ID')}`;
         try {
             await this.client.ensureValidToken();
 
@@ -145,9 +176,9 @@ export class FileService {
                 queryParams['$userId'] = userId.toString();
             }
 
-            await this.client.getHttpClient().delete<void>(`/files/${fileId}`, queryParams);
+            await this.client.getHttpClient().delete<void>(endpoint, queryParams);
         } catch (error) {
-            logger.error('Error deleting file:', error);
+            logger.error('mp.files.delete_failed', { error: errorName(error) });
             throw error;
         }
     }
@@ -160,26 +191,31 @@ export class FileService {
         uniqueFileId: string,
         thumbnail?: boolean
     ): Promise<Blob> {
+        const endpoint = `/files/${guidSegment(uniqueFileId)}`;
         try {
             const queryParams: Record<string, string> = {};
             if (thumbnail !== undefined) {
                 queryParams['$thumbnail'] = thumbnail.toString();
             }
 
-            const url = this.client.getHttpClient().buildUrl(`/files/${uniqueFileId}`, queryParams);
+            const url = this.client.getHttpClient().buildUrl(endpoint, queryParams);
             
             const response = await fetch(url, {
-                method: 'GET'
-                // No authorization header needed for this endpoint
+                method: 'GET',
+                // No authorization header needed for this endpoint. A stalled MP
+                // must not hold the request for undici's 300 s default, and the
+                // MP API has no legitimate redirects.
+                signal: AbortSignal.timeout(FILE_CONTENT_TIMEOUT_MS),
+                redirect: 'error',
             });
 
             if (!response.ok) {
-                throw new Error(`GET /files/${uniqueFileId} failed: ${response.status} ${response.statusText}`);
+                throw new Error(`GET /files/{uniqueId} failed: ${response.status} ${response.statusText}`);
             }
 
             return await response.blob();
         } catch (error) {
-            logger.error('Error getting file content by unique ID:', error);
+            logger.error('mp.files.get_content_failed', { error: errorName(error) });
             throw error;
         }
     }
@@ -188,12 +224,13 @@ export class FileService {
      * Returns the file metadata (description) corresponding to provided database identifier.
      */
     public async getFileMetadata(fileId: number): Promise<FileDescription> {
+        const endpoint = `/files/${idSegment(fileId, 'file ID')}/metadata`;
         try {
             await this.client.ensureValidToken();
 
-            return await this.client.getHttpClient().get<FileDescription>(`/files/${fileId}/metadata`);
+            return await this.client.getHttpClient().get<FileDescription>(endpoint);
         } catch (error) {
-            logger.error('Error getting file metadata:', error);
+            logger.error('mp.files.get_metadata_failed', { error: errorName(error) });
             throw error;
         }
     }
@@ -202,12 +239,13 @@ export class FileService {
      * Returns the file metadata (description) corresponding to provided globally unique identifier.
      */
     public async getFileMetadataByUniqueId(uniqueFileId: string): Promise<FileDescription> {
+        const endpoint = `/files/${guidSegment(uniqueFileId)}/metadata`;
         try {
             await this.client.ensureValidToken();
 
-            return await this.client.getHttpClient().get<FileDescription>(`/files/${uniqueFileId}/metadata`);
+            return await this.client.getHttpClient().get<FileDescription>(endpoint);
         } catch (error) {
-            logger.error('Error getting file metadata by unique ID:', error);
+            logger.error('mp.files.get_metadata_by_unique_id_failed', { error: errorName(error) });
             throw error;
         }
     }

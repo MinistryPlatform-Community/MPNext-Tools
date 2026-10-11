@@ -11,19 +11,19 @@ Auto-generated catalogs of Ministry Platform tables and stored procedures, plus 
 
 | File | Purpose | When to read |
 |------|---------|--------------|
-| `tables.md` | 301 MP tables with PKs, FKs, access levels (auto-generated) | Looking up a table name, PK, or FK relationship before writing a query |
-| `stored-procs.md` | 532 MP stored procedures with parameter signatures (auto-generated) | Verifying a proc name, its parameters, or bounded string sizes |
-| `required-procs.md` | The 7 procs the app actively calls via `ToolService` + `FieldManagementService` + infrastructure docs | Working on `ToolService`, `FieldManagementService`, page/selection lookups, or user tool routing |
-| `data-model-map.md` | Map from MP schema → which tables, FK traversals, and procs the app actually queries (19 hot tables, 7 procs) | Understanding data access footprint or impact of schema changes |
+| `tables.md` | 307 MP tables with PKs, FKs, access levels (auto-generated) | Looking up a table name, PK, or FK relationship before writing a query |
+| `stored-procs.md` | 539 MP stored procedures with parameter signatures (auto-generated) | Verifying a proc name, its parameters, or bounded string sizes |
+| `required-procs.md` | The 7 procs the app actively calls via `ToolService` + `FieldManagementService`, plus the installed-but-uncalled procs in `db/` | Working on `ToolService`, `FieldManagementService`, page/selection lookups, or user tool routing |
+| `data-model-map.md` | Map from MP schema → which tables, FK traversals, and procs the app actually queries (34 tables, 7 procs) | Understanding data access footprint or impact of schema changes |
 
 ## Regeneration commands
 
 | Output | Command | Generator |
 |---|---|---|
-| `tables.md` content | `npm run mp:generate:models` | `src/lib/providers/ministry-platform/scripts/generate-types.ts` (runs with `--clean --zod`, emits `.ts` + `Schema.ts` under `src/lib/providers/ministry-platform/models/`) |
-| `stored-procs.md` content | `npm run mp:generate:storedprocs` | `src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts` |
+| `tables.md` | `npm run mp:generate:models` | `src/lib/providers/ministry-platform/scripts/generate-types.ts` (runs with `--clean --zod`, emits `.ts` + `Schema.ts` under `src/lib/providers/ministry-platform/models/`, and writes `tables.md` directly — skipped on a `--search` run) |
+| `stored-procs.md` | `npm run mp:generate:storedprocs` | `src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts` (writes `stored-procs.md` directly; `-o` overrides, and a `-s` run requires `-o`) |
 
-The auto-generated markdown in `tables.md` and `stored-procs.md` is a snapshot — rerun the generator when MP schema drifts.
+Both generators write the whole file, frontmatter included, with `last_verified` set to the generation date — do not hand-edit them; regenerate instead. Last regenerated from the live MP instance on 2026-10-11.
 
 ## Code surfaces
 
@@ -32,7 +32,7 @@ The auto-generated markdown in `tables.md` and `stored-procs.md` is a snapshot �
 | `src/lib/providers/ministry-platform/models/` | Generated TS types + Zod schemas for all MP tables |
 | `src/lib/providers/ministry-platform/services/procedure.service.ts` | HTTP client for `/procs/{name}` |
 | `src/lib/providers/ministry-platform/helper.ts` | `MPHelper` facade (`executeProcedure`, `executeProcedureWithBody`, `getTableRecords`, etc.) |
-| `src/services/toolService.ts` | App-level service wrapping the 3 required procs |
+| `src/services/toolService.ts` | App-level service wrapping 5 of the 7 procs (`fieldManagementService.ts` wraps the other `api_MPNextTools_*` procs) |
 
 ## Related domains
 

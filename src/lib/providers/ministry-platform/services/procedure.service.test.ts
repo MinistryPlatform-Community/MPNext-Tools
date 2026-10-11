@@ -114,13 +114,10 @@ describe('ProcedureService', () => {
       expect(mockHttpClient.get).toHaveBeenCalledWith('/procs/api_Get_Contacts', { '@DomainID': 1 });
     });
 
-    it('should URL-encode procedure name with special chars', async () => {
-      (mockHttpClient.get as any).mockResolvedValueOnce([[]]);
-
-      await service.executeProcedure('api_Test Proc');
-
-      const endpoint = (mockHttpClient.get as any).mock.calls[0][0];
-      expect(endpoint).toBe('/procs/api_Test%20Proc');
+    it('should refuse a procedure name that is not a plain identifier, before any token work', async () => {
+      await expect(service.executeProcedure('api_Test Proc')).rejects.toThrow(/^Invalid procedure name$/);
+      expect(mockClient.ensureValidToken).not.toHaveBeenCalled();
+      expect(mockHttpClient.get).not.toHaveBeenCalled();
     });
 
     it('should propagate errors', async () => {
@@ -189,13 +186,10 @@ describe('ProcedureService', () => {
       );
     });
 
-    it('should URL-encode procedure name with special chars', async () => {
-      (mockHttpClient.post as any).mockResolvedValueOnce([[]]);
-
-      await service.executeProcedureWithBody('api_Test Proc', {});
-
-      const endpoint = (mockHttpClient.post as any).mock.calls[0][0];
-      expect(endpoint).toBe('/procs/api_Test%20Proc');
+    it('should refuse a procedure name that is not a plain identifier, before any token work', async () => {
+      await expect(service.executeProcedureWithBody('../tables/Contacts', {})).rejects.toThrow(/^Invalid procedure name$/);
+      expect(mockClient.ensureValidToken).not.toHaveBeenCalled();
+      expect(mockHttpClient.post).not.toHaveBeenCalled();
     });
 
     it('should propagate errors', async () => {

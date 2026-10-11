@@ -412,7 +412,19 @@ FodyWeavers.xsd
 *.sln.iml
 
 # Environment
-.env.local
+# Every .env* file (.env, .env.local, .env.production, .env.*.local, ...) can
+# hold the MP service-account secret or BETTER_AUTH_SECRET. Only the
+# placeholder template is committed. .githooks/pre-commit enforces this for
+# `git add -f` too.
+.env*
+!.env.example
+
+# Vercel CLI project link / pulled env (vercel env pull writes secrets here)
+.vercel
+
+# Claude Code personal settings (per-developer permissions; never shared)
+.claude/settings.local.json
+.claude/worktrees/
 
 # nextJS
 .next/*

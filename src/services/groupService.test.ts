@@ -44,7 +44,12 @@ vi.mock('@/services/authorizationService', () => ({
 }));
 
 
-import { GroupService } from './groupService';
+import { GroupService, GROUP_WRITABLE_FIELDS } from './groupService';
+import {
+  STEP_FIELDS,
+  groupWizardSchema,
+  GROUP_WIZARD_DEFAULTS,
+} from '@/components/group-wizard/schema';
 import { DomainTimezoneService } from './domainTimezoneService';
 
 describe('GroupService', () => {
@@ -447,6 +452,113 @@ describe('GroupService', () => {
         expect((call[1][0] as { Start_Date: string }).Start_Date).toBe('2026-05-17 00:00:00');
       }
     });
+  });
+
+  describe('Groups column allowlist (mass assignment)', () => {
+    const FULL = {
+      ...GROUP_WIZARD_DEFAULTS,
+      Group_Name: 'G',
+      Group_Type_ID: 1,
+      Start_Date: '2024-03-01',
+      Congregation_ID: 5,
+      Ministry_ID: 10,
+      Primary_Contact: 42,
+    };
+    const hostileExtras = () => {
+      const extras: Record<string, unknown> = Object.create({ Inherited_Column: 1 });
+      Object.assign(extras, {
+        Group_ID: 999,
+        _Last_Attendance_Posted: '2020-01-01',
+        Domain_ID: 7,
+        $userId: 1,
+      });
+      return extras;
+    };
+
+    it('equals exactly the fields the wizard UI edits (STEP_FIELDS union = schema keys)', () => {
+      const stepUnion = Object.values(STEP_FIELDS).flat().sort();
+      expect([...GROUP_WRITABLE_FIELDS].sort()).toEqual(stepUnion);
+      expect([...GROUP_WRITABLE_FIELDS].sort()).toEqual(
+        Object.keys(groupWizardSchema.shape).sort(),
+      );
+      expect(GROUP_WRITABLE_FIELDS).not.toContain('Group_ID');
+    });
+
+    it('createGroup drops every non-allowlisted key, including Group_ID and $userId', async () => {
+      mockCreateTableRecords.mockResolvedValueOnce([{ Group_ID: 200, Group_Name: 'G' }]);
+      const service = await GroupService.getInstance();
+
+      const payload = Object.assign(hostileExtras(), FULL);
+      await service.createGroup(payload as any);
+
+      const [table, [record], options] = mockCreateTableRecords.mock.calls[0];
+      expect(table).toBe('Groups');
+      expect(Object.keys(record).sort()).toEqual([...GROUP_WRITABLE_FIELDS].sort());
+      expect(record).not.toHaveProperty('Inherited_Column');
+      // Attribution comes from the gate, never from the payload.
+      expect(options.$userId).toBe(42);
+    });
+
+    it('updateGroup ignores a smuggled Group_ID: the record targeted is the argument', async () => {
+      mockUpdateTableRecords.mockResolvedValueOnce([{ Group_ID: 100, Group_Name: 'G' }]);
+      const service = await GroupService.getInstance();
+
+      const payload = Object.assign(hostileExtras(), { Group_Name: 'G' });
+      await service.updateGroup(100, payload as any);
+
+      const [, [record], options] = mockUpdateTableRecords.mock.calls[0];
+      expect(record).toEqual({ Group_Name: 'G', Group_ID: 100 });
+      expect(options.$userId).toBe(42);
+    });
+
+    it('updateGroup writes Group_ID last so no payload key can override it', async () => {
+      // Independent of the allowlist: even if a Group_ID got through the
+      // pick, the spread order must leave the argument in force.
+      mockUpdateTableRecords.mockResolvedValueOnce([{ Group_ID: 100, Group_Name: 'G' }]);
+      const service = await GroupService.getInstance();
+
+      await service.updateGroup(100, { Group_Name: 'G' } as any);
+
+      const [, [record]] = mockUpdateTableRecords.mock.calls[0];
+      expect(Object.keys(record).at(-1)).toBe('Group_ID');
+    });
+
+    it('updateGroup does not null date fields the payload omitted', async () => {
+      mockUpdateTableRecords.mockResolvedValueOnce([{ Group_ID: 100, Group_Name: 'G' }]);
+      const service = await GroupService.getInstance();
+
+      await service.updateGroup(100, { Group_Name: 'G' } as any);
+
+      const [, [record]] = mockUpdateTableRecords.mock.calls[0];
+      expect(record).not.toHaveProperty('End_Date');
+      expect(record).not.toHaveProperty('Promotion_Date');
+    });
+
+    it.each([0, -1, 1.5, Number.NaN, '100' as unknown as number])(
+      'updateGroup refuses groupId %s before any MP call',
+      async (bad) => {
+        const service = await GroupService.getInstance();
+
+        await expect(service.updateGroup(bad, { Group_Name: 'G' } as any)).rejects.toThrow();
+        expect(mockUpdateTableRecords).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['createGroup', 'updateGroup'] as const)(
+      '%s writes nothing when the gate throws',
+      async (method) => {
+        mockRequireSecurityRole.mockRejectedValueOnce(new Error('Not authorized'));
+        const service = await GroupService.getInstance();
+
+        const call =
+          method === 'createGroup'
+            ? service.createGroup(FULL as any)
+            : service.updateGroup(100, FULL as any);
+        await expect(call).rejects.toThrow('Not authorized');
+        expect(mockCreateTableRecords).not.toHaveBeenCalled();
+        expect(mockUpdateTableRecords).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('error propagation', () => {

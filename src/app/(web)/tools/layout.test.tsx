@@ -4,12 +4,12 @@ import { isValidElement } from 'react';
 /**
  * ToolsLayout Tests
  *
- * This layout is the page-level authorization gate for every route under
- * /tools. React renders a layout before its children, so a redirect() here
- * means no tool page component ever runs.
+ * This layout is the UX redirect for every route under /tools. It does NOT
+ * stop a tool page from running (Next renders segments independently) — each
+ * page gates itself via requireToolAccess, see require-tool-access.test.ts.
  *
  * It is the UX layer, not the security control — enforcement lives in the
- * server actions and service methods. These tests pin both halves of that
+ * pages, server actions and service methods. These tests pin both halves of that
  * contract: that a permitted user gets their children rendered, and that a
  * non-permitted user is redirected to /no-access before children are touched.
  */

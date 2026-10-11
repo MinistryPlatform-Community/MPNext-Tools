@@ -50,6 +50,7 @@ export default defineConfig({
         'src/test-setup.ts',
         '**/*.d.ts',
         '**/*.{test,spec}.{ts,tsx}',
+        'src/test-utils/**', // Test-only helpers (mock OIDC server), imported only by tests
         'src/lib/providers/ministry-platform/models/**', // Auto-generated files
         'src/lib/providers/ministry-platform/scripts/**', // Build-time CLI scripts
         'src/components/ui/**', // Vendored shadcn/ui primitives
@@ -66,6 +67,11 @@ export default defineConfig({
       // `import.meta.dirname`, not `__dirname`: this file is ESM (.mts), and
       // Vite's native config loader has no CommonJS globals.
       '@': path.resolve(import.meta.dirname, './src'),
+      // `server-only` throws unless resolved under the `react-server` export
+      // condition, which Next applies to server code and Vitest does not. Map
+      // it to the package's own no-op entry so modules marked server-only can
+      // still be unit tested. The guard itself is exercised by `next build`.
+      'server-only': path.resolve(import.meta.dirname, './node_modules/server-only/empty.js'),
     },
   },
 });

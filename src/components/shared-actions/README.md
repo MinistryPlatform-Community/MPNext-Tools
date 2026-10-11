@@ -17,14 +17,15 @@ Keep actions with their component folder when:
 
 ## Examples
 
-**Shared Actions (place here):**
-- `user.ts` - Current-user profile lookup used by contexts and components
-- `auth.ts` - Authentication actions used across the app
-- `analytics.ts` - Analytics tracking used by multiple features
-- `notifications.ts` - Notification system used app-wide
+**Shared Actions (in this folder):**
+- `user.ts` - `getCurrentUserProfile`: the calling user's profile (used by `UserProvider` in `src/contexts/user-context.tsx`)
+- `domain.ts` - `getMpTimezone`: the MP domain's IANA time zone (used by the group wizard page)
+- `sign-out.ts` - `handleSignOut`: app sign-out plus MP RP-initiated logout (used by the sign-out forms on `/no-access` and `/session-error`)
+
+`user.ts` and `domain.ts` are documented authorization carve-outs (CLAUDE.md rule 12), each justified in the file; `sign-out.ts` reads no MP data. A new shared action that touches MP data must call `AuthorizationService` instead, or carry its own written justification.
 
 **Feature-Specific Actions (keep co-located):**
-- `components/user-menu/actions.ts` - Sign-out and user menu operations
+- `components/address-labels/actions.ts` - Address-label fetch and mail merge
 
 ## Usage
 

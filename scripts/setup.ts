@@ -119,6 +119,16 @@ const ENV_VARS: EnvVar[] = [
     sensitive: false,
     description: 'Ministry Platform API base URL',
   },
+  {
+    // Fails closed: unset/blank means NOBODY may use the MP-data tools, so the
+    // wizard treats it as required and offers `*` (any MP security role).
+    name: 'MP_SECURITY_ROLES',
+    required: true,
+    sensitive: false,
+    description:
+      'MP security roles allowed to use the tools: * = any role, or a comma list. Blank locks everyone out',
+    defaultValue: '*',
+  },
   // Optional variables
   {
     name: 'MINISTRY_PLATFORM_DEV_CLIENT_ID',
@@ -1058,6 +1068,15 @@ async function runInteractiveSetup(options: SetupOptions): Promise<number> {
     console.log(chalk.green(`  ✓ MINISTRY_PLATFORM_CLIENT_SECRET = ********`));
   }
 
+  // The same client handles user sign-in (OIDC), so its MP registration needs
+  // the sign-in redirect URIs too. See getMpClient in src/lib/env.ts.
+  console.log(
+    chalk.gray(
+      '  This client also signs users in. In MP, register its redirect URI\n' +
+        '  <BETTER_AUTH_URL>/api/auth/callback/ministryplatform and post-logout redirect URI <BETTER_AUTH_URL>.'
+    )
+  );
+
   // Variables handled specially (skip in regular loop)
   const speciallyHandledVars = [
     ...mpDerivedVars,
@@ -1220,7 +1239,7 @@ async function runInteractiveSetup(options: SetupOptions): Promise<number> {
   printStepHeader(9, totalSteps, 'Generating stored procedure reference');
   console.log(
     chalk.gray(
-      '  Produces .claude/references/ministryplatform.storedprocs.md — used by Claude Code'
+      '  Produces .claude/references/mp-schema/stored-procs.md — used by Claude Code'
     )
   );
   console.log(chalk.gray('  for stored-proc query suggestions and authoring assistance.'));

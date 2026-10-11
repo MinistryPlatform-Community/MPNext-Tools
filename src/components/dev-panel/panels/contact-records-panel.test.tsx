@@ -37,13 +37,30 @@ describe("ContactRecordsPanel", () => {
   });
 
   it("renders nothing when there is neither a single record nor a selection", () => {
-    const params: ToolParams = { pageData };
+    const params: ToolParams = { pageID: 292, pageData };
     const { container } = render(<ContactRecordsPanel params={params} />);
     expect(container.firstChild).toBeNull();
   });
 
+  it("does not resolve when there is no page ID", () => {
+    const params: ToolParams = { pageData, recordID: 1 };
+    render(<ContactRecordsPanel params={params} />);
+    expect(mockResolveContactRecords).not.toHaveBeenCalled();
+  });
+
+  it("renders nothing when the service returns null (page has no contact metadata)", async () => {
+    mockResolveContactRecords.mockResolvedValueOnce(null);
+
+    const { container } = render(<ContactRecordsPanel params={{ pageID: 292, pageData, recordID: 1 }} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Development Mode - Loading Contact Records...")).not.toBeInTheDocument();
+    });
+    expect(container.firstChild).toBeNull();
+  });
+
   it("renders nothing when recordID is 0 (falsy for hasSingleRecord) and no selection", () => {
-    const params: ToolParams = { pageData, recordID: 0 };
+    const params: ToolParams = { pageID: 292, pageData, recordID: 0 };
     const { container } = render(<ContactRecordsPanel params={params} />);
     expect(container.firstChild).toBeNull();
   });
@@ -56,7 +73,7 @@ describe("ContactRecordsPanel", () => {
       records: [{ recordId: 1, contactId: 100 }],
     });
 
-    const params: ToolParams = { pageData, recordID: 1 };
+    const params: ToolParams = { pageID: 292, pageData, recordID: 1 };
     render(<ContactRecordsPanel params={params} />);
 
     expect(
@@ -68,7 +85,7 @@ describe("ContactRecordsPanel", () => {
       expect(screen.getByText("Development Mode - Contact Records")).toBeInTheDocument();
     });
     expect(screen.getByText("1 contact resolved")).toBeInTheDocument();
-    expect(mockResolveContactRecords).toHaveBeenCalledWith("Contacts", "Contact_ID", "Contact_ID", [1]);
+    expect(mockResolveContactRecords).toHaveBeenCalledWith(292, [1]);
   });
 
   it("resolves a selection of record IDs and pluralizes the count", async () => {
@@ -82,7 +99,7 @@ describe("ContactRecordsPanel", () => {
       ],
     });
 
-    const params: ToolParams = { pageData };
+    const params: ToolParams = { pageID: 292, pageData };
     render(<ContactRecordsPanel params={params} selectionRecordIds={[1, 2]} />);
 
     expect(screen.getByText(/Resolving Contact IDs from selection/)).toBeInTheDocument();
@@ -90,13 +107,13 @@ describe("ContactRecordsPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("2 contacts resolved")).toBeInTheDocument();
     });
-    expect(mockResolveContactRecords).toHaveBeenCalledWith("Contacts", "Contact_ID", "Contact_ID", [1, 2]);
+    expect(mockResolveContactRecords).toHaveBeenCalledWith(292, [1, 2]);
   });
 
   it("shows an error state when resolution fails", async () => {
     mockResolveContactRecords.mockRejectedValueOnce(new Error("resolve failed"));
 
-    render(<ContactRecordsPanel params={{ pageData, recordID: 1 }} />);
+    render(<ContactRecordsPanel params={{ pageID: 292, pageData, recordID: 1 }} />);
 
     await waitFor(() => {
       expect(screen.getByText("Development Mode - Contact Records Error")).toBeInTheDocument();
@@ -107,7 +124,7 @@ describe("ContactRecordsPanel", () => {
   it("shows a generic error message for a non-Error rejection", async () => {
     mockResolveContactRecords.mockRejectedValueOnce("nope");
 
-    render(<ContactRecordsPanel params={{ pageData, recordID: 1 }} />);
+    render(<ContactRecordsPanel params={{ pageID: 292, pageData, recordID: 1 }} />);
 
     await waitFor(() => {
       expect(screen.getByText("Failed to resolve contact records")).toBeInTheDocument();
@@ -122,7 +139,7 @@ describe("ContactRecordsPanel", () => {
       records: Array.from({ length: 7 }, (_, i) => ({ recordId: i + 1, contactId: 100 + i })),
     });
 
-    render(<ContactRecordsPanel params={{ pageData }} selectionRecordIds={[1, 2, 3, 4, 5, 6, 7]} />);
+    render(<ContactRecordsPanel params={{ pageID: 292, pageData }} selectionRecordIds={[1, 2, 3, 4, 5, 6, 7]} />);
 
     await waitFor(() => {
       expect(screen.getByText("+2 more")).toBeInTheDocument();
@@ -137,7 +154,7 @@ describe("ContactRecordsPanel", () => {
       records: [{ recordId: 1, contactId: 100 }],
     });
 
-    render(<ContactRecordsPanel params={{ pageData, recordID: 1 }} />);
+    render(<ContactRecordsPanel params={{ pageID: 292, pageData, recordID: 1 }} />);
 
     await waitFor(() => {
       expect(screen.getByText("View Raw JSON")).toBeInTheDocument();

@@ -20,7 +20,7 @@ symbols:
 related:
   - ../components/README.md
   - label-stock.md
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -80,6 +80,7 @@ export function buildImbTrackingCode(
   serviceType: string,
   serialNumber: number,
 ): string;
+// Calls validateMailerId(mailerId) first — throws unless exactly 6 or 9 digits.
 // Layout: [barcodeId='00'(2)] + [serviceType(3)] + [mailerId(6|9)] + [serial(9|6)]
 // Always 20 digits total.
 
@@ -90,7 +91,7 @@ export function preEncodeBarcodes(
 // - barcodeFormat === 'none' → labels returned unchanged
 // - barcodeFormat === 'imb' && config.mailerId → try IMb
 //     on success: barStates = bars.join(''), barType = 'imb'
-//     on throw OR no mailerId: fall through to POSTNET
+//     on throw OR no mailerId: fall through to POSTNET (throw → console.warn { labelIndex, error: <name> })
 // - barcodeFormat === 'postnet' | 'imb' fallback:
 //     tries full routingCode, then retries with first 5 digits
 //     on success: barStates = JSON.stringify(bars), barType = 'postnet'
@@ -138,12 +139,12 @@ export function postnetBarcodeToBmp(
 
 ### BMP rendering
 - Simple uncompressed BMP: 14-byte file header + 40-byte DIB (BITMAPINFOHEADER) + bottom-up 24-bit BGR pixel rows padded to 4-byte boundary.
-- IMb: bar width = `max(floor(width/65 * 0.4), 1)`; per-state `topOffset`/`barHeight` as fractions of image height:
+- IMb: pitch = `width / barStates.length`; bar width = `max(floor(pitch * 0.4), 1)`; per-state `topOffset`/`barHeight` as fractions of image height:
   - `T`: top 0.35, height 0.3
   - `D`: top 0.15, height 0.85
   - `A`: top 0.00, height 0.65
   - `F`: top 0.00, height 1.00
-- POSTNET: tall = full height; short = 0.4 × height; bars bottom-aligned.
+- POSTNET: same pitch/bar-width formula over the bar count; tall = full height; short = 0.4 × height; bars bottom-aligned.
 
 ### Routing & tracking helpers
 - `buildRoutingCode('32904-7322', '20')` → `'32904732220'` (11 digits)
@@ -154,7 +155,7 @@ export function postnetBarcodeToBmp(
 ## Usage
 
 ### Generating barcodes for an address-label print run
-From `src/components/address-labels/actions.ts:22-26`:
+From `src/components/address-labels/actions.ts:19-29` (excerpt):
 
 ```typescript
 import { preEncodeBarcodes } from '@/lib/barcode-helpers';
@@ -165,7 +166,7 @@ import { imbBarcodeToBmp, postnetBarcodeToBmp } from '@/lib/barcode-image';
 `preEncodeBarcodes(labels, config)` runs before PDF/Word export so each row carries a `barStates`/`barType` pair consumed by the renderers.
 
 ### Word-document embedding
-From `src/components/address-labels/word-document.ts:18`:
+From `src/components/address-labels/word-document.ts:17`:
 
 ```typescript
 import { imbBarcodeToBmp, postnetBarcodeToBmp } from '@/lib/barcode-image';
@@ -174,11 +175,11 @@ import { imbBarcodeToBmp, postnetBarcodeToBmp } from '@/lib/barcode-image';
 Word accepts BMP natively, so the renderer returns raw `Buffer`s that can be inline-embedded without converting to PNG.
 
 ### PDF-preview rendering
-- `src/components/address-labels/imb-barcode.tsx` — `@react-pdf/renderer` `<View>` component for PDF output; imports `type BarState` from `@/lib/imb-encoder`.
+- `src/components/address-labels/imb-barcode.tsx` — `@react-pdf/renderer` `<View>` component for PDF output; takes the 65-char `barStates` string (renders nothing unless length is exactly 65) and keeps its own `BAR_DIMS` table — it does not import from `@/lib/imb-encoder`.
 - `src/components/address-labels/postnet-barcode.tsx` — `@react-pdf/renderer` `<View>` component for PDF output; imports `type PostnetBar` from `@/lib/postnet-encoder`.
 
 ### IMb test vector (USPS-B-3200 example 4)
-From `src/lib/imb-encoder.test.ts:11-13`:
+From `src/lib/imb-encoder.test.ts:9-13` (abridged):
 
 ```typescript
 expect(imbEncode('0123456709498765432101234567891').join('')).toBe(
@@ -187,9 +188,10 @@ expect(imbEncode('0123456709498765432101234567891').join('')).toBe(
 ```
 
 ## Gotchas
-- **Fallback swallows IMb errors silently.** In `preEncodeBarcodes` (`src/lib/barcode-helpers.ts:48`), an IMb throw falls through to POSTNET with no logging. If a mailer config is subtly wrong (bad service type, bad mailer ID length), labels silently downgrade to POSTNET. See glossary candidate "IMb→POSTNET fallback".
-- **POSTNET `barStates` is JSON, IMb `barStates` is a raw string.** Consumers must branch on `barType` before rendering. Enforced at `src/lib/barcode-helpers.ts:47` (IMb) vs `:57,61` (POSTNET) and `src/lib/barcode-image.ts:64` (IMb expects plain string) vs `:98-103` (POSTNET parses JSON and silently falls back to a 1×1 BMP on parse failure).
+- **IMb → POSTNET fallback is logged, but without record content.** In `preEncodeBarcodes` (`src/lib/barcode-helpers.ts`), each encode failure emits `console.warn('[preEncodeBarcodes] IMb encode failed, falling back to POSTNET', { labelIndex, error })` (POSTNET retry adds `routingLength`; final failure logs `... no barcode will be rendered`). `error` is the error's **name** only (`describeFailure`) — label name, address, ZIP/routing digits and the error message are deliberately omitted (CLAUDE.md rule 14). Find the bad row by `labelIndex` in the request. Users still see POSTNET silently on a subtly wrong mailer config. See [GOTCHA-040](../GOTCHAS.md).
+- **POSTNET `barStates` is JSON, IMb `barStates` is a raw string.** Consumers must branch on `barType` before rendering. Enforced at `src/lib/barcode-helpers.ts:59` (IMb) vs `:70,78` (POSTNET) and `src/lib/barcode-image.ts:63` (IMb expects plain string) vs `:97-103` (POSTNET parses JSON and silently falls back to a 1×1 BMP on parse failure).
 - **`buildRoutingCode` treats DP `'00'` as absent.** Pass a real 1–2 digit delivery point; `'00'` returns a 5/9-digit routing, not 7/11-digit. See `src/lib/barcode-helpers.ts:13`.
+- **An invalid Mailer ID never reaches the encoder silently.** `buildImbTrackingCode` throws via `validateMailerId` (caught by the IMb `try` → POSTNET fallback), and the render actions reject a malformed Mailer ID up front in `prepareLabels` (`src/components/address-labels/actions.ts`).
 - **BMP invalid-input behavior differs.** `imbBarcodeToBmp` silently skips unknown bar chars; `postnetBarcodeToBmp` returns a 1×1 fallback on JSON parse failure — neither throws.
 
 ## Related docs

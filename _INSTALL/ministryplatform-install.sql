@@ -1,6 +1,6 @@
 -- =============================================
 -- Ministry Platform Database Install Script
--- Generated: 2026-07-26T23:20:04.015Z
+-- Generated: 2026-10-10T16:06:51.738Z
 -- Auto-generated - Do not edit manually
 -- =============================================
 -- NOTE: Run this script against your Ministry Platform database
@@ -890,10 +890,11 @@ GO
 -- api_dev_GetProcedureDefinition
 -- =============================================
 -- Description: Returns the actual create SQL script for a stored procedure to enable LLM context
--- Last Modified: 04/16/2026
+-- Last Modified: 10/10/2026
 -- Chris Kehayias
 -- =============================================
 CREATE PROCEDURE [dbo].[api_dev_GetProcedureDefinition]
+    @DomainID INT, -- required first parameter for MP API procs; MP injects it (unused here)
     @ProcedureName NVARCHAR(256),
     @SchemaName NVARCHAR(128) = 'dbo'
 AS

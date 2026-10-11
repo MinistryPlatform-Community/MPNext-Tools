@@ -26,7 +26,7 @@ vi.mock('react', async () => {
   return { ...actual, cache: <T,>(fn: T) => fn };
 });
 
-import { AuthorizationService, UnauthorizedError } from './authorizationService';
+import { AuthorizationService, UnauthorizedError, resolveRolePolicy } from './authorizationService';
 
 const GUID = '550e8400-e29b-41d4-a716-446655440000';
 const signedIn = { user: { id: 'ba-1', userGuid: GUID } };
@@ -44,12 +44,15 @@ describe('AuthorizationService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (AuthorizationService as unknown as { instance?: unknown }).instance = undefined;
-    delete process.env.MP_SECURITY_ROLES;
+    // `*` = any MP security role. Tests of the unset / blank / list policies
+    // override this explicitly; see 'MP_SECURITY_ROLES policy (fails closed)'.
+    process.env.MP_SECURITY_ROLES = '*';
     vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    delete process.env.MP_SECURITY_ROLES;
   });
 
   const gate = () => AuthorizationService.getInstance();
@@ -57,7 +60,7 @@ describe('AuthorizationService', () => {
   const writeCtx = { table: 'Groups', operation: 'update' as const };
 
   describe('requireSecurityRole', () => {
-    it('returns the acting MP User_ID when the user holds any role and none are configured', async () => {
+    it('returns the acting MP User_ID when the user holds any role and MP_SECURITY_ROLES is *', async () => {
       mockGetSession.mockResolvedValue(signedIn);
       mpReturns(42, ['Administrators']);
 
@@ -202,6 +205,85 @@ describe('AuthorizationService', () => {
       await gate().hasSecurityRole();
 
       expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('MP_SECURITY_ROLES policy (fails closed)', () => {
+    // Adversarial: before 2026-09-30 a blank/unset value meant "any role will
+    // do", so a deployment that forgot the variable silently let every MP user
+    // holding ANY security role in. Each refusal below fails if that returns.
+    it.each([
+      ['unset', undefined],
+      ['blank', ''],
+      ['whitespace', '   '],
+      ['only commas', ','],
+      ['commas and spaces', ' , , '],
+    ])('REFUSES everyone when the variable is %s', async (_label, value) => {
+      if (value === undefined) delete process.env.MP_SECURITY_ROLES;
+      else process.env.MP_SECURITY_ROLES = value;
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockGetSession.mockResolvedValue(signedIn);
+      mpReturns(42, ['Administrators']);
+
+      await expect(gate().requireSecurityRole(readCtx)).rejects.toThrow(UnauthorizedError);
+      await expect(gate().hasSecurityRole()).resolves.toBe(false);
+      expect(warn).toHaveBeenCalledWith(
+        'mp.read.unauthorized',
+        expect.objectContaining({ reason: 'roles_not_configured', userId: 42 }),
+      );
+      // No role read is wasted on an app that refuses everyone.
+      expect(mockGetTableRecords).not.toHaveBeenCalledWith(
+        expect.objectContaining({ table: 'dp_User_Roles' }),
+      );
+    });
+
+    it('permits any role holder when the variable is * (surrounding whitespace ignored)', async () => {
+      process.env.MP_SECURITY_ROLES = '  *  ';
+      mockGetSession.mockResolvedValue(signedIn);
+      mpReturns(42, ['Some Unrelated Role']);
+
+      await expect(gate().requireSecurityRole(readCtx)).resolves.toBe(42);
+    });
+
+    it('still refuses a user with NO role when the variable is *', async () => {
+      process.env.MP_SECURITY_ROLES = '*';
+      mockGetSession.mockResolvedValue(signedIn);
+      mpReturns(42, []);
+
+      await expect(gate().requireSecurityRole(readCtx)).rejects.toThrow(UnauthorizedError);
+    });
+
+    it('treats * inside a list as a literal name, not a wildcard', async () => {
+      process.env.MP_SECURITY_ROLES = 'Administrators,*';
+      mockGetSession.mockResolvedValue(signedIn);
+      mpReturns(42, ['Some Unrelated Role']);
+
+      await expect(gate().requireSecurityRole(readCtx)).rejects.toThrow(UnauthorizedError);
+    });
+
+    it('ignores empty entries in a list', async () => {
+      process.env.MP_SECURITY_ROLES = ',Tools Users,,';
+      mockGetSession.mockResolvedValue(signedIn);
+      mpReturns(42, ['tools users']);
+
+      await expect(gate().requireSecurityRole(readCtx)).resolves.toBe(42);
+    });
+  });
+
+  describe('resolveRolePolicy', () => {
+    it.each([
+      ['', { kind: 'unconfigured' }],
+      [',', { kind: 'unconfigured' }],
+      ['*', { kind: 'any' }],
+      [' A , b ', { kind: 'list', names: ['a', 'b'] }],
+      ['A,*', { kind: 'list', names: ['a', '*'] }],
+    ])('parses %j', (raw, expected) => {
+      expect(resolveRolePolicy(raw)).toEqual(expected);
+    });
+
+    it('reads MP_SECURITY_ROLES when called without an argument, unset = unconfigured', () => {
+      delete process.env.MP_SECURITY_ROLES;
+      expect(resolveRolePolicy()).toEqual({ kind: 'unconfigured' });
     });
   });
 

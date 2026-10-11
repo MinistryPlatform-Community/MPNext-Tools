@@ -19,6 +19,10 @@ import { buildWordDocument } from './word-document';
 import { getLabelStock } from '@/lib/label-stock';
 import { preEncodeBarcodes } from '@/lib/barcode-helpers';
 import { validateMailerId } from '@/lib/validation';
+import { assertZipWithinLimits, ZipLimitError } from '@/lib/zip-guard';
+import type { LabelStockConfig } from '@/lib/label-stock';
+import { parseLabelInput } from './schemas';
+import { MAX_TEMPLATE_BYTES, MAX_TEMPLATE_LABEL, TEMPLATE_ZIP_LIMITS } from './limits';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import ImageModule from 'docxtemplater-image';
@@ -172,19 +176,36 @@ function describeError(error: unknown): Record<string, string> {
   return described;
 }
 
-export async function generateLabelPdf(
-  labels: LabelData[],
-  config: LabelConfig
-): Promise<{ success: true; data: string } | { success: false; error: string }> {
-  await requireAccess('Contacts', 'read');
+type ActionResult = { success: true; data: string } | { success: false; error: string };
+
+type PreparedLabels =
+  | { ok: true; labels: LabelData[]; config: LabelConfig; stock: LabelStockConfig }
+  | { ok: false; result: ActionResult };
+
+/**
+ * Validate the caller-supplied labels and config shared by every render
+ * action: schema + count cap (`parseLabelInput`), a known stock, a start
+ * position that fits on one sheet, and a well-formed Mailer ID for IMb.
+ *
+ * `startPosition` matters: it is a count of blank cells to emit, so an
+ * unbounded value is an unbounded number of pages.
+ */
+function prepareLabels(rawLabels: unknown, rawConfig: unknown, emptyMessage: string): PreparedLabels {
+  const parsed = parseLabelInput(rawLabels, rawConfig);
+  if (!parsed.success) return { ok: false, result: parsed };
+  const { labels, config } = parsed;
 
   const stock = getLabelStock(config.stockId);
   if (!stock) {
-    return { success: false, error: `Unknown label stock: ${config.stockId}` };
+    return { ok: false, result: { success: false, error: `Unknown label stock: ${config.stockId}` } };
+  }
+
+  if (config.startPosition > stock.columns * stock.rows) {
+    return { ok: false, result: { success: false, error: 'Start position is beyond the end of the sheet' } };
   }
 
   if (labels.length === 0) {
-    return { success: false, error: 'No labels to print' };
+    return { ok: false, result: { success: false, error: emptyMessage } };
   }
 
   if (config.barcodeFormat === 'imb' && config.mailerId) {
@@ -192,11 +213,24 @@ export async function generateLabelPdf(
       validateMailerId(config.mailerId);
     } catch (error) {
       return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Invalid Mailer ID',
+        ok: false,
+        result: { success: false, error: error instanceof Error ? error.message : 'Invalid Mailer ID' },
       };
     }
   }
+
+  return { ok: true, labels, config, stock };
+}
+
+export async function generateLabelPdf(
+  rawLabels: LabelData[],
+  rawConfig: LabelConfig
+): Promise<ActionResult> {
+  await requireAccess('Contacts', 'read');
+
+  const prepared = prepareLabels(rawLabels, rawConfig, 'No labels to print');
+  if (!prepared.ok) return prepared.result;
+  const { labels, config, stock } = prepared;
 
   try {
     const labelsWithBars = preEncodeBarcodes(labels, config);
@@ -226,30 +260,14 @@ export async function generateLabelPdf(
 }
 
 export async function generateLabelDocx(
-  labels: LabelData[],
-  config: LabelConfig
-): Promise<{ success: true; data: string } | { success: false; error: string }> {
+  rawLabels: LabelData[],
+  rawConfig: LabelConfig
+): Promise<ActionResult> {
   await requireAccess('Contacts', 'read');
 
-  const stock = getLabelStock(config.stockId);
-  if (!stock) {
-    return { success: false, error: `Unknown label stock: ${config.stockId}` };
-  }
-
-  if (labels.length === 0) {
-    return { success: false, error: 'No labels to export' };
-  }
-
-  if (config.barcodeFormat === 'imb' && config.mailerId) {
-    try {
-      validateMailerId(config.mailerId);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Invalid Mailer ID',
-      };
-    }
-  }
+  const prepared = prepareLabels(rawLabels, rawConfig, 'No labels to export');
+  if (!prepared.ok) return prepared.result;
+  const { labels, config, stock } = prepared;
 
   try {
     const labelsWithBars = preEncodeBarcodes(labels, config);
@@ -268,34 +286,32 @@ export async function generateLabelDocx(
   }
 }
 
-const MAX_TEMPLATE_SIZE = 5 * 1024 * 1024; // 5MB
-
 export async function mergeTemplate(
   templateBase64: string,
-  labels: LabelData[],
-  config: LabelConfig
-): Promise<{ success: true; data: string } | { success: false; error: string }> {
+  rawLabels: LabelData[],
+  rawConfig: LabelConfig
+): Promise<ActionResult> {
   await requireAccess('Contacts', 'read');
 
-  if (labels.length === 0) {
-    return { success: false, error: 'No addresses to merge' };
+  // Size check on the encoded string first, before decoding anything.
+  if (typeof templateBase64 !== 'string' || Math.ceil(templateBase64.length * 0.75) > MAX_TEMPLATE_BYTES) {
+    return { success: false, error: `Template file exceeds ${MAX_TEMPLATE_LABEL} limit` };
   }
 
-  // Validate template size
-  const templateSize = Math.ceil(templateBase64.length * 0.75);
-  if (templateSize > MAX_TEMPLATE_SIZE) {
-    return { success: false, error: 'Template file exceeds 5MB limit' };
-  }
+  const prepared = prepareLabels(rawLabels, rawConfig, 'No addresses to merge');
+  if (!prepared.ok) return prepared.result;
+  const { labels, config } = prepared;
 
-  if (config.barcodeFormat === 'imb' && config.mailerId) {
-    try {
-      validateMailerId(config.mailerId);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Invalid Mailer ID',
-      };
-    }
+  // Bound decompression BEFORE PizZip sees the archive (zip-bomb guard).
+  const templateBuffer = Buffer.from(templateBase64, 'base64');
+  try {
+    assertZipWithinLimits(templateBuffer, TEMPLATE_ZIP_LIMITS);
+  } catch (error) {
+    // Anything else is a malformed archive tripping a bounds check.
+    return {
+      success: false,
+      error: error instanceof ZipLimitError ? error.message : 'Not a valid .docx file',
+    };
   }
 
   try {
@@ -326,8 +342,6 @@ export async function mergeTemplate(
       };
     });
 
-    // Parse template
-    const templateBuffer = Buffer.from(templateBase64, 'base64');
     const zip = new PizZip(templateBuffer);
 
     // Configure image module

@@ -1,157 +1,321 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getClientCredentialsToken } from './client-credentials';
+import {
+  getClientCredentialsToken,
+  TOKEN_TIMEOUT_MS,
+} from '@/lib/providers/ministry-platform/auth/client-credentials';
+
+/**
+ * getClientCredentialsToken Tests
+ *
+ * This function is the only thing standing between the app and every
+ * Ministry Platform API call - MinistryPlatformClient.ensureValidToken() calls it
+ * for every token refresh.
+ *
+ * What is worth pinning here:
+ * - the OAuth2 client_credentials grant is form-encoded, not JSON
+ * - the MP-specific scope string is sent verbatim (MP rejects a wrong scope)
+ * - a non-OK response throws rather than returning a token-shaped object with
+ *   undefined fields, which would otherwise surface later as a confusing 401
+ * - a 200 without a usable bearer token is rejected, not cached
+ * - the request has a deadline and refuses redirects (a 307 would re-send the
+ *   client secret to whatever origin it names)
+ * - no error message ever carries the client secret or the response body
+ */
+
+const SECRET = 'test-client-secret';
+
+function mockHeaders(values: Record<string, string>) {
+  const lower = Object.fromEntries(
+    Object.entries(values).map(([k, v]) => [k.toLowerCase(), v])
+  );
+  return { get: (name: string) => lower[name.toLowerCase()] ?? null };
+}
+
+function tokenResponse(body: unknown, contentType = 'application/json') {
+  return {
+    ok: true,
+    status: 200,
+    headers: mockHeaders({ 'Content-Type': contentType }),
+    json: vi.fn().mockResolvedValue(body),
+  };
+}
 
 describe('getClientCredentialsToken', () => {
-  const originalFetch = global.fetch;
+  let fetchMock: ReturnType<typeof vi.fn>;
   const originalEnv = { ...process.env };
-  const mockFetch = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockReset();
-    global.fetch = mockFetch as unknown as typeof fetch;
-    process.env.MINISTRY_PLATFORM_BASE_URL = 'https://api.example.com';
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    process.env.MINISTRY_PLATFORM_BASE_URL = 'https://mp.example.org/ministryplatformapi';
     process.env.MINISTRY_PLATFORM_CLIENT_ID = 'test-client-id';
-    process.env.MINISTRY_PLATFORM_CLIENT_SECRET = 'test-secret';
-    process.env.MINISTRY_PLATFORM_DEV_CLIENT_ID = 'test-dev-client-id';
-    process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET = 'test-dev-secret';
+    process.env.MINISTRY_PLATFORM_CLIENT_SECRET = SECRET;
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
-    process.env = { ...originalEnv };
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    process.env = { ...originalEnv };
   });
 
-  // Successful token fetch
-  it('should fetch token with correct URL, method, headers, and body', async () => {
-    const tokenResponse = { access_token: 'abc', expires_in: 3600 };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => tokenResponse,
-    });
+  it('should POST the client_credentials grant to the MP token endpoint', async () => {
+    fetchMock.mockResolvedValueOnce(
+      tokenResponse({ access_token: 'test-token', token_type: 'Bearer', expires_in: 3600 })
+    );
 
     const result = await getClientCredentialsToken();
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://api.example.com/oauth/connect/token');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+
+    expect(url).toBe('https://mp.example.org/ministryplatformapi/oauth/connect/token');
     expect(init.method).toBe('POST');
-    expect(init.headers).toEqual({
-      'Content-Type': 'application/x-www-form-urlencoded',
+    expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
+
+    expect(result).toEqual({
+      access_token: 'test-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
     });
-    expect(init.body).toContain('grant_type=client_credentials');
-    expect(init.body).toContain('client_id=test-client-id');
-    expect(init.body).toContain('client_secret=test-secret');
-    expect(init.body).toContain('scope=');
-    expect(result).toEqual(tokenResponse);
   });
 
-  // Non-ok response throws
-  it('should throw error when response is not ok', async () => {
-    mockFetch.mockResolvedValueOnce({
+  it('should refuse redirects and set a deadline on the token request', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    fetchMock.mockResolvedValueOnce(
+      tokenResponse({ access_token: 'test-token', token_type: 'Bearer' })
+    );
+
+    await getClientCredentialsToken();
+
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.redirect).toBe('error');
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(timeoutSpy).toHaveBeenCalledWith(TOKEN_TIMEOUT_MS);
+    expect(TOKEN_TIMEOUT_MS).toBe(10_000);
+  });
+
+  it('should send grant_type, credentials, and the MP scope in the form body', async () => {
+    fetchMock.mockResolvedValueOnce(
+      tokenResponse({ access_token: 'test-token', token_type: 'bearer' })
+    );
+
+    await getClientCredentialsToken();
+
+    const body = new URLSearchParams(fetchMock.mock.calls[0][1].body);
+
+    expect(body.get('grant_type')).toBe('client_credentials');
+    expect(body.get('client_id')).toBe('test-client-id');
+    expect(body.get('client_secret')).toBe(SECRET);
+    expect(body.get('scope')).toBe(
+      'http://www.thinkministry.com/dataplatform/scopes/all'
+    );
+  });
+
+  it('should throw with the status and status text when the token request is rejected', async () => {
+    fetchMock.mockResolvedValueOnce({
       ok: false,
+      status: 401,
       statusText: 'Unauthorized',
-      json: async () => ({}),
+      json: vi.fn(),
     });
 
     await expect(getClientCredentialsToken()).rejects.toThrow(
-      'Failed to get client credentials token: Unauthorized'
+      'Failed to get client credentials token: 401 Unauthorized'
     );
   });
 
-  // Network failure propagates
-  it('should propagate network errors from fetch', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Network error'));
+  it('should still report the status when statusText is empty (HTTP/2)', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 503, statusText: '', json: vi.fn() });
 
-    await expect(getClientCredentialsToken()).rejects.toThrow('Network error');
+    await expect(getClientCredentialsToken()).rejects.toThrow(
+      /^Failed to get client credentials token: 503$/
+    );
   });
 
-  // Body uses URLSearchParams format
-  it('should format body as URLSearchParams', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ access_token: 'x' }),
+  it('should not attempt to parse the body of a failed response', async () => {
+    const json = vi.fn();
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      json,
     });
 
-    await getClientCredentialsToken();
+    await expect(getClientCredentialsToken()).rejects.toThrow('500 Internal Server Error');
+    expect(json).not.toHaveBeenCalled();
+  });
 
-    const [, init] = mockFetch.mock.calls[0];
-    const body = init.body as string;
-    const parsed = new URLSearchParams(body);
-    expect(parsed.get('grant_type')).toBe('client_credentials');
-    expect(parsed.get('client_id')).toBe('test-client-id');
-    expect(parsed.get('client_secret')).toBe('test-secret');
-    expect(parsed.get('scope')).toBe(
-      'http://www.thinkministry.com/dataplatform/scopes/all'
+  it('should wrap network failures, keeping only the error name', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed: https://mp.example.org'));
+
+    await expect(getClientCredentialsToken()).rejects.toThrow(
+      /^Failed to get client credentials token: TypeError$/
     );
   });
 
-  // Uses MINISTRY_PLATFORM_BASE_URL env var
-  it('should use MINISTRY_PLATFORM_BASE_URL env var for URL construction', async () => {
-    process.env.MINISTRY_PLATFORM_BASE_URL = 'https://custom-domain.org';
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ access_token: 'y' }),
+  it('should reject a refused redirect (fetch throws under redirect: "error")', async () => {
+    // undici rejects with TypeError('fetch failed', { cause: 'unexpected redirect' })
+    fetchMock.mockRejectedValueOnce(
+      new TypeError('fetch failed', { cause: new Error('unexpected redirect') })
+    );
+
+    await expect(getClientCredentialsToken()).rejects.toThrow(
+      'Failed to get client credentials token: TypeError'
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reject when the deadline passes', async () => {
+    fetchMock.mockRejectedValueOnce(
+      new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    );
+
+    await expect(getClientCredentialsToken()).rejects.toThrow(
+      'Failed to get client credentials token: TimeoutError'
+    );
+  });
+
+  describe('token response validation', () => {
+    it.each([
+      ['missing access_token', { token_type: 'Bearer', expires_in: 3600 }],
+      ['empty access_token', { access_token: '', token_type: 'Bearer' }],
+      ['whitespace access_token', { access_token: '   ', token_type: 'Bearer' }],
+      ['non-string access_token', { access_token: 12345, token_type: 'Bearer' }],
+      ['missing token_type', { access_token: 'tok' }],
+      ['non-bearer token_type', { access_token: 'tok', token_type: 'mac' }],
+      ['non-string token_type', { access_token: 'tok', token_type: 1 }],
+      ['null body', null],
+    ])('should reject a 200 with %s', async (_label, body) => {
+      fetchMock.mockResolvedValueOnce(tokenResponse(body));
+
+      await expect(getClientCredentialsToken()).rejects.toThrow(
+        'Failed to get client credentials token: invalid token response'
+      );
     });
 
-    await getClientCredentialsToken();
+    it('should accept token_type case-insensitively', async () => {
+      fetchMock.mockResolvedValueOnce(
+        tokenResponse({ access_token: 'tok', token_type: 'BEARER' })
+      );
 
-    const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://custom-domain.org/oauth/connect/token');
-  });
-
-  // Dev profile uses dev env vars
-  it('should use dev client id/secret when profile is "dev"', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ access_token: 'dev-token' }),
+      await expect(getClientCredentialsToken()).resolves.toMatchObject({ access_token: 'tok' });
     });
 
-    await getClientCredentialsToken('dev');
+    it('should reject a 204 (no token at all)', async () => {
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 204, headers: mockHeaders({}), json: vi.fn() });
 
-    const [, init] = mockFetch.mock.calls[0];
-    const parsed = new URLSearchParams(init.body as string);
-    expect(parsed.get('client_id')).toBe('test-dev-client-id');
-    expect(parsed.get('client_secret')).toBe('test-dev-secret');
-    expect(parsed.get('grant_type')).toBe('client_credentials');
-    expect(parsed.get('scope')).toBe(
-      'http://www.thinkministry.com/dataplatform/scopes/all'
-    );
-  });
-
-  // Default profile keeps using prod env vars
-  it('should use default (prod) client id/secret when profile is omitted', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ access_token: 'prod-token' }),
+      await expect(getClientCredentialsToken()).rejects.toThrow('invalid token response');
     });
 
-    await getClientCredentialsToken();
+    it('should refuse to parse a non-JSON 200 and not echo its body', async () => {
+      const json = vi.fn();
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: mockHeaders({ 'Content-Type': 'text/html' }),
+        json,
+      });
 
-    const [, init] = mockFetch.mock.calls[0];
-    const parsed = new URLSearchParams(init.body as string);
-    expect(parsed.get('client_id')).toBe('test-client-id');
-    expect(parsed.get('client_secret')).toBe('test-secret');
+      await expect(getClientCredentialsToken()).rejects.toThrow(
+        'Failed to get client credentials token: unexpected content-type'
+      );
+      expect(json).not.toHaveBeenCalled();
+    });
+
+    it('should not leak a body fragment from a malformed JSON 200', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: mockHeaders({ 'Content-Type': 'application/json' }),
+        json: vi.fn().mockRejectedValue(new SyntaxError('Unexpected token "Jane Doe, "... is not valid JSON')),
+      });
+
+      try {
+        await getClientCredentialsToken();
+        expect.unreachable('expected getClientCredentialsToken to throw');
+      } catch (err) {
+        expect((err as Error).message).toBe(
+          'Failed to get client credentials token: invalid JSON response'
+        );
+      }
+    });
   });
 
-  // Dev profile throws when dev vars missing
-  it('should throw when dev profile is used without dev env vars', async () => {
-    delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_ID;
-    delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET;
+  describe('secret handling', () => {
+    it.each([
+      ['a rejected token request', () => fetchMock.mockResolvedValueOnce({ ok: false, status: 400, statusText: 'Bad Request', json: vi.fn() })],
+      ['a network failure', () => fetchMock.mockRejectedValueOnce(new TypeError(`fetch failed ${SECRET}`))],
+      ['an invalid token response', () => fetchMock.mockResolvedValueOnce(tokenResponse({ error: SECRET }))],
+    ])('should never put the client secret in the error for %s', async (_label, arrange) => {
+      arrange();
 
-    await expect(getClientCredentialsToken('dev')).rejects.toThrow(
-      /Dev client credentials are not configured/
-    );
-    expect(mockFetch).not.toHaveBeenCalled();
+      const err = await getClientCredentialsToken().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).not.toContain(SECRET);
+      expect(JSON.stringify(err)).not.toContain(SECRET);
+      expect((err as Error).cause).toBeUndefined();
+    });
   });
 
-  it('should throw when dev profile is used with only one of the two dev env vars', async () => {
-    delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET;
+  describe('credential profiles', () => {
+    beforeEach(() => {
+      process.env.MINISTRY_PLATFORM_DEV_CLIENT_ID = 'test-dev-client-id';
+      process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET = 'test-dev-secret';
+    });
 
-    await expect(getClientCredentialsToken('dev')).rejects.toThrow(
-      /Dev client credentials are not configured/
-    );
-    expect(mockFetch).not.toHaveBeenCalled();
+    it('should use dev client id/secret when profile is "dev"', async () => {
+      fetchMock.mockResolvedValueOnce(tokenResponse({ access_token: 'dev-token', token_type: 'Bearer' }));
+
+      await getClientCredentialsToken('dev');
+
+      const [, init] = fetchMock.mock.calls[0];
+      const parsed = new URLSearchParams(init.body as string);
+      expect(parsed.get('client_id')).toBe('test-dev-client-id');
+      expect(parsed.get('client_secret')).toBe('test-dev-secret');
+      expect(parsed.get('grant_type')).toBe('client_credentials');
+      // The dev token request gets the same deadline and redirect refusal
+      expect(init.redirect).toBe('error');
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it('should use default (prod) client id/secret when profile is omitted', async () => {
+      fetchMock.mockResolvedValueOnce(tokenResponse({ access_token: 'prod-token', token_type: 'Bearer' }));
+
+      await getClientCredentialsToken();
+
+      const [, init] = fetchMock.mock.calls[0];
+      const parsed = new URLSearchParams(init.body as string);
+      expect(parsed.get('client_id')).toBe('test-client-id');
+      expect(parsed.get('client_secret')).toBe(SECRET);
+    });
+
+    it('should validate the dev token response too', async () => {
+      fetchMock.mockResolvedValueOnce(tokenResponse({ access_token: 'dev-token' }));
+
+      await expect(getClientCredentialsToken('dev')).rejects.toThrow(
+        'Failed to get client credentials token: invalid token response'
+      );
+    });
+
+    it('should throw when dev profile is used without dev env vars', async () => {
+      delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_ID;
+      delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET;
+
+      await expect(getClientCredentialsToken('dev')).rejects.toThrow(
+        /Dev client credentials are not configured/
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('should throw when dev profile is used with only one of the two dev env vars', async () => {
+      delete process.env.MINISTRY_PLATFORM_DEV_CLIENT_SECRET;
+
+      await expect(getClientCredentialsToken('dev')).rejects.toThrow(
+        /Dev client credentials are not configured/
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 });

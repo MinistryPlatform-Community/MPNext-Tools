@@ -28,13 +28,18 @@ Create `src/app/(web)/tools/{routeName}/page.tsx`:
 
 ```tsx
 import { {componentName} } from "./{fileName}";
-import { parseToolParams } from "@/lib/tool-params";
+import { requireToolAccess } from "@/app/(web)/tools/require-tool-access";
+import { parseToolParams } from "@/lib/tool-params.server";
 
 interface {componentName}PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default async function {componentName}Page({ searchParams }: {componentName}PageProps) {
+  // Self-gating, before ANY param parsing or data call — see require-tool-access.ts.
+  // Pick the MP table/operation this tool actually needs.
+  await requireToolAccess({ table: "dp_Tools", operation: "read" });
+
   const params = await parseToolParams(await searchParams);
 
   return <{componentName} params={params} />;
@@ -54,7 +59,7 @@ Create `src/app/(web)/tools/{routeName}/{fileName}.tsx`:
 ```tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ToolContainer } from "@/components/tool";
 import { Users } from "lucide-react";
@@ -69,19 +74,10 @@ export function {componentName}({ params }: {componentName}Props) {
   const [isSaving, setIsSaving] = useState(false);
   const isNew = isNewRecord(params);
 
-  useEffect(() => {
-    console.log("Tool launched with params:", params);
-    console.log("Mode:", isNew ? "Create New" : "Edit Existing");
-    if (params.recordDescription) {
-      console.log("Editing record:", params.recordDescription);
-    }
-  }, [params, isNew]);
-
   const handleSave = async () => {
     setIsSaving(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsSaving(false);
-    console.log("Saved!", { params });
   };
 
   const handleClose = () => {
@@ -163,6 +159,8 @@ After creating all files, confirm the new tool by listing the created files and 
 - [ ] Tool component created at `src/app/(web)/tools/{routeName}/{fileName}.tsx`
 - [ ] Homepage card added to `src/app/(web)/page.tsx`
 - [ ] All placeholder text replaced with the tool's displayName
+- [ ] `page.tsx` calls `requireToolAccess()` before parsing params, and imports `parseToolParams` from `@/lib/tool-params.server` (not `@/lib/tool-params`, which must stay client-safe)
+- [ ] No `console.log` (ESLint `no-console` allows only `warn`/`error`)
 - [ ] Component uses named export (no default export) — except `page.tsx` which requires default export per Next.js
 
 ## Multiple Tools
@@ -178,5 +176,7 @@ Creates both tools and adds both cards to the homepage.
 ## Notes
 
 - The `ToolContainer` renders a `DevPanel` above the title bar automatically on localhost in development builds — no manual scaffolding needed.
+- `tools/layout.tsx` only redirects role-less users for UX; it does **not** protect the page. Each page gates itself with `requireToolAccess` (`src/app/(web)/tools/require-tool-access.ts`), and any server action / service the tool adds must gate again with `AuthorizationService.requireSecurityRole()` (CLAUDE.md practice #12).
+- Add co-located tests (`page.test.tsx`, `{fileName}.test.tsx`) — CI enforces coverage thresholds (`vitest.config.mts`).
 - The `page.tsx` uses a default export (Next.js requirement), but the tool component uses a named export per project convention
-- Route names should be lowercase with no separators (matching existing pattern: `template`, `groupwizard`, `templateeditor`)
+- Route names should be lowercase with no separators (matching existing pattern: `template`, `groupwizard`, `addresslabels`, `fieldmanagement`, `addeditfamily`)

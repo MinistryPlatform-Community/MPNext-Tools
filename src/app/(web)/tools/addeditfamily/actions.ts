@@ -3,6 +3,8 @@
 import { FamilyService, PartialSaveError } from "@/services/familyService";
 import { AuthorizationService } from "@/services/authorizationService";
 import { GooglePlacesService } from "@/services/googlePlacesService";
+import { ToolService } from "@/services/toolService";
+import { validatePositiveInt } from "@/lib/validation";
 import { HouseholdSchema } from "@/lib/dto/family";
 import type {
   ContactSearchResult,
@@ -71,20 +73,36 @@ export async function fetchHousehold(
   }
 }
 
+/**
+ * Resolve the Contact_ID behind an MP page record.
+ *
+ * Takes the page ID, NOT table/column names: the page's `Table_Name`,
+ * `Primary_Key` and `Contact_ID_Field` are looked up server-side from MP
+ * (`api_Tools_GetPageData`). This action used to accept those names from the
+ * caller, which — being a POST endpoint — let any role holder aim the query
+ * at an arbitrary table and column. The service validates the metadata again.
+ */
 export async function resolveContactIdFromPage(args: {
-  tableName: string;
-  primaryKey: string;
+  pageId: number;
   recordId: number;
-  contactIdField: string;
 }): Promise<{ success: true; contactId: number | null } | ActionError> {
   try {
-    await requireAccess(args.tableName, "read");
+    await requireAccess("dp_Pages", "read");
+    const pageId = validatePositiveInt(args?.pageId);
+    const recordId = validatePositiveInt(args?.recordId);
+
+    const toolService = await ToolService.getInstance();
+    const page = await toolService.getPageData(pageId);
+    if (!page?.Table_Name || !page.Primary_Key || !page.Contact_ID_Field) {
+      return { success: true, contactId: null };
+    }
+
     const service = await FamilyService.getInstance();
     const contactId = await service.resolveContactIdFromPage(
-      args.tableName,
-      args.primaryKey,
-      args.recordId,
-      args.contactIdField,
+      page.Table_Name,
+      page.Primary_Key,
+      recordId,
+      page.Contact_ID_Field,
     );
     return { success: true, contactId };
   } catch (error) {

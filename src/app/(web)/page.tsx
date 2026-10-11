@@ -26,20 +26,6 @@ export default function Home() {
 
         <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle>Template Editor</CardTitle>
-            <CardDescription>
-              Create and edit templates in Ministry Platform
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <Link href="/tools/templateeditor">
-              <Button className="w-full">Open Tool</Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col">
-          <CardHeader>
             <CardTitle>Address Labels</CardTitle>
             <CardDescription>
               Print address labels with USPS Intelligent Mail Barcodes

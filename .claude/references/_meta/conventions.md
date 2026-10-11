@@ -8,7 +8,7 @@ Agent-only. Human readers use `README.md` at the project root.
 
 ## Writing rules
 - **Terse.** Bullets, tables, frontmatter, code blocks. No narrative prose. No "this document explains..." openings.
-- **Verify every factual claim.** Grep/Read the source or use context7 for framework API claims. Never trust training data for Next.js 16 / React 19 / Zod v4 / Better Auth 1.5 / Vitest 4.
+- **Verify every factual claim.** Grep/Read the source or use context7 for framework API claims. Never trust training data for Next.js 16 / React 19 / Zod v4 / Better Auth 1.7 / Vitest 5.
 - **Copy-paste examples from real source.** Do NOT invent code. Pull from actual `src/**` files.
 - **Link, don't repeat.** If another doc covers it, link.
 - **One responsibility per file.** If a doc is doing two things, split it.

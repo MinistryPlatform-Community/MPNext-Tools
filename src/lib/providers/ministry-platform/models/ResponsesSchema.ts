@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const ResponsesSchema = z.object({
   Response_ID: z.number().int(),
-  Response_Date: z.string().datetime(),
+  Response_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
   Opportunity_ID: z.number().int(),
   Participant_ID: z.number().int(),
   Comments: z.string().max(2000).nullable(),

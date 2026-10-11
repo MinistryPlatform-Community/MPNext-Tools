@@ -1,3 +1,4 @@
+import "server-only";
 import { MinistryPlatformProvider } from "./provider";
 import {
   TableQueryParams,
@@ -175,9 +176,10 @@ export class MPHelper {
    * });
    *
    * @example
-   * // Create with Zod validation (recommended)
-   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+   * // Create with a datetime, validated against the generated schema
+   * // (its datetime rule accepts MP wall-clock `YYYY-MM-DD HH:MM:SS`)
    * import { DomainTimezoneService } from '@/services/domainTimezoneService';
+   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
    *
    * // MP stores datetimes as wall-clock in the domain's TZ, not UTC.
    * // Route every datetime write through DomainTimezoneService.
@@ -267,7 +269,7 @@ export class MPHelper {
    *
    * @example
    * // Update with Zod validation (recommended)
-   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
    *
    * const updatedLogs = await mp.updateTableRecords('Contact_Log', [{
    *   Contact_Log_ID: 67890,
@@ -385,7 +387,6 @@ export class MPHelper {
    * Retrieves available global filters for the domain
    * Global filters provide domain-wide data filtering capabilities
    * @param params - Optional parameters for the global filters request
-   * @param params.$ignorePermissions - Whether to ignore user permissions when retrieving filters
    * @param params.$userId - User context for permission-based filter access
    * @returns Promise resolving to array of global filter items with keys and display values
    * @throws Error if authentication fails or filters are inaccessible

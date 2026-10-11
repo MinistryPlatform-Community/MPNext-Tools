@@ -17,12 +17,11 @@ export function ContactRecordsPanel({ params, selectionRecordIds }: ContactRecor
   const [error, setError] = useState<string | null>(null);
 
   const contactIdField = params.pageData?.Contact_ID_Field;
-  const tableName = params.pageData?.Table_Name;
-  const primaryKey = params.pageData?.Primary_Key;
+  const pageId = params.pageID;
 
   const hasSingleRecord = params.recordID !== undefined && params.recordID > 0;
   const hasSelection = selectionRecordIds !== undefined && selectionRecordIds.length > 0;
-  const canResolve = contactIdField && tableName && primaryKey && (hasSingleRecord || hasSelection);
+  const canResolve = contactIdField && pageId && (hasSingleRecord || hasSelection);
 
   useEffect(() => {
     if (!canResolve) return;
@@ -37,7 +36,7 @@ export function ContactRecordsPanel({ params, selectionRecordIds }: ContactRecor
 
     async function fetchContacts() {
       try {
-        const data = await resolveContactRecords(tableName!, primaryKey!, contactIdField!, recordIds);
+        const data = await resolveContactRecords(pageId!, recordIds);
         setResult(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to resolve contact records");
@@ -47,7 +46,7 @@ export function ContactRecordsPanel({ params, selectionRecordIds }: ContactRecor
     }
 
     fetchContacts();
-  }, [canResolve, hasSingleRecord, params.recordID, selectionRecordIds, tableName, primaryKey, contactIdField]);
+  }, [canResolve, hasSingleRecord, params.recordID, selectionRecordIds, pageId]);
 
   if (!contactIdField) return null;
   if (!hasSingleRecord && !hasSelection) return null;

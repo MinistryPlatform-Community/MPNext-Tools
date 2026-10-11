@@ -12,8 +12,8 @@ export const ContributionStatementsSchema = z.object({
   Archived: z.boolean(),
   Archived_Campaign: z.number().int().nullable(),
   Alternate_Archived_Campaign: z.number().int().nullable(),
-  Last_Change_By_Routine: z.string().datetime(),
-  Last_Statement_File: z.string().datetime().nullable(),
+  Last_Change_By_Routine: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
+  Last_Statement_File: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
 });
 
 export type ContributionStatementsInput = z.infer<typeof ContributionStatementsSchema>;

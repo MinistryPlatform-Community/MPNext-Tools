@@ -32,6 +32,7 @@ ministry-platform/
 │   └── types.ts                # Auth-related types
 ├── services/                   # Service layer
 │   ├── index.ts
+│   ├── guards.ts               # Path-segment validation (table/proc names, IDs, GUIDs)
 │   ├── table.service.ts
 │   ├── procedure.service.ts
 │   ├── communication.service.ts
@@ -39,13 +40,15 @@ ministry-platform/
 │   ├── domain.service.ts
 │   └── file.service.ts
 ├── models/                     # Generated data models (PascalCase, one per MP table)
+│   ├── index.ts                # Barrel — re-exports interfaces only, NOT the *Schema files
 │   ├── <Table>.ts              # TypeScript interface
-│   └── <Table>Schema.ts        # Matching Zod schema
+│   └── <Table>Schema.ts        # Matching Zod schema (import by path)
 ├── types/                      # Hand-written type definitions
 │   ├── index.ts
 │   ├── provider.types.ts
 │   └── user-profile.types.ts
 ├── utils/                      # Utilities
+│   ├── index.ts
 │   ├── http-client.ts
 │   └── logger.ts
 ├── scripts/                    # Type generation CLI (see scripts/README.md)
@@ -85,7 +88,7 @@ await mp.createTableRecords('Contact_Log', [{
 ## Environment Variables
 
 ```env
-MINISTRY_PLATFORM_BASE_URL=https://your-instance.ministryplatform.com
+MINISTRY_PLATFORM_BASE_URL=https://your-instance.ministryplatform.com/ministryplatformapi
 MINISTRY_PLATFORM_CLIENT_ID=your_client_id
 MINISTRY_PLATFORM_CLIENT_SECRET=your_client_secret
 
@@ -122,14 +125,15 @@ mp.deleteTableRecords<T>(table, ids, params?)
 
 ```typescript
 mp.executeProcedure(procedure, params?)
-mp.executeProcedureWithBody(procedure, parameters)
+mp.getProcedures(search?)
+mp.executeProcedureWithBody(procedure, parameters, queryParams?)
 ```
 
 ### Communications
 
 ```typescript
-mp.createCommunication(communication, attachments?)
-mp.sendMessage(message, attachments?)
+mp.createCommunication(communication, attachments?, params?)  // params: { $userId }
+mp.sendMessage(message, attachments?, params?)
 ```
 
 ### Files
@@ -139,6 +143,9 @@ mp.uploadFiles(params)
 mp.getFilesByRecord(params)
 mp.updateFile(params)
 mp.deleteFile(params)
+mp.getFileContentByUniqueId(params)
+mp.getFileMetadata(params)
+mp.getFileMetadataByUniqueId(params)
 ```
 
 ### Metadata
@@ -170,7 +177,7 @@ npm run mp:generate
 npm run mp:generate:models
 
 # Or use directly with options
-npx tsx src/lib/providers/ministry-platform/scripts/generate-types.ts --help
+npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
 ```
 
 See [scripts/README.md](../scripts/README.md) for full documentation.

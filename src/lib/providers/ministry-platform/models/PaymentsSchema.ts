@@ -4,7 +4,7 @@ export const PaymentsSchema = z.object({
   Payment_ID: z.number().int(),
   Payment_Total: z.number(),
   Contact_ID: z.number().int(),
-  Payment_Date: z.string().datetime(),
+  Payment_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
   Gateway_Response: z.string().max(500).nullable(),
   Transaction_Code: z.string().max(50).nullable(),
   Notes: z.string().max(4000).nullable(),

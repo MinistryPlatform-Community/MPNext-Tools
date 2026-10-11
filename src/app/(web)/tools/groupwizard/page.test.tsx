@@ -24,6 +24,12 @@ vi.mock('./group-wizard', () => ({
   ),
 }));
 
+const mockRequireToolAccess = vi.hoisted(() => vi.fn(async () => 42));
+
+vi.mock('@/app/(web)/tools/require-tool-access', () => ({
+  requireToolAccess: mockRequireToolAccess,
+}));
+
 import GroupWizardPage from './page';
 
 afterEach(() => {
@@ -57,5 +63,20 @@ describe('GroupWizardPage', () => {
     await GroupWizardPage({ searchParams: Promise.resolve(rawParams) });
 
     expect(mockParseToolParams).toHaveBeenCalledWith(rawParams);
+  });
+});
+
+describe('GroupWizardPage self-gate', () => {
+  it('gates before parsing params and renders nothing when refused', async () => {
+    // Adversarial: the tools layout's redirect does not stop a page segment
+    // rendering in Next 16, so the page itself must refuse.
+    mockParseToolParams.mockClear();
+    mockRequireToolAccess.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/no-access'));
+
+    await expect(GroupWizardPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+      'NEXT_REDIRECT:/no-access',
+    );
+    expect(mockRequireToolAccess).toHaveBeenCalledWith({ table: 'Groups', operation: 'read' });
+    expect(mockParseToolParams).not.toHaveBeenCalled();
   });
 });

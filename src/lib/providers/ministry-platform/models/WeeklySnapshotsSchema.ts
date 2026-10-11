@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const WeeklySnapshotsSchema = z.object({
   Weekly_Snapshot_ID: z.number().int(),
-  Start_Date: z.string().datetime(),
+  Start_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
   Congregation_ID: z.number().int(),
   Active_People_7Days: z.number().int(),
   Active_People_1Month: z.number().int(),

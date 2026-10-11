@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderToString } from 'react-dom/server';
 
 import GlobalError from './global-error';
 
@@ -42,6 +43,25 @@ describe('GlobalError', () => {
     await userEvent.click(screen.getByRole('button', { name: /try again/i }));
 
     expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers a plain link home that works without JavaScript', () => {
+    render(<GlobalError error={makeError()} retry={vi.fn()} />);
+
+    expect(screen.getByRole('link', { name: /go to home page/i })).toHaveAttribute('href', '/');
+  });
+
+  it('enables the retry button once hydrated', () => {
+    render(<GlobalError error={makeError()} retry={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
+  });
+
+  it('server-renders the retry button disabled, so a pre-hydration click is not swallowed', () => {
+    const html = renderToString(<GlobalError error={makeError()} retry={vi.fn()} />);
+
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Try again<\/button>/);
+    expect(html).toContain('href="/"');
   });
 
   it('shows the digest reference when one is present', () => {

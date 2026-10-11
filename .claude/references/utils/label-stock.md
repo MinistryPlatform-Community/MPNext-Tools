@@ -13,7 +13,7 @@ symbols:
 related:
   - barcodes.md
   - ../components/README.md
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -84,7 +84,7 @@ All four: `pageWidth=612`, `pageHeight=792`, `rowGap=0`.
 ## Usage
 
 ### Looking up a stock in a server action
-From `src/components/address-labels/actions.ts:21`:
+From `src/components/address-labels/actions.ts:19`:
 
 ```typescript
 import { getLabelStock } from '@/lib/label-stock';
@@ -106,15 +106,15 @@ import type { LabelStockConfig } from '@/lib/label-stock';
 ```
 
 ### Word export (geometry only)
-From `src/components/address-labels/word-document.ts:16`:
+From `src/components/address-labels/word-document.ts:15`:
 
 ```typescript
 import type { LabelStockConfig } from '@/lib/label-stock';
 ```
 
 ## Gotchas
-- **`getLabelStock` returns `undefined` for unknown IDs.** Callers must guard before dereferencing — see `src/app/(web)/tools/addresslabels/address-labels.tsx:64-65` and `src/components/address-labels/actions.ts:135-138`. The test `should return undefined for unknown stock ID` (`src/lib/label-stock.test.ts:28`) pins the behavior.
-- **`startPosition` offset is handled by the caller**, not by `getLabelPosition`. Features that "skip N used labels" add the offset to the index before calling.
+- **`getLabelStock` returns `undefined` for unknown IDs.** Callers must guard before dereferencing — see `src/app/(web)/tools/addresslabels/address-labels.tsx:64-65` and `prepareLabels` in `src/components/address-labels/actions.ts` (`Unknown label stock` envelope). The test `should return undefined for unknown stock ID` (`src/lib/label-stock.test.ts:28`) pins the behavior.
+- **`startPosition` offset is handled by the caller**, not by `getLabelPosition`. `label-document.tsx` skips `startPosition - 1` cells before placing labels. `prepareLabels` rejects a `startPosition` beyond `columns * rows`.
 - **Landscape / non-Letter stocks are not modeled.** If a new stock is added, it must follow the 612×792 Letter-portrait assumption or the PDF layout code in `label-document.tsx` needs updating.
 
 ## Related docs

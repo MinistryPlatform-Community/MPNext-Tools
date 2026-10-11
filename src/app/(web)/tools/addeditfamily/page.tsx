@@ -1,4 +1,5 @@
 import { AddEditFamily } from "./add-edit-family";
+import { requireToolAccess } from "@/app/(web)/tools/require-tool-access";
 import { parseToolParams } from "@/lib/tool-params.server";
 import { FamilyService } from "@/services/familyService";
 
@@ -7,6 +8,9 @@ interface AddEditFamilyPageProps {
 }
 
 export default async function AddEditFamilyPage({ searchParams }: AddEditFamilyPageProps) {
+  // Self-gating, before ANY param parsing or data call — see require-tool-access.ts.
+  await requireToolAccess({ table: "Contacts", operation: "read" });
+
   const params = await parseToolParams(await searchParams);
 
   let initialContactId: number | null = null;

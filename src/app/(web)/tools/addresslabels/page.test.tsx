@@ -14,6 +14,12 @@ vi.mock('./address-labels', () => ({
   ),
 }));
 
+const mockRequireToolAccess = vi.hoisted(() => vi.fn(async () => 42));
+
+vi.mock('@/app/(web)/tools/require-tool-access', () => ({
+  requireToolAccess: mockRequireToolAccess,
+}));
+
 import AddressLabelsPage from './page';
 
 afterEach(() => {
@@ -32,5 +38,20 @@ describe('AddressLabelsPage', () => {
 
     expect(mockParseToolParams).toHaveBeenCalledWith({ recordID: '42' });
     expect(screen.getByTestId('address-labels').textContent).toBe(JSON.stringify(parsed));
+  });
+});
+
+describe('AddressLabelsPage self-gate', () => {
+  it('gates before parsing params and renders nothing when refused', async () => {
+    // Adversarial: the tools layout's redirect does not stop a page segment
+    // rendering in Next 16, so the page itself must refuse.
+    mockParseToolParams.mockClear();
+    mockRequireToolAccess.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/no-access'));
+
+    await expect(AddressLabelsPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+      'NEXT_REDIRECT:/no-access',
+    );
+    expect(mockRequireToolAccess).toHaveBeenCalledWith({ table: 'Contacts', operation: 'read' });
+    expect(mockParseToolParams).not.toHaveBeenCalled();
   });
 });

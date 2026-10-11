@@ -2,7 +2,7 @@
  * Interface for dp_API_Clients
 * Table: dp_API_Clients
  * Access Level: ReadWriteAssignDelete
- * Special Permissions: FileAttach, DataExport
+ * Special Permissions: FileAttach, DataExport, SecureRecord
  * Generated from column metadata
  */
 export interface DpApiClients {

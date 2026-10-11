@@ -15,10 +15,14 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 
 // Mock environment variables for tests
 vi.stubEnv('MINISTRY_PLATFORM_BASE_URL', 'https://test-mp.example.com');
+// One MP client serves both the service account and user sign-in (see
+// getMpClient in src/lib/env.ts). `test-client-id` is the id_token audience
+// the mock OIDC providers sign for (MOCK_CLIENT_ID in src/test-utils/mock-oidc.ts).
 vi.stubEnv('MINISTRY_PLATFORM_CLIENT_ID', 'test-client-id');
 vi.stubEnv('MINISTRY_PLATFORM_CLIENT_SECRET', 'test-client-secret');
 vi.stubEnv('MINISTRY_PLATFORM_DEV_CLIENT_ID', 'test-dev-client-id');
 vi.stubEnv('MINISTRY_PLATFORM_DEV_CLIENT_SECRET', 'test-dev-client-secret');
-vi.stubEnv('NEXTAUTH_SECRET', 'test-secret-key-for-testing');
+// >= 32 chars, so it would also pass assertAuthEnvironment (src/lib/auth.ts).
+vi.stubEnv('NEXTAUTH_SECRET', 'test-secret-key-for-testing-0123456789');
 vi.stubEnv('NEXTAUTH_URL', 'http://localhost:3000');
 vi.stubEnv('NODE_ENV', 'test');

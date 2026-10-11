@@ -8,6 +8,7 @@ const mockToBlob = vi.hoisted(() => vi.fn());
 const mockDocxtemplaterRender = vi.hoisted(() => vi.fn());
 const mockDocxtemplaterGetZip = vi.hoisted(() => vi.fn());
 const mockImageModuleCtor = vi.hoisted(() => vi.fn());
+const mockAssertZip = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth', () => ({
   auth: {
@@ -91,6 +92,13 @@ vi.mock('pizzip', () => ({
   default: class {},
 }));
 
+// The zip guard has its own tests against real archives (src/lib/zip-guard.test.ts);
+// here it is a seam so the fake templates below need not be valid ZIPs.
+vi.mock('@/lib/zip-guard', () => ({
+  assertZipWithinLimits: mockAssertZip,
+  ZipLimitError: class ZipLimitError extends Error {},
+}));
+
 vi.mock('docxtemplater-image', () => ({
   default: class {
     constructor(...args: unknown[]) {
@@ -111,6 +119,9 @@ vi.mock('@/lib/barcode-image', () => ({
 }));
 
 import { fetchAddressLabels, generateLabelPdf, mergeTemplate } from './actions';
+import { preEncodeBarcodes } from '@/lib/barcode-helpers';
+import { ZipLimitError } from '@/lib/zip-guard';
+import { MAX_LABELS } from './limits';
 import type { LabelConfig, LabelData } from '@/lib/dto';
 import type { ToolParams } from '@/lib/tool-params';
 
@@ -463,11 +474,12 @@ describe('mergeTemplate', () => {
   });
 
   it('should return error for oversized template', async () => {
-    const hugeBase64 = Buffer.alloc(6 * 1024 * 1024).toString('base64');
+    const hugeBase64 = Buffer.alloc(3 * 1024 * 1024).toString('base64');
     const labels: LabelData[] = [{ name: 'T', addressLine1: 'A', city: 'C', state: 'S', postalCode: '12345' }];
     const result = await mergeTemplate(hugeBase64, labels, mergeConfig);
     expect(result.success).toBe(false);
-    if (!result.success) expect(result.error).toContain('5MB');
+    if (!result.success) expect(result.error).toContain('2MB');
+    expect(mockAssertZip).not.toHaveBeenCalled();
   });
 
   it('returns error wrapped for template tag mismatch', async () => {
@@ -565,6 +577,84 @@ describe('mergeTemplate', () => {
     expect(options.getSize(Buffer.alloc(0), 'barcode_0', 'Barcode')).toEqual([200, 25]);
     // ...and a generic fallback size for any other tag
     expect(options.getSize(Buffer.alloc(0), 'x', 'SomeOtherTag')).toEqual([100, 100]);
+  });
+});
+
+describe('label input validation (shared by every render action)', () => {
+  const config: LabelConfig = {
+    stockId: '5160',
+    addressMode: 'household',
+    startPosition: 1,
+    includeMissingBarcodes: true,
+    barcodeFormat: 'postnet',
+    mailerId: '',
+    serviceType: '040',
+  };
+  const label: LabelData = { name: 'T', addressLine1: 'A', city: 'C', state: 'S', postalCode: '12345' };
+  const template = Buffer.from('x').toString('base64');
+
+  beforeEach(() => {
+    mockAssertZip.mockReset();
+    mockDocxtemplaterRender.mockClear();
+    vi.mocked(preEncodeBarcodes).mockClear();
+  });
+
+  it('rejects more than MAX_LABELS labels before rendering', async () => {
+    const labels = Array.from({ length: MAX_LABELS + 1 }, () => label);
+    const result = await generateLabelPdf(labels, config);
+    expect(result).toEqual({ success: false, error: expect.stringContaining('Too many labels') });
+    expect(preEncodeBarcodes).not.toHaveBeenCalled();
+  });
+
+  it('rejects a label with an oversized field', async () => {
+    const result = await generateLabelPdf([{ ...label, name: 'x'.repeat(10_000) }], config);
+    expect(result).toEqual({ success: false, error: 'Invalid label data' });
+  });
+
+  it('rejects a non-array labels payload', async () => {
+    const result = await generateLabelPdf('nope' as unknown as LabelData[], config);
+    expect(result).toEqual({ success: false, error: 'Invalid label data' });
+  });
+
+  it('rejects an unknown service type', async () => {
+    const result = await generateLabelPdf([label], { ...config, serviceType: '999' });
+    expect(result).toEqual({ success: false, error: 'Invalid label settings' });
+  });
+
+  it.each([0, 31, 1e9, 1.5])('rejects start position %s outside the 30-up sheet', async (startPosition) => {
+    const result = await generateLabelPdf([label], { ...config, startPosition });
+    expect(result.success).toBe(false);
+    expect(preEncodeBarcodes).not.toHaveBeenCalled();
+  });
+
+  it('drops caller-supplied barStates/barType so only server-encoded bars render', async () => {
+    const hostile = { ...label, barStates: 'FFFF', barType: 'imb' as const };
+    await mergeTemplate(template, [hostile], config);
+    const passed = vi.mocked(preEncodeBarcodes).mock.calls[0][0];
+    expect(passed[0]).not.toHaveProperty('barStates');
+    expect(passed[0]).not.toHaveProperty('barType');
+  });
+
+  it('runs the zip guard before PizZip and returns its message on a limit breach', async () => {
+    mockAssertZip.mockImplementationOnce(() => {
+      throw new ZipLimitError('Template is too large when uncompressed');
+    });
+    const result = await mergeTemplate(template, [label], config);
+    expect(result).toEqual({ success: false, error: 'Template is too large when uncompressed' });
+    expect(mockDocxtemplaterRender).not.toHaveBeenCalled();
+  });
+
+  it('maps any other zip-guard failure to a generic invalid-file error', async () => {
+    mockAssertZip.mockImplementationOnce(() => {
+      throw new RangeError('out of bounds');
+    });
+    const result = await mergeTemplate(template, [label], config);
+    expect(result).toEqual({ success: false, error: 'Not a valid .docx file' });
+  });
+
+  it('rejects a non-string template', async () => {
+    const result = await mergeTemplate(42 as unknown as string, [label], config);
+    expect(result).toEqual({ success: false, error: 'Template file exceeds 2MB limit' });
   });
 });
 
@@ -678,8 +768,6 @@ describe('generateLabelPdf error branches', () => {
  * `console.error('mergeTemplate error:', error)` wrote every printable name
  * and mailing address for the batch into server logs — exactly what CLAUDE.md
  * rule 14 forbids.
- *
- * See `.claude/TODO/2026-09-13-mergetemplate-logs-address-pii-on-error.md`.
  */
 describe('address-label actions redact errors before logging', () => {
   const config: LabelConfig = {

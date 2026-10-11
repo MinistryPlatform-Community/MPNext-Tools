@@ -1,7 +1,7 @@
 ---
 title: Architectural Decisions
 type: adr
-last_updated: 2026-04-17
+last_updated: 2026-10-10
 ---
 
 # Architectural Decisions
@@ -16,6 +16,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 - [ADR-003: `customSession` does name-splitting only; MP profile loaded on client](#adr-003-customsession-does-name-splitting-only-mp-profile-loaded-on-client)
 - [ADR-004: Dual-layer route protection — edge proxy + server-component validation](#adr-004-dual-layer-route-protection--edge-proxy--server-component-validation)
 - [ADR-005: Route group `(web)` for authenticated pages; `/signin` and `/api/auth` outside the group](#adr-005-route-group-web-for-authenticated-pages-signin-and-apiauth-outside-the-group)
+- [ADR-027: One MP OAuth client for the service account and user sign-in](#adr-027-one-mp-oauth-client-for-the-service-account-and-user-sign-in)
 
 ### MP Provider
 - [ADR-006: Singleton `MinistryPlatformProvider` with a shared `MinistryPlatformClient`](#adr-006-singleton-ministryplatformprovider-with-a-shared-ministryplatformclient)
@@ -57,7 +58,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** The app authenticates users against Ministry Platform's OIDC provider, which has several non-standard traits (custom `realm` authorization param, MP-specific scope `http://www.thinkministry.com/dataplatform/scopes/all`, dedicated `/oauth/connect/userinfo` endpoint for user lookup). The auth layer must run cleanly on Next.js 16 App Router with Turbopack. `src/lib/auth.ts` still reads `NEXTAUTH_URL` / `NEXTAUTH_SECRET` as fallbacks, evidence that the codebase migrated from NextAuth.
-**Decision:** Use Better Auth 1.5 (`better-auth@^1.5.5`) with the `genericOAuth` plugin, a custom `getUserInfo` that calls `/oauth/connect/userinfo`, and `mapProfileToUser` that stores the OIDC `sub` claim as a user `additionalField` named `userGuid`. Wire Next.js integration with `nextCookies()` plugin and mount `toNextJsHandler(auth)` at `/api/auth/[...all]`.
+**Decision:** Use Better Auth (adopted at 1.5; now `better-auth@^1.7.7`) with the `genericOAuth` plugin, a custom `getUserInfo` that calls `/oauth/connect/userinfo`, and `mapProfileToUser` that stores the OIDC `sub` claim as a user `additionalField` named `userGuid`. Wire Next.js integration with `nextCookies()` plugin and mount `toNextJsHandler(auth)` at `/api/auth/[...all]`.
 **Consequences:** Custom `getUserInfo` and `mapProfileToUser` are required for MP's OIDC quirks. `additionalFields` isn't in the `genericOAuth` option types, so a `Record<string, unknown>` cast is needed when returning from `mapProfileToUser`. First-class Next.js 16 integration keeps route handlers minimal.
 **Alternatives considered:**
 - **NextAuth v5** — heavier, less flexible for MP's custom OIDC details; migration evidence suggests it was the previous choice and was replaced.
@@ -71,6 +72,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Context:** The tools suite is an internal app for MP staff. Adding a dedicated Postgres/Redis instance for session storage would be operational overhead disproportionate to the feature set. `auth.api.getSession()` is called on every authenticated server-component render, so the happy path must be fast.
 **Decision:** Enable `session.cookieCache` with `strategy: "jwt"` and a 1-hour `maxAge`, plus `account.storeAccountCookie: true` and `storeStateStrategy: "cookie"`. Do not configure a database adapter (`src/lib/auth.ts`).
 **Consequences:** Zero infrastructure beyond env vars. `getSession()` verifies the JWT cookie without a DB roundtrip. No server-side session list, no admin revocation, no cross-device logout. Sub-1-hour cookie TTL caps how long a stolen cookie is usable; refresh-token rotation behaviour in pure-cookie mode is unverified in this repo.
+**Amended 2026-09-30 (security Step 3):** the "sub-1-hour" claim was wrong — stateless better-auth defaults `cookieCache.refreshCache` to `true`, so a copied cookie re-signed itself for up to 7 days. Now: `expiresIn` 12 h, `disableSessionRefresh`, `strategy: "jwe"`, `refreshCache: false` (an unbacked cookie dies within 1 h), `storeAccountCookie: false` and no `offline_access`. Still no database. See `auth/sessions.md`.
 **Alternatives considered:**
 - **DB adapter (Postgres/SQLite via Drizzle)** — requires operating an auth DB and migration pipeline.
 - **Redis adapter** — another external dependency and another ops surface.
@@ -80,8 +82,9 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** A tempting design is to enrich the session object inside `customSession` with the user's full MP profile (roles, user groups, Contact_ID, Image_GUID). Every consumer would then read a single object. The downside is that `customSession` runs on every cache miss, and MP profile lookups require extra MP API calls (`dp_Users` + `dp_User_Roles` + `dp_User_User_Groups`).
-**Decision:** `customSession` in `src/lib/auth.ts:398-413` does only `firstName` / `lastName` splitting from `user.name` — no API calls. MP profile loading moves to the client, behind `UserProvider` (`src/contexts/user-context.tsx`), which calls the parameterless `getCurrentUserProfile()` server action on mount (the action re-derives the GUID from the session — a GUID parameter would be an IDOR) and exposes `useUser()`.
+**Decision:** `customSession` (callback extracted as `enrichSession` in `src/lib/auth.ts`) does only `firstName` / `lastName` splitting from `user.name` — no API calls. MP profile loading moves to the client, behind `UserProvider` (`src/contexts/user-context.tsx`), which calls the parameterless `getCurrentUserProfile()` server action on mount (the action re-derives the GUID from the session — a GUID parameter would be an IDOR) and exposes `useUser()`.
 **Consequences:** `getSession()` stays cheap. Sign-in does not break when MP is down. Client components that need roles/groups must mount under `UserProvider`; every page load incurs one extra round-trip. `UserService.getUserProfile()` issues three queries (profile + roles + groups).
+**Note (2026-10-10):** `MPUserProfile` is now display-only (`First_Name`, `Nickname`, `Last_Name`, `Email_Address`) and `getUserProfile()` issues **one** `dp_Users` query; roles and user groups are no longer sent to the client. Security-role checks use `AuthorizationService` server-side. See `services/user-service.md`.
 **Alternatives considered:**
 - **Enrich in `customSession`** — would hit MP API on every JWT refresh and couple sign-in availability to MP uptime.
 - **Load profile server-side in layout** — blocks TTFB on every page render.
@@ -92,10 +95,10 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Status:** Accepted
 **Context:** Unauthenticated requests should be redirected as early and cheaply as possible, but stale/forged cookies must still be rejected before any MP API call. Better Auth's full `auth.api.getSession()` is Node-only and too heavy for the edge runtime.
 **Decision:** Two-layer gate:
-- **Layer 1 — edge proxy** (`src/proxy.ts`): uses `getSessionCookie()` from `better-auth/cookies` to do a cheap cookie-presence check and redirects to `/signin?callbackUrl=<fullPath>` if absent. Also sets an `x-pathname` header forwarding the original URL.
+- **Layer 1 — edge proxy** (`src/proxy.ts`): uses `getSessionCookie()` from `better-auth/cookies` to do a cheap cookie-presence check and redirects to `/signin?callbackUrl=<fullPath>` if absent. Also sets an `x-pathname` header forwarding the original URL (and, since security Step 6, the per-request CSP nonce).
 - **Layer 2 — server component** (`src/components/layout/auth-wrapper.tsx`): calls `auth.api.getSession()` inside the `(web)` route group and redirects using the forwarded `x-pathname` if the session is missing or invalid.
 
-**Consequences:** Fast happy path at the edge; full validation before any protected render. Auth logic lives in two files that must stay in sync. Public paths (`/api/*`, `/signin`) are whitelisted in the proxy.
+**Consequences:** Fast happy path at the edge; full validation before any protected render. Auth logic lives in two files that must stay in sync. Public paths (`/api/auth`, `/api/auth/*`, `/signin`, `/auth-error` — `isPublicPath()` in `src/proxy.ts`) are allowlisted; every other `/api/*` route needs the session cookie. Since 2026-09-13 the real authorization gate is `AuthorizationService` in the services layer (see ADR-014).
 **Alternatives considered:**
 - **Single full-validation gate in the proxy** — Better Auth's full session validation isn't cheap enough for edge and has Node-only dependencies.
 - **Skip edge check entirely** — every request would render a server component just to redirect, slower and more expensive than a cookie peek.
@@ -105,11 +108,21 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** All authenticated pages need a shared layout with `AuthWrapper` and the client `Providers` (which mounts `UserProvider`). The sign-in page and Better Auth's catch-all handler must render without a valid session.
-**Decision:** Use Next.js App Router route groups. Authenticated pages live under `src/app/(web)/` and inherit its `layout.tsx`. Public routes (`src/app/signin/`, `src/app/api/auth/[...all]/`) sit as siblings outside the group.
+**Decision:** Use Next.js App Router route groups. Authenticated pages live under `src/app/(web)/` and inherit its `layout.tsx`. Public routes (`src/app/signin/`, `src/app/api/auth/[...all]/`, `src/app/auth-error/`, `src/app/session-error/`) sit as siblings outside the group.
 **Consequences:** Clean separation of public vs. authenticated surfaces. Adding a new tool is a one-directory drop under `src/app/(web)/tools/`. Easy to accidentally place a public page inside `(web)/`, so reviewers must watch for this.
 **Alternatives considered:**
 - **Per-page auth checks** — copy-paste prone; easy to forget on new pages.
 - **Single top-level layout with conditional branch** — awkward in the App Router model and wastes a layout slot.
+
+### ADR-027: One MP OAuth client for the service account and user sign-in
+
+**Date:** 2026-10-10
+**Status:** Accepted (reverses security Step 4's dedicated OIDC client)
+**Context:** Step 4 (2026-09-30) added `MP_OIDC_CLIENT_ID` / `MP_OIDC_CLIENT_SECRET` so user sign-in would run as its own MP client, with a fallback to the service account while environments were split. That meant two MP client registrations and two secrets per deployment, plus a fallback path and a warning to maintain.
+**Decision:** The app has exactly one MP OAuth client, `MINISTRY_PLATFORM_CLIENT_ID` / `MINISTRY_PLATFORM_CLIENT_SECRET`, read through `getMpClient()` in `src/lib/env.ts`. It is the client-credentials service account and the OIDC sign-in client; its id is the id_token audience and the sign-out `client_id`. The `MP_OIDC_*` variables, `getOidcClient`, `warnIfSharedOidcClient` and the `auth.oidc.shared_client` event were removed.
+**Consequences:** One registration and one secret per deployment, and no half-configured state. Accepted risk: that one secret is both full MP data access and user sign-in, and an id_token minted for the service account's client is a valid sign-in token. The MP client record must carry the sign-in redirect URIs (`<BETTER_AUTH_URL>/api/auth/callback/ministryplatform`, post-logout `<BETTER_AUTH_URL>`) and nothing broader.
+**Alternatives considered:**
+- **Dedicated OIDC client (Step 4)** — narrower blast radius per secret, but double the client management for every deployment and customer clone.
 
 ---
 
@@ -149,11 +162,12 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** MP's OAuth server returns `expires_in: 3600` (1 hour), but tokens have been observed to become invalid earlier — server restarts, credential rotations, and other backend events invalidate tokens without client notice. Trusting `expires_in` causes 401 storms.
-**Decision:** Ignore `expires_in`. `TOKEN_LIFE = 5 * 60 * 1000` is hard-coded in `src/lib/providers/ministry-platform/client.ts:6` and used for both `expiresAt` and `devExpiresAt`. `ensureValidToken()` refreshes whenever `expiresAt < Date.now()`, so at most one 5-minute window is stale.
-**Consequences:** Predictable refresh cadence; worst-case staleness is 5 minutes. OAuth traffic is ~12× per hour per process vs. once. No automatic recovery for sub-5-minute invalidations (no retry-on-401).
+**Decision:** Ignore `expires_in`. `TOKEN_LIFE = 5 * 60 * 1000` is hard-coded in `src/lib/providers/ministry-platform/client.ts:8` and used by each `TokenPipeline` (default and dev). `TokenPipeline.ensureValid()` refreshes whenever `expiresAt < Date.now()`, so at most one 5-minute window is stale.
+**Consequences:** Predictable refresh cadence; worst-case staleness is 5 minutes. OAuth traffic is ~12× per hour per process vs. once.
+**Amended 2026-09-30 (security Step 5):** sub-5-minute invalidations are now recovered — the `HttpClient` 401 hook invalidates the rejected token, refreshes once (single-flight) and retries the request once; a failed refresh is negative-cached for 5–30 s (jittered). See `mp-provider/client.md`.
 **Alternatives considered:**
 - **Use `expires_in` minus 60-second buffer** — fragile against early invalidation by the MP backend.
-- **Retry-on-401 with single refresh** — complicates error paths and risks infinite-loop bugs.
+- **Retry-on-401 with single refresh** — originally rejected (infinite-loop risk); adopted alongside the 5-minute lifetime in Step 5, bounded to one retry.
 - **Heartbeat refresh** — extra cost without clear benefit.
 
 ### ADR-009: Two isolated token pipelines (default + dev) with `api_dev_*` routing
@@ -161,7 +175,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** Tools like the Deploy Tool (`DeployToolPanel` → `api_dev_DeployTool`) must run against a non-production MP credential set to avoid accidental prod mutation during local development. Mixing credentials into a single client risks state leakage between requests.
-**Decision:** `MinistryPlatformClient` holds two isolated pipelines — `(token, expiresAt, httpClient)` and `(devToken, devExpiresAt, devHttpClient)`. `getClientCredentialsToken(profile: 'default' | 'dev')` selects which env-var pair to use (`MINISTRY_PLATFORM_CLIENT_ID/SECRET` vs `MINISTRY_PLATFORM_DEV_CLIENT_ID/SECRET`). `ProcedureService` routes only procedures whose name starts with `api_dev_` through the dev pipeline.
+**Decision:** `MinistryPlatformClient` holds two isolated `TokenPipeline` instances — `main` and `dev` — each with its own token, expiry, single-flight refresh and `HttpClient`. `getClientCredentialsToken(profile: 'default' | 'dev')` selects which env-var pair to use (`MINISTRY_PLATFORM_CLIENT_ID/SECRET` vs `MINISTRY_PLATFORM_DEV_CLIENT_ID/SECRET`). `ProcedureService` routes only procedures whose name starts with `api_dev_` through the dev pipeline.
 **Consequences:** Clean isolation; dev token refresh cannot touch prod token. Two `HttpClient` instances in memory is negligible. Dev env vars are optional at startup — the dev pipeline throws a clear error only when a caller actually invokes it without the vars set.
 **Alternatives considered:**
 - **Single pipeline with a pre-call hook swapping credentials** — easy to miss a swap-back, high blast radius.
@@ -194,8 +208,8 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** MP's database has hundreds of tables and stored procedures (current facts baseline: 603 generated model files). Hand-maintaining a catalog would drift constantly.
-**Decision:** `npm run mp:generate:models` produces `src/lib/providers/ministry-platform/models/*.ts` (TypeScript + Zod) using `--clean` to wipe the directory first; `npm run mp:generate:storedprocs` produces `.claude/references/ministryplatform.storedprocs.md`. `required-stored-procs.md` is hand-written for the handful of procs the app actually invokes (facts snapshot lists 8).
-**Consequences:** Schema reference docs stay in sync with MP after a regen. `required-stored-procs.md` must be manually updated whenever a service method wraps a new proc.
+**Decision:** `npm run mp:generate:models` produces `src/lib/providers/ministry-platform/models/*.ts` (TypeScript + Zod) using `--clean` to wipe the directory first; `npm run mp:generate:storedprocs` writes `mp-schema/stored-procs.md`, and the type generator writes `mp-schema/tables.md` (both keep their frontmatter; a `--search` run never overwrites the full catalog). `mp-schema/required-procs.md` is hand-written for the handful of procs the app actually invokes.
+**Consequences:** Schema reference docs stay in sync with MP after a regen (move the output into `mp-schema/`). `mp-schema/required-procs.md` must be manually updated whenever a service method wraps a new proc.
 **Alternatives considered:**
 - **Hand-maintained catalog** — untenable at MP's scale.
 - **On-the-fly MP API lookup during agent work** — latency, no offline grep, and no stable reference.
@@ -208,8 +222,8 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 
 **Date:** 2026-04-17
 **Status:** Accepted
-**Context:** All five app services (`UserService`, `ToolService`, `AddressLabelService`, `GroupService`, `FieldManagementService`) need a single shared `MPHelper` per process. Construction is currently synchronous but `initialize()` may become async (e.g., to warm a cache). Tests must be able to reset state between cases.
-**Decision:** Each service has a private constructor, a private static `instance` field, and a public static `async getInstance()` that lazily constructs and awaits `initialize()` (see `src/services/userService.ts:29-35`). Tests reset via `(Service as any).instance = undefined` in `beforeEach`.
+**Context:** The MP-backed app services (`UserService`, `ToolService`, `AddressLabelService`, `GroupService`, `FieldManagementService`, `FamilyService`, plus `GooglePlacesService`) need a single shared instance per process. Construction is currently synchronous but `initialize()` may become async (e.g., to warm a cache). Tests must be able to reset state between cases.
+**Decision:** Each service has a private constructor, a private static `instance` field, and a public static `async getInstance()` that lazily constructs and awaits `initialize()` (see `src/services/userService.ts:30-36`). Tests reset via `(Service as any).instance = undefined` in `beforeEach`. Exceptions: `AuthorizationService` and `DomainTimezoneService` expose a **synchronous** `getInstance()`.
 **Consequences:** Single shared instance per process. Callers always `await` `getInstance()` even though today's `initialize()` is synchronous — future async setup won't break callers. Test isolation requires explicit reset.
 **Alternatives considered:**
 - **Module-level `const service = new Service()`** — loses test resettability.
@@ -220,7 +234,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** Components should not know MP URL shapes, `$filter` / `$select` syntax, ambiguous-column prefixing rules, or `$userId` audit wiring. Concentrating these concerns keeps query conventions consistent.
-**Decision:** Server actions always follow: `auth.api.getSession()` → `Service.getInstance()` → `service.method()` → `MPHelper`. Services own query strings, batching, Zod schemas, and audit parameters.
+**Decision:** Server actions always follow: `Service.getInstance()` → `service.method()` → `MPHelper`. Services own query strings, batching, Zod schemas, and audit parameters. **Amended 2026-09-13:** each MP-touching service method gates itself with `AuthorizationService.requireSecurityRole()` (reads and writes) and takes `$userId` from its return value — a bare `auth.api.getSession()` in the action is not authorization (CLAUDE.md practices #12, #13).
 **Consequences:** One place to change an ambiguous-column fix or a batching strategy. Clean test seam: per-service mocks of `MPHelper` cover most server-action tests.
 **Alternatives considered:**
 - **Actions call `MPHelper` directly** — duplicates query strings across features, drifts on ambiguous-column prefixes, and spreads `$userId` wiring.
@@ -233,9 +247,9 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 
 **Date:** 2026-04-17
 **Status:** Accepted
-**Context:** The Better Auth session contains identity claims (`id`, `email`, `userGuid`, `firstName`, `lastName`). Downstream features need roles, user groups, `Contact_ID`, and profile image — all of which require MP API calls and should not block the auth critical path.
-**Decision:** `useAppSession()` (wraps `authClient.useSession()`) exposes only the lightweight Better Auth session. A separate `UserProvider` (`src/contexts/user-context.tsx`) loads the MP profile lazily by `userGuid` via `getCurrentUserProfile()` and exposes it through `useUser()`. `Providers` (`src/app/providers.tsx`) composes them.
-**Consequences:** Auth-only consumers don't pay MP API latency. MP profile loads once per session on the client; refresh is explicit via `refreshUserProfile()`. Context value and callback are memoized (`useMemo`, `useCallback`).
+**Context:** The Better Auth session contains identity claims (`id`, `email`, `userGuid`, `firstName`, `lastName`). Downstream UI needs the user's MP display profile, which requires an MP API call and should not block the auth critical path.
+**Decision:** `useAppSession()` (wraps `authClient.useSession()`) exposes only the lightweight Better Auth session. A separate `UserProvider` (`src/contexts/user-context.tsx`) loads the MP profile via the parameterless `getCurrentUserProfile()` action and exposes it through `useUser()`. The load is **lazy on demand**: the provider makes no MP call until a component calls `useUser()` (whose effect calls an internal `requestProfile()` from a private context, flipping a `requested` flag), and then only once a `userGuid` is in the session; all consumers share that one load. `Providers` (`src/app/providers.tsx`) mounts `UserProvider`; `useAppSession()` is a standalone hook. Both hooks are kept as a documented **extension point** for tools built on the template — since the header `UserMenu` was removed (#54) nothing outside `src/contexts/` calls them, and with lazy fetch the mounted provider costs no MP request until a tool opts in.
+**Consequences:** Auth-only consumers don't pay MP API latency. Pages with no `useUser()` consumer make no profile request. MP profile loads once per provider lifetime on the client, on first use; refresh is explicit via `refreshUserProfile()`. Context value and callback are memoized (`useMemo`, `useCallback`).
 **Alternatives considered:**
 - **Single merged provider** — couples auth availability to MP availability.
 - **Load profile server-side in layout** — blocks TTFB on every page.
@@ -256,10 +270,10 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** Service code interpolates user input into MP OData `$filter` strings (e.g., `User_GUID = '${guid}'`). MP's API accepts raw filter strings — there is no parameterized query builder. Something must prevent SQL-like injection without forcing every call site to adopt a heavyweight ORM.
-**Decision:** Four throwing helpers in `src/lib/validation.ts` — `validateGuid`, `validatePositiveInt`, `validateColumnName`, `escapeFilterString`. Callers invoke them on input and interpolate the returned value. Violations throw synchronously with a clear message.
+**Decision:** Throwing helpers in `src/lib/validation.ts` — `validateGuid`, `validatePositiveInt`, `validateColumnName`, `validateFkPath`, `validateMailerId`, `escapeFilterString`. Callers invoke them on input and interpolate the returned value. Violations throw synchronously with a clear message.
 **Consequences:** Simple, testable (see `src/lib/validation.test.ts`), grep-friendly. Static types cannot enforce "this string was validated" — reviewers must spot missed validation at call sites.
 **Alternatives considered:**
-- **Branded/opaque types** — over-engineered for a four-helper API.
+- **Branded/opaque types** — over-engineered for a handful of helpers.
 - **Full ORM or query builder** — doesn't integrate with MP's REST surface.
 
 ---
@@ -324,7 +338,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 ### ADR-023: Client-only GrapesJS via `next/dynamic(ssr: false)`
 
 **Date:** 2026-04-17
-**Status:** Accepted
+**Status:** Superseded (2026-10-10) — the template editor and every GrapesJS/MJML dependency were removed. Kept for numbering; nothing in `src/` follows this decision any more.
 **Context:** GrapesJS and `@grapesjs/react` depend on DOM globals and cannot run under Node SSR.
 **Decision:** `src/components/template-editor/template-editor-form.tsx:12` wraps the editor canvas in `next/dynamic(..., { ssr: false })` with a `Skeleton` fallback. All editor files carry `"use client"`.
 **Consequences:** No SSR for the template editor; initial paint shows a skeleton and hydrates. The rest of the `/tools` route stays server-rendered.
@@ -360,7 +374,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** React component tests need a DOM that supports `localStorage`, `window.location`, `Headers`, and the full `@testing-library` API surface.
-**Decision:** `environment: 'jsdom'` in `vitest.config.mts` with `jsdom@^30.0.1`.
+**Decision:** `environment: 'jsdom'` in `vitest.config.mts` with `jsdom@^30.1.2`.
 **Consequences:** Slightly slower than happy-dom on pure-DOM tests, but compatibility is higher for edge APIs (`Headers`, `Storage`, `fetch` mocks).
 **Alternatives considered:**
 - **happy-dom** — faster, but historically has gaps around `Headers`, `fetch`, and `Storage` mocks that affect MP client tests.

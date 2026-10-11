@@ -13,7 +13,6 @@ afterEach(cleanup);
 
 const TOOLS = [
   { name: 'Template Tool', href: '/tools/template' },
-  { name: 'Template Editor', href: '/tools/templateeditor' },
   { name: 'Address Labels', href: '/tools/addresslabels' },
   { name: 'Group Wizard', href: '/tools/groupwizard' },
   { name: 'Field Management', href: '/tools/fieldmanagement' },

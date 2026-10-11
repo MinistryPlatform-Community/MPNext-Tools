@@ -6,6 +6,7 @@ import {
   STEP_FIELDS,
   type GroupWizardFormData,
 } from './schema';
+import { WIZARD_STEPS } from './types';
 
 /** Helper: fill all required IDs + Start_Date so schema passes base validation */
 function validBase(): GroupWizardFormData {
@@ -111,6 +112,17 @@ describe('STEP_FIELDS', () => {
 
   it('STEP_FIELDS covers all 6 wizard steps', () => {
     expect(Object.keys(STEP_FIELDS)).toEqual(['0', '1', '2', '3', '4', '5']);
+  });
+
+  // GroupWizard.handleNext calls form.trigger(STEP_FIELDS[currentStep]) with no
+  // special case, and the last step shows Submit, not Next. So every step
+  // before Review must list fields to validate, or Next would skip validation.
+  it('every step before the Review step has fields, and only Review is empty', () => {
+    expect(Object.keys(STEP_FIELDS)).toHaveLength(WIZARD_STEPS.length);
+    WIZARD_STEPS.slice(0, -1).forEach((_, i) => {
+      expect(STEP_FIELDS[i].length).toBeGreaterThan(0);
+    });
+    expect(STEP_FIELDS[WIZARD_STEPS.length - 1]).toEqual([]);
   });
 
   it('STEP_FIELDS[4] includes the hyphenated Secure_Check-in field name', () => {

@@ -45,7 +45,8 @@ Record these numbers — they are the comparison for everything that follows:
 ```bash
 npm run test:run    # test + file counts
 npm run lint
-npm run build 2>&1 | grep -cE "error TS"   # may be non-zero already
+npm run typecheck 2>&1 | grep -cE "error TS"   # may be non-zero already
+npm run build       # needs a valid .env.local — the app refuses to boot (even at build) on missing/weak secrets
 npm audit
 node -v && npm -v
 ```
@@ -112,8 +113,8 @@ npm view <pkg>@<target> peerDependencies engines --json
 
 Then confirm the rest of the tree can satisfy those peers — especially any
 wrapper package. A wrapper's peer range on its wrapped library is the usual
-blocker (`@grapesjs/react` → `grapesjs`, `eslint-config-next` →
-`eslint-plugin-react`). Check whether the wrapper's **latest** release supports
+blocker (`eslint-config-next` → `eslint-plugin-react`,
+`typescript-eslint` → `typescript`). Check whether the wrapper's **latest** release supports
 the target; if it does not, the upgrade is blocked upstream and no override fixes
 it — record it as a hold.
 
@@ -123,7 +124,8 @@ Then install that **one** package, and verify:
 npm install <pkg>@<target>
 npm run test:run
 npm run lint
-npm run build 2>&1 | grep -cE "error TS"   # compare to baseline
+npm run typecheck 2>&1 | grep -cE "error TS"   # compare to baseline
+npm run build && npm run check:prerender
 ```
 
 - Any new type error is a real break even if tests pass — find the migration
@@ -170,8 +172,7 @@ const all=[...seen.values()];
 **Triage every hit before reporting it.** OSV ranges are sometimes malformed —
 fetch `https://api.osv.dev/v1/vulns/<ID>` and read `affected[].ranges` directly.
 A record with `{"introduced":"0"}` and no `fixed` event matches every version and
-is almost always a false positive. Known standing false positive: `grapesjs` /
-GHSA-589f-c66p-hxr4.
+is almost always a false positive.
 
 For richer context on a specific library's breaking changes, `context7` is
 available (`resolve-library-id` then `query-docs`).
@@ -208,7 +209,8 @@ adds no install scripts. Otherwise pin to the previous version and note why.
   held with clearing conditions**, and any pre-existing issues found but not
   fixed.
 - Add a row to the index table in `.claude/packages/README.md`.
-- Add a row to the **Dependency Audit History** table in `CLAUDE.md`.
+- Add a row to the **Dependency Audit History** table in `CLAUDE.md`, and update
+  its **Current holds** table to match the new record.
 - Commit in the same separable units used above (in-range / removals / each
   major), then open a PR targeting `dev`.
 

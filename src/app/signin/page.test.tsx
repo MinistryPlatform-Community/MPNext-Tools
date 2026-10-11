@@ -242,7 +242,28 @@ describe('sanitizeCallbackUrl', () => {
     ['', '/'],
     [null, '/'],
     [undefined, '/'],
-  ])('rejects %s', (input, expected) => {
+    // F3b — the WHATWG parser strips tab/LF/CR AFTER string checks run, so
+    // each of these navigated as `//evil.example`.
+    ['/\t/evil.example', '/'],
+    ['/\n/evil.example', '/'],
+    ['/\r/evil.example', '/'],
+    ['/\u0000/evil.example', '/'],
+    ['/\u007f/evil.example', '/'],
+    ['/\u0085/evil.example', '/'], // C1 (NEL)
+    // A control character the URL parser would strip to an ON-origin path.
+    // The `new URL` backstop alone accepts these, so only CONTROL_CHARS
+    // refuses them — keeping client and server (`isSafeRelativeURL`) agreed.
+    ['/tools\t/addresslabels', '/'],
+    ['/tools/addresslabels\n', '/'],
+    // Any backslash, not only a leading one: special schemes treat `\` as `/`.
+    ['/a\\b', '/'],
+    ['/tools\\..\\\\evil.example', '/'],
+    // Percent-encoded separators in the PATH can be decoded downstream.
+    ['/%2F/evil.example', '/'],
+    ['/%2f/evil.example', '/'],
+    ['/%5C/evil.example', '/'],
+    ['/%5c/evil.example', '/'],
+  ])('rejects %j', (input, expected) => {
     expect(sanitizeCallbackUrl(input as string | null | undefined)).toBe(expected);
   });
 
@@ -251,9 +272,110 @@ describe('sanitizeCallbackUrl', () => {
     '/tools/addresslabels',
     '/tools/addresslabels?s=123&pageID=292',
     '/tools/groupwizard/abc?tab=members',
+    // `%2F` in the query string or fragment is ordinary data, not a separator.
+    '/tools/addresslabels?next=%2Fhome',
+    '/tools/template#%2Fsection',
   ])('preserves the legitimate deep link %s', (input) => {
     // A sanitizer that breaks deep links gets reverted, so pin these too.
     expect(sanitizeCallbackUrl(input)).toBe(input);
+  });
+
+  it('returns /.//evil.example UNCHANGED, and it resolves to this origin', () => {
+    // Returning the URL-normalized form would turn this into `//evil.example`
+    // (dot-segment removal) — a protocol-relative redirect manufactured by the
+    // sanitizer itself. The raw value is a harmless same-origin path.
+    const out = sanitizeCallbackUrl('/.//evil.example');
+    expect(out).toBe('/.//evil.example');
+    expect(new URL(out, 'https://tools.example.org').origin).toBe('https://tools.example.org');
+  });
+
+  it('every accepted value resolves on-origin under the real URL parser', () => {
+    const base = 'https://tools.example.org';
+    for (const input of ['/', '/.//evil.example', '/tools/x?y=%2F', '/a/./b/../c']) {
+      const out = sanitizeCallbackUrl(input);
+      expect(new URL(out, base).origin).toBe(base);
+    }
+  });
+});
+
+/**
+ * F3b through a REAL query string. The bug lives in the decoding step —
+ * `%09` only becomes a tab once `URLSearchParams` decodes it — so the hostile
+ * cases are driven from the raw `?callbackUrl=` text, through both sinks: the
+ * signed-in `location.href` assignment (no server in the loop) and the
+ * signed-out `callbackURL` handed to `signIn.social`.
+ */
+describe('SignIn callbackUrl from a raw query string (F3b)', () => {
+  let originalLocation: Location;
+  let locationHref: string;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    originalLocation = window.location;
+    locationHref = '';
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: {
+        get href() {
+          return locationHref;
+        },
+        set href(value: string) {
+          locationHref = value;
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: originalLocation,
+    });
+  });
+
+  const hostile = [
+    'callbackUrl=/%09/evil.example',
+    'callbackUrl=/%0A/evil.example',
+    'callbackUrl=/%0D/evil.example',
+    'callbackUrl=/%C2%85/evil.example',
+    'callbackUrl=/%5Cevil.example',
+    'callbackUrl=/%252F/evil.example',
+    'callbackUrl=%2F%2Fevil.example',
+    'callbackUrl=https%3A%2F%2Fevil.example',
+  ];
+
+  it.each(hostile)('signed in: ?%s lands on "/"', async (query) => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams(query));
+    mockGetSession.mockResolvedValue({ data: { user: { id: 'u1' }, session: { token: 't' } } });
+
+    render(<SignIn />);
+
+    await waitFor(() => expect(locationHref).toBe('/'));
+  });
+
+  it.each(hostile)('signed out: ?%s sends callbackURL "/"', async (query) => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams(query));
+    mockGetSession.mockResolvedValue({ data: null });
+
+    render(<SignIn />);
+
+    await waitFor(() =>
+      expect(mockSignInSocial).toHaveBeenCalledWith({ provider: 'ministryplatform', callbackURL: '/' }),
+    );
+  });
+
+  it.each([
+    ['callbackUrl=%2Ftools%2Faddresslabels%3Fs%3D123%26pageID%3D292', '/tools/addresslabels?s=123&pageID=292'],
+    ['callbackUrl=/tools/groupwizard/abc%3Ftab%3Dmembers', '/tools/groupwizard/abc?tab=members'],
+  ])('deep link ?%s round-trips intact', async (query, expected) => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams(query));
+    mockGetSession.mockResolvedValue({ data: { user: { id: 'u1' }, session: { token: 't' } } });
+
+    render(<SignIn />);
+
+    await waitFor(() => expect(locationHref).toBe(expected));
   });
 });
 
@@ -338,12 +460,34 @@ describe('SignIn OAuth error classification', () => {
     },
   );
 
-  it('falls back to a generic message that names an unrecognised code', async () => {
+  it('falls back to a fixed generic message for an unrecognised code, without echoing it', async () => {
     setSearchParams({ error: 'some_unmapped_code' });
 
     render(<SignIn />);
 
-    expect(await screen.findByText(/sign-in failed \(some_unmapped_code\)/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/^sign-in failed\. please retry; if the problem persists, contact support\.$/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/some_unmapped_code/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['attacker-chosen text', 'Your account is locked. Call 555-0100 to restore access'],
+    ['a prototype key', '__proto__'],
+    ['a prototype key', 'constructor'],
+    ['markup', '<b>urgent</b>'],
+  ])('never renders free text from ?error= (%s)', async (_label, value) => {
+    setSearchParams({ error: value });
+
+    const { container } = render(<SignIn />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(container.textContent).not.toContain(value);
+    expect(screen.getByText(/^sign-in failed\. please retry/i)).toBeInTheDocument();
+    // Nor is the raw value logged.
+    for (const call of vi.mocked(console.error).mock.calls) {
+      expect(call.join(' ')).not.toContain(value);
+    }
   });
 
   it('describes access_denied as a cancellation the user can retry', async () => {

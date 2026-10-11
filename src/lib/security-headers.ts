@@ -31,14 +31,65 @@ export function cspHeaderName(
     : "Content-Security-Policy-Report-Only";
 }
 
-/** Reduces a configured URL to a bare scheme+host origin, or null. */
-function originOf(value: string | undefined): string | null {
+/** Loopback hosts allowed over plain http, and only in development. */
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * Parses a configured URL, accepting only `https:` (or `http:` to a loopback
+ * host in development). Anything else — `http:` to a real host, `javascript:`,
+ * `data:`, a credentialed URL, garbage — is null, so a bad env value drops the
+ * source from the policy instead of widening it. `new URL()` alone would
+ * happily turn `data:,x` into the origin `"null"`, and an `http:` origin would
+ * let a network attacker serve the "trusted" images.
+ */
+function safeUrl(value: string | undefined, isDev: boolean): URL | null {
   if (!value) return null;
+  let url: URL;
   try {
-    return new URL(value).origin;
+    url = new URL(value.trim());
   } catch {
     return null;
   }
+  const loopbackHttp =
+    isDev && url.protocol === "http:" && LOOPBACK_HOSTNAMES.has(url.hostname);
+  if (url.protocol !== "https:" && !loopbackHttp) return null;
+  if (url.username || url.password) return null;
+  return url;
+}
+
+/** Reduces a configured URL to a bare scheme+host origin, or null. */
+function originOf(value: string | undefined, isDev: boolean): string | null {
+  return safeUrl(value, isDev)?.origin ?? null;
+}
+
+/** The `report-to` group name, shared by the CSP and `Reporting-Endpoints`. */
+const REPORT_GROUP = "csp-endpoint";
+
+/**
+ * The validated CSP report collector (`CSP_REPORT_URI`), or null when unset or
+ * not a safe URL. Reporting is OPT-IN: this repo ships no collector, so each
+ * deployment points it at one it owns (Sentry, report-uri.com, ...).
+ *
+ * Characters that would break out of a header value or a directive (`;`, `,`,
+ * `"`, whitespace) are refused rather than escaped — a legitimate collector URL
+ * never needs them.
+ */
+export function cspReportUri(
+  value: string | undefined = process.env.CSP_REPORT_URI,
+  isDev: boolean = false,
+): string | null {
+  const url = safeUrl(value, isDev);
+  if (!url) return null;
+  const href = url.href;
+  return /[\s;,"]/.test(href) ? null : href;
+}
+
+/**
+ * The `Reporting-Endpoints` header value that `report-to` resolves against, or
+ * null when reporting is off. Sent alongside the CSP by the proxy.
+ */
+export function reportingEndpointsHeader(reportUri: string | null): string | null {
+  return reportUri ? `${REPORT_GROUP}="${reportUri}"` : null;
 }
 
 export interface CspOptions {
@@ -48,6 +99,8 @@ export interface CspOptions {
   reportOnly?: boolean;
   mpBaseUrl?: string;
   mpFileUrl?: string;
+  /** Validated collector URL (see `cspReportUri`); null/omitted = no reporting. */
+  reportUri?: string | null;
 }
 
 /**
@@ -88,9 +141,10 @@ export function buildCsp({
   reportOnly = false,
   mpBaseUrl = process.env.MINISTRY_PLATFORM_BASE_URL,
   mpFileUrl = process.env.NEXT_PUBLIC_MINISTRY_PLATFORM_FILE_URL,
+  reportUri = null,
 }: CspOptions): string {
-  const mpOrigin = originOf(mpBaseUrl);
-  const fileOrigin = originOf(mpFileUrl);
+  const mpOrigin = originOf(mpBaseUrl, isDev);
+  const fileOrigin = originOf(mpFileUrl, isDev);
 
   const imgSources = ["'self'", "data:", "blob:", mpOrigin, fileOrigin].filter(
     (v, i, a): v is string => Boolean(v) && a.indexOf(v) === i,
@@ -111,13 +165,23 @@ export function buildCsp({
     `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
     `object-src 'none'`,
     `frame-src 'none'`,
-    `base-uri 'self'`,
+    // 'none', not 'self': nothing here emits a <base> tag, and 'self' would
+    // still let an injected <base href="/x/"> silently re-root every relative
+    // URL on the page.
+    `base-uri 'none'`,
     `form-action ${formActions.join(" ")}`,
     `frame-ancestors 'none'`,
   ];
 
   if (!isDev && !reportOnly) {
     directives.push("upgrade-insecure-requests");
+  }
+
+  // Both spellings: `report-to` (with the `Reporting-Endpoints` header) is the
+  // current standard; `report-uri` is what Firefox still honours, and browsers
+  // that support `report-to` ignore `report-uri` when both are present.
+  if (reportUri) {
+    directives.push(`report-uri ${reportUri}`, `report-to ${REPORT_GROUP}`);
   }
 
   return directives.join("; ");
