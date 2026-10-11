@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor, act, render, screen } from '@testing-library/react';
 import { ReactNode } from 'react';
 
 const { mockUseSession, mockGetCurrentUserProfile } = vi.hoisted(() => ({
@@ -231,5 +231,83 @@ describe('UserProvider edge branches', () => {
 
     expect(result.current.error).toBeNull();
     expect(result.current.userProfile).toEqual({ Contact_ID: 7 });
+  });
+});
+
+/**
+ * Lazy fetch: `UserProvider` makes no MP call until a component calls
+ * `useUser()`, and every consumer shares the one load.
+ */
+describe('UserProvider lazy fetch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('makes no profile call when nothing calls useUser()', async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: 'internal-id', userGuid: 'guid-123' } },
+      isPending: false,
+    });
+
+    render(
+      <UserProvider>
+        <p>no consumer</p>
+      </UserProvider>
+    );
+
+    expect(screen.getByText('no consumer')).toBeInTheDocument();
+    // Let any (incorrectly) scheduled effects and microtasks flush.
+    await act(async () => {});
+    expect(mockGetCurrentUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('makes exactly one profile call shared by two consumers', async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: 'internal-id', userGuid: 'guid-123' } },
+      isPending: false,
+    });
+    mockGetCurrentUserProfile.mockResolvedValue({ First_Name: 'John' });
+
+    function Consumer({ label }: { label: string }) {
+      const { userProfile, isLoading } = useUser();
+      return <p>{isLoading ? `${label}: loading` : `${label}: ${userProfile?.First_Name}`}</p>;
+    }
+
+    render(
+      <UserProvider>
+        <Consumer label="a" />
+        <Consumer label="b" />
+      </UserProvider>
+    );
+
+    expect(await screen.findByText('a: John')).toBeInTheDocument();
+    expect(screen.getByText('b: John')).toBeInTheDocument();
+    expect(mockGetCurrentUserProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetches only once a consumer mounts later', async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: 'internal-id', userGuid: 'guid-123' } },
+      isPending: false,
+    });
+    mockGetCurrentUserProfile.mockResolvedValue({ First_Name: 'John' });
+
+    function Consumer() {
+      const { userProfile } = useUser();
+      return <p>name: {userProfile?.First_Name ?? '-'}</p>;
+    }
+
+    const { rerender } = render(<UserProvider>{null}</UserProvider>);
+    await act(async () => {});
+    expect(mockGetCurrentUserProfile).not.toHaveBeenCalled();
+
+    rerender(
+      <UserProvider>
+        <Consumer />
+      </UserProvider>
+    );
+
+    expect(await screen.findByText('name: John')).toBeInTheDocument();
+    expect(mockGetCurrentUserProfile).toHaveBeenCalledTimes(1);
   });
 });

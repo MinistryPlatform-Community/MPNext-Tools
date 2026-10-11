@@ -18,7 +18,7 @@ Thin hook that returns only the `data` portion of Better Auth's `authClient.useS
 
 ## Key concepts
 - **Not a React Context** — `use-app-session.ts` defines no `createContext`; it is purely a hook module.
-- **No current consumers** — nothing outside `src/contexts/` imports `useAppSession` (the header `UserMenu` that used it was removed in #54).
+- **Extension point, no current consumers** — nothing outside `src/contexts/` imports `useAppSession` (the header `UserMenu` that used it was removed in #54); it is kept, with `useUser()`, as the template's documented client-side session/profile surface for new tools. It makes no MP call (session data only).
 - **`authClient.useSession()` is a Better Auth nanostore hook** — provided by `better-auth/react`; refetches on visibility / network events.
 - **`SessionData` is inferred from `authClient.$Infer.Session`** — the `customSessionClient<typeof auth>()` plugin flows server-side `customSession` return types to the client.
 - **`userGuid`** lives on `session.user` because of the server-side `customSession` plugin (see `../auth/`), but its type is not part of `SessionData` by default — consumers assert via `(session?.user as { userGuid?: string })` (example: `src/contexts/user-context.tsx:42`).
