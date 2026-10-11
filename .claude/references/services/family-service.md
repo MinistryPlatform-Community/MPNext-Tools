@@ -80,7 +80,7 @@ return progress;
 | `saveFamily` | same | `saveHousehold` (after `HouseholdSchema.safeParse`) |
 | `AddEditFamilyPage` | `src/app/(web)/tools/addeditfamily/page.tsx` | `resolveContactIdFromPage` |
 
-Every action calls `requireAccess()` (→ `requireSecurityRole`) first. The same actions file also calls `GooglePlacesService` (`placesEnabled`, `placeAutocomplete`, `placeDetails`).
+Every action calls `requireAccess()` (→ `requireSecurityRole`) first. The same actions file also calls `GooglePlacesService` (`placesEnabled`, `placeAutocomplete`, `placeDetails`); those actions gate `Addresses`/`read`, and the service gates again on `dp_Configuration_Settings`/`read`.
 
 ## Related docs
 - `query-patterns.md` — validation, escaping, `$userId`

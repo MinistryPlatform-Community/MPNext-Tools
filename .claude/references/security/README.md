@@ -49,7 +49,7 @@ rendered, so the gate runs at every layer that is independently reachable:
 |---|---|---|
 | Page | `src/app/(web)/tools/<tool>/page.tsx` | first statement `await requireToolAccess({ table, operation })` (`src/app/(web)/tools/require-tool-access.ts`) → `requireSecurityRole()`; a refusal redirects to `/no-access` |
 | Action | `src/components/<feature>/actions.ts`, `src/app/(web)/tools/addeditfamily/actions.ts` | `requireAccess()` wrapping `requireSecurityRole()` |
-| Service | `src/services/*.ts` | `requireSecurityRole()` on every MP-data method, reads included. Exceptions: `UserService.getUserProfile` (own-profile carve-out), `FamilyService.getDefaults` (static), `DomainTimezoneService.*` (domain config), `GooglePlacesService.*` (its only callers gate `Addresses`/`read` — no in-file justification yet, see `.claude/TODO/2026-10-10-googleplaces-ungated-config-read.md`) |
+| Service | `src/services/*.ts` | `requireSecurityRole()` on every MP-data method, reads included. Exceptions: `UserService.getUserProfile` (own-profile carve-out), `FamilyService.getDefaults` (static), `DomainTimezoneService.*` (domain config). `GooglePlacesService.*` gates `dp_Configuration_Settings`/`read` on every call, cached key or not |
 
 `src/app/(web)/tools/layout.tsx` also calls `hasSecurityRole()` and redirects
 to `/no-access`, but that is **UX only, not enforcement**: Next 16 renders each
