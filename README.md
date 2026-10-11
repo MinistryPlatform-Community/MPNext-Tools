@@ -478,8 +478,7 @@ const contacts = await mp.getTableRecords({
 });
 
 // Create — $userId comes from the gate, datetimes from DomainTimezoneService.
-// (No `schema` here: generated Zod schemas currently reject MP wall-clock
-// datetimes — see .claude/TODO/2026-10-10-generated-zod-rejects-mp-datetimes.md)
+// The generated schema accepts MP wall-clock datetimes (`YYYY-MM-DD HH:MM:SS`).
 const userId = await authz.requireSecurityRole({ table: 'Contact_Log', operation: 'create' });
 await mp.createTableRecords('Contact_Log', [{
   Contact_ID: 12345,
@@ -487,6 +486,7 @@ await mp.createTableRecords('Contact_Log', [{
   Made_By: userId,
   Notes: 'Follow-up call completed'
 }], {
+  schema: ContactLogSchema,
   $userId: userId
 });
 

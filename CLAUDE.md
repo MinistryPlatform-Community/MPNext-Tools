@@ -240,7 +240,7 @@ await mp.createTableRecords('Contact_Log', records, {
 });
 ```
 
-> **Known conflict**: generated schemas type datetime columns as `z.string().datetime()`, which rejects the wall-clock strings rule 17 requires. Omit `schema` for records that carry a datetime until [the TODO](.claude/TODO/2026-10-10-generated-zod-rejects-mp-datetimes.md) is fixed.
+Generated schemas validate `DateTime`/`Timestamp` columns with a regex that accepts both MP wall-clock (`YYYY-MM-DD HH:MM:SS`, what `DomainTimezoneService.toMpSqlDatetime()` returns) and ISO forms (`T` separator, optional `Z`/offset), so `schema` and rule 17 work together. Import a schema from its own file (`models/ContactLogSchema`) — the `models` barrel re-exports types only.
 
 ## Testing
 

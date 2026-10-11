@@ -5,7 +5,7 @@ export const ParticipantMilestonesSchema = z.object({
   Participant_ID: z.number().int(),
   Milestone_ID: z.number().int(),
   Program_ID: z.number().int(),
-  Date_Accomplished: z.string().datetime().nullable(),
+  Date_Accomplished: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Event_ID: z.number().int().nullable(),
   Witness: z.number().int().nullable(),
   At_Prior_Church: z.boolean(),

@@ -4,7 +4,7 @@ export const GroupInquiriesSchema = z.object({
   Group_Inquiry_ID: z.number().int(),
   Group_ID: z.number().int(),
   Contact_ID: z.number().int().nullable(),
-  Inquiry_Date: z.string().datetime(),
+  Inquiry_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
   First_Name: z.string().max(50).nullable(),
   Last_Name: z.string().max(50).nullable(),
   Phone: z.string().nullable(),

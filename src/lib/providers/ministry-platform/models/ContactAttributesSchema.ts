@@ -4,8 +4,8 @@ export const ContactAttributesSchema = z.object({
   Contact_Attribute_ID: z.number().int(),
   Contact_ID: z.number().int(),
   Attribute_ID: z.number().int(),
-  Start_Date: z.string().datetime(),
-  End_Date: z.string().datetime().nullable(),
+  Start_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
+  End_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Notes: z.string().max(2000).nullable(),
 });
 

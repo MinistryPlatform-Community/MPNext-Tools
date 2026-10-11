@@ -4,7 +4,7 @@ export const DonationsSchema = z.object({
   Donation_ID: z.number().int(),
   Donor_ID: z.number().int(),
   Donation_Amount: z.number(),
-  Donation_Date: z.string().datetime(),
+  Donation_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
   Payment_Type_ID: z.number().int(),
   Item_Number: z.string().max(15).nullable(),
   Batch_ID: z.number().int().nullable(),
@@ -24,7 +24,7 @@ export const DonationsSchema = z.object({
   OCR_Data: z.string().max(1000).nullable(),
   Third_Party_Note: z.string().max(2147483647).nullable(),
   Statement_ID: z.number().int().nullable(),
-  _Last_Statement_Review: z.string().datetime().nullable(),
+  _Last_Statement_Review: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Multiple_Donor_Match: z.boolean(),
   _Is_Check_Scan: z.boolean().nullable(),
 });

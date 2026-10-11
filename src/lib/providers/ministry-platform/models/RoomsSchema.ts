@@ -10,7 +10,7 @@ export const RoomsSchema = z.object({
   Default_Room_Layout: z.number().int().nullable(),
   Room_Usage_Type_ID: z.number().int().nullable(),
   Bookable: z.boolean(),
-  Last_Remodel_Date: z.string().datetime().nullable(),
+  Last_Remodel_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Parent_Room_ID: z.number().int().nullable(),
   Auto_Approve: z.boolean(),
   Print_Server_ID: z.number().int().nullable(),

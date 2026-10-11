@@ -113,11 +113,6 @@ export interface Congregations {
   Vanco_Giving_PCCT?: string /* max 50 chars */ | null;
 
   /**
-   * Max length: 50 characters
-   */
-  Vanco_Signing_Key?: string /* max 50 chars */ | null;
-
-  /**
    * Max length: 16 characters
    */
   Organization_Code?: string /* max 16 chars */ | null;

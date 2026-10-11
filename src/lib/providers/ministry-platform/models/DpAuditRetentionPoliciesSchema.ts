@@ -7,7 +7,7 @@ export const DpAuditRetentionPoliciesSchema = z.object({
   Audit_Type_ID: z.number().int().nullable(),
   Audit_Retention_Days: z.number().int(),
   Is_Active: z.boolean(),
-  Detail_Retention_Days: z.number().int().nullable(),
+  Max_Audits_Per_Run: z.number().int(),
 });
 
 export type DpAuditRetentionPoliciesInput = z.infer<typeof DpAuditRetentionPoliciesSchema>;

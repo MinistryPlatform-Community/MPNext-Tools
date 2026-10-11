@@ -119,7 +119,7 @@ await mp.createTableRecords('Contact_Log', [{
 });
 ```
 
-> **Known conflict:** generated Zod schemas type `DateTime` columns as `z.string().datetime()`, which (Zod 4.6.5) rejects the `YYYY-MM-DD HH:MM:SS` string `toMpSqlDatetime` returns (no `T`, no offset). Passing `schema` with a `toMpSqlDatetime` value therefore throws `MPValidationError` before any API call; an ISO-`Z` value passes Zod but violates CLAUDE.md rule 17. Until the generator emits a wall-clock-compatible rule, omit `schema` (or use a custom schema) for records carrying datetimes. See `../../ministryplatform.datetimehandling.md`.
+Generated Zod schemas validate `DateTime`/`Timestamp` columns with a regex that accepts the `YYYY-MM-DD HH:MM:SS` string `toMpSqlDatetime` returns as well as ISO forms (`T` separator, optional `Z`/offset), so `schema` and CLAUDE.md rule 17 combine as shown. See `../type-generation.md` § Zod type mapping and `../../ministryplatform.datetimehandling.md`.
 
 ## Error handling
 

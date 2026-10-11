@@ -12,7 +12,7 @@ export const AccountingCompaniesSchema = z.object({
   List_Non_Cash_Gifts: z.boolean(),
   Statement_Footer: z.string().max(500).nullable(),
   Statement_Letter: z.string().max(2147483647).nullable(),
-  Statement_Cutoff_Date: z.string().datetime().nullable(),
+  Statement_Cutoff_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Statement_Cutoff_Automation_ID: z.number().int().nullable(),
   Standard_Statement: z.number().int().nullable(),
   Formal_Salutation: z.boolean(),

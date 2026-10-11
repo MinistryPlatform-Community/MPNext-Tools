@@ -2,12 +2,12 @@
 title: Ministry Platform Stored Procedures
 domain: mp-schema
 type: generated-reference
-last_verified: 2026-04-17
+last_verified: 2026-10-11
 source: npm run mp:generate:storedprocs
 ---
 
 ## Purpose
-Auto-generated reference of every Ministry Platform stored procedure exposed via the MP API, with its input parameters and bounded string sizes. Regenerate with `npm run mp:generate:storedprocs` (runs `src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts`).
+Auto-generated reference of every Ministry Platform stored procedure exposed via the MP API, with its input parameters and bounded string sizes. Regenerate with `npm run mp:generate:storedprocs` (runs `src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts`). Do not edit by hand — the generator overwrites this file.
 
 ## How to call
 - HTTP: `POST /procs/{procName}` with JSON body `{ "@ParamName": value, ... }` (or GET for simple query params).
@@ -17,14 +17,14 @@ Auto-generated reference of every Ministry Platform stored procedure exposed via
 
 ## Generated metadata
 
-**Generated (source):** 2026-04-16T02:10:03.119Z
-**Procedures:** 532
+**Generated (source):** 2026-10-11T11:13:44.159Z
+**Procedures:** 539
 
 ---
 
 All procedures listed with input parameters. String sizes shown where bounded, e.g. `String(50)`.
 
-### api_* (526)
+### api_* (533)
 
 - `api_Advanced_EventsAndRoomsByRecord(@RecordID: Integer32)`
 - `api_Advanced_GetRecurringItems(@SequenceID: Integer32)`
@@ -90,6 +90,7 @@ All procedures listed with input parameters. String sizes shown where bounded, e
 - `api_CIM_GetCheckInHouseholds(@SearchTerm: String(50), @RestrictToEventList: String(2000), @IsAttended: Boolean, @HouseholdId: Integer32, @AllowPhoneNumber: Boolean, @AllowIdCardBarcode: Boolean, @AllowLastName: Boolean)`
 - `api_CIM_GetCheckInResults(@HouseholdID: Integer32, @EventList: Text, @IsAttended: Boolean, @ID_Card: String(50), @GuestContactID: Integer32)`
 - `api_CIM_GetCheckInRooms(@EventList: String(2000), @ActiveOnly: Boolean)`
+- `api_CIM_GetClassroomParticipants(@EventID: Integer32, @GroupParticipantIds: Text, @APIClientID: String(256))`
 - `api_CIM_GetDomainTimezone(no parameters)`
 - `api_Classroom_GetCongregations(no parameters)`
 - `api_Classroom_GetDropDownData(no parameters)`
@@ -115,7 +116,7 @@ All procedures listed with input parameters. String sizes shown where bounded, e
 - `api_CloudTools_ResetUserSecurity(@ContactID: Integer32, @UserID: Integer32)`
 - `api_CloudTools_UpdateCommunicationMessage(@CommunicationMessageID: Integer32, @StatusID: Integer32, @UserID: Integer32)`
 - `api_Common_FindMatchingContact(@FirstName: String(50), @LastName: String(50), @Suffix: String(10), @EmailAddress: String(150), @Phone: String(50), @RequireEmail: Boolean)`
-- `api_Common_GenerateSlug(@TableName: String(50), @RecordID: Integer32, @SubPage: String(50))`
+- `api_Common_GenerateSlug(@TableName: String(75), @UserID: Integer32, @RecordID: Integer32, @SubPage: String(50), @SelectionName: String(50))`
 - `api_Common_GetConfigurationLists(@ApplicationCode: String(50))`
 - `api_Common_GetConfigurationSettings(@ApplicationCode: String(50), @KeyName: String(50))`
 - `api_Common_GetCongregations(no parameters)`
@@ -352,6 +353,9 @@ All procedures listed with input parameters. String sizes shown where bounded, e
 - `api_ListSync_GetListSubscribers(@PublicationID: Integer32)`
 - `api_ListSync_RemoveSubscriber(@ContactID: Integer32, @PublicationID: Integer32)`
 - `api_MatchOrCreateContact(@FirstName: String(50), @LastName: String(50), @EmailAddress: String(255), @PhoneNumber: String(25), @Address: String(75), @City: String(50), @State: String(2), @Zip: String(15))`
+- `api_mcp_CreatePageView(@UserID: Integer32, @TableName: String(128), @ViewTitle: String(50), @ViewClause: String(4000), @FieldList: String(4000), @OrderBy: String(255), @Description: String(500), @PageID: Integer32, @UserGroupID: Integer32, @Global: Boolean)`
+- `api_mcp_CreateSelection(@UserID: Integer32, @TableName: String(128), @SelectionName: String(50), @Records: Xml)`
+- `api_mcp_GetAuditLog(@UserID: Integer32, @TableName: String(128), @PageID: Integer32, @RecordID: Integer32, @AuditUserID: Integer32, @AuditUserName: String(128), @DaysBack: Integer32, @StartDate: DateTime, @EndDate: DateTime, @AuditTypeID: Integer32, @FieldName: String(100), @IncludeDetail: Boolean, @DetailFormat: String(10), @TopN: Integer32, @MaxValueLength: Integer32)`
 - `api_MOBILE_Dashboard_Kid(no parameters)`
 - `api_MOBILE_GetCareCaseDetail(@careCaseID: Integer32)`
 - `api_MOBILE_GetCareCases(@showAll: Boolean)`
@@ -361,6 +365,9 @@ All procedures listed with input parameters. String sizes shown where bounded, e
 - `api_MOBILE_GetPersonFiles(@contactID: Integer32)`
 - `api_MOBILE_GetYearGivingByType(@year: Integer32)`
 - `api_MOBILE_PersonLookup(@searchItem: String(50), @searchItem2: String(50))`
+- `api_MPNextTools_GetPageFields(@PageID: Integer32)`
+- `api_MPNextTools_GetPages(no parameters)`
+- `api_MPNextTools_UpdatePageFieldOrder(@PageID: Integer32, @FieldName: String(64), @GroupName: String(75), @ViewOrder: Integer16, @Required: Boolean, @Hidden: Boolean, @DefaultValue: String(128), @FilterClause: String(2000), @DependsOnField: String(64), @FieldLabel: String(64), @WritingAssistantEnabled: Boolean)`
 - `api_MPP_DeleteEventGroup(@EventID: Integer32, @GroupID: Integer32)`
 - `api_MPP_DeleteMeetingParticipants(@EventParticipantID: Integer32)`
 - `api_MPP_DeleteRecurringDonations(@SubscriptionCode: String(50))`
@@ -472,8 +479,8 @@ All procedures listed with input parameters. String sizes shown where bounded, e
 - `api_OGCC_GetEncryptionKey(no parameters)`
 - `api_OGCC_GetPledgeCampainsWithPledges(no parameters)`
 - `api_OGCC_GetProgramsAndPaymentTypes(no parameters)`
-- `api_PAPP_GetContact_JSON(@contactGUID: String(256))`
-- `api_PAPP_VolunteerBirthdays_JSON(no parameters)`
+- `api_PAPP_GetContact_JSON(@contactGUID: String(256), @UserID: String(40))`
+- `api_PAPP_VolunteerBirthdays_JSON(@UserID: String(40), @RestrictCampusID: Integer32)`
 - `api_PocketPlatform_Device_Updater(no parameters)`
 - `api_PocketPlatform_Set_LatestSermonDate(no parameters)`
 - `api_Tools_AppendSelection(@SelectionID: Integer32, @IDs: Text)`
@@ -491,9 +498,9 @@ All procedures listed with input parameters. String sizes shown where bounded, e
 - `api_Tools_GetDefaultEventParticipants(@EventId: Integer32)`
 - `api_Tools_GetDepositDataToExportToRealmAccounting(@DepositID: Integer32)`
 - `api_Tools_GetDomainData(no parameters)`
-- `api_Tools_GetDonationPossibleMatches(@FirstName: String(50), @LastName: String(50), @Phone: String(25), @Email: String(255), @AddressLine1: String(75), @DateOfBirth: String(10))`
+- `api_Tools_GetDonationPossibleMatches(@FirstName: String(50), @LastName: String(50), @Phone: String(25), @Email: String(255), @AddressLine1: String(75), @DateOfBirth: String(10), @MinimumMatchCount: Integer32, @MinorRegistrationMode: Boolean)`
 - `api_Tools_GetGroupAttendance(@EventId: Integer32, @GroupId: Integer32)`
-- `api_Tools_GetHouseholdsWithHeads(@Search: Text)`
+- `api_Tools_GetHouseholdsWithHeads(@Search: String(200))`
 - `api_Tools_GetMatchingPrograms(@Program_ID: Integer32, @Program_Name: String(130), @Account_Number: String(25), @Congregation: Integer32)`
 - `api_Tools_GetMergeTags(@PageId: Integer32)`
 - `api_Tools_GetOrphanedHouseholds(@DeleteContactIds: String(4000))`
@@ -508,7 +515,7 @@ All procedures listed with input parameters. String sizes shown where bounded, e
 - `api_Tools_GetRolePages(@RoleId: Integer32)`
 - `api_Tools_GetSelectedBatchSummaries(@SelectionId: Integer32, @BatchId: Integer32)`
 - `api_Tools_GetSelectedContacts(@SelectionId: Integer32, @SelectFields: String(4000))`
-- `api_Tools_GetSelectedDonations(@SelectionId: Integer32, @DonationId: Integer32)`
+- `api_Tools_GetSelectedDonations(@SelectionId: Integer32, @DonationId: Integer32, @UserId: Integer32)`
 - `api_Tools_GetSelectedDonationsSummary(@SelectionId: Integer32, @DonationId: Integer32)`
 - `api_Tools_GetSelectedEventParticipants(@EventId: Integer32)`
 - `api_Tools_GetSelectedPaymentsSummary(@SelectionId: Integer32, @PaymentId: Integer32)`
@@ -528,7 +535,7 @@ All procedures listed with input parameters. String sizes shown where bounded, e
 - `api_Tools_GetUserTemplates(@UserId: Integer32, @CurrentTemplateId: Integer32)`
 - `api_Tools_GetUserTools(@UserId: Integer32)`
 - `api_Tools_LoadFormById(@FormId: Integer32)`
-- `api_Tools_MoveFilesToAnotherRecord(@PageName: String(64), @PrimaryRecordId: Integer32, @RecordIds: String(4000))`
+- `api_Tools_MoveFilesToAnotherRecord(@TableName: String(64), @PrimaryRecordId: Integer32, @RecordIds: String(4000))`
 - `api_Tools_NextAvailableEnvelopeNumber(@NumberOfEnvelopes: Integer32, @ContactID: Integer32, @CongregationID: Integer32)`
 - `api_Tools_PostContactMergeCleanUp(@ContactID: Integer32)`
 - `api_Tools_ReassignUserToContactId(@UserId: Integer32, @ContactId: Integer32)`

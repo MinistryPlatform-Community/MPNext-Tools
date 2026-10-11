@@ -19,7 +19,7 @@ export interface DpAuditRetentionPolicies {
 
   Is_Active: boolean; // Has Default
 
-  Detail_Retention_Days?: number /* 32-bit integer */ | null;
+  Max_Audits_Per_Run: number /* 32-bit integer */; // Has Default
 }
 
 export type DpAuditRetentionPoliciesRecord = DpAuditRetentionPolicies;
