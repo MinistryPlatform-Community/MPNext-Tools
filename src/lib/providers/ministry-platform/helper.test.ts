@@ -496,7 +496,7 @@ describe('MPHelper', () => {
 
     it('should get tables list', async () => {
       const tables = [
-        { Table_ID: 1, Table_Name: 'Contacts', Display_Name: 'Contacts' },
+        { Name: 'Contacts', Columns: [] },
       ];
       mockGetTables.mockResolvedValueOnce(tables);
 
@@ -508,8 +508,8 @@ describe('MPHelper', () => {
 
     it('should search tables by name', async () => {
       const tables = [
-        { Table_ID: 1, Table_Name: 'Contacts', Display_Name: 'Contacts' },
-        { Table_ID: 2, Table_Name: 'Contact_Log', Display_Name: 'Contact Log' },
+        { Name: 'Contacts', Columns: [] },
+        { Name: 'Contact_Log', Columns: [] },
       ];
       mockGetTables.mockResolvedValueOnce(tables);
 

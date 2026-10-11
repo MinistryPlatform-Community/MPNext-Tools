@@ -168,7 +168,7 @@ describe('field-management actions', () => {
         },
       ]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [
           { Name: 'Contact_ID', IsPrimaryKey: true, IsRequired: true },
           { Name: 'First_Name', IsPrimaryKey: false, IsRequired: true },
@@ -188,7 +188,7 @@ describe('field-management actions', () => {
       mockGetSession.mockResolvedValueOnce(authedSession);
       mockGetPageFields.mockResolvedValueOnce([]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [
           { Name: 'First_Name', IsPrimaryKey: false, IsRequired: true },
           { Name: 'Last_Name', IsPrimaryKey: false, IsRequired: false },
@@ -220,7 +220,7 @@ describe('field-management actions', () => {
         },
       ]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [
           { Name: 'First_Name', IsPrimaryKey: false, IsRequired: true },
           { Name: 'Last_Name', IsPrimaryKey: false, IsRequired: false },
@@ -237,7 +237,7 @@ describe('field-management actions', () => {
       mockGetSession.mockResolvedValueOnce(authedSession);
       mockGetPageFields.mockResolvedValueOnce([]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [
           { Name: 'Contact_ID', IsPrimaryKey: true, IsRequired: true },
           { Name: 'First_Name', IsPrimaryKey: false, IsRequired: true },
@@ -283,7 +283,7 @@ describe('field-management actions', () => {
         },
       ]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [
           { Name: 'General_Section', DataType: 'Separator', IsPrimaryKey: false, IsRequired: false },
           { Name: 'First_Name', DataType: 'String', IsPrimaryKey: false, IsRequired: true },
@@ -318,7 +318,7 @@ describe('field-management actions', () => {
         },
       ]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [
           { Name: 'First_Name', DataType: 'String', IsPrimaryKey: false, IsRequired: false },
           { Name: 'Address_Section', DataType: 'Separator', IsPrimaryKey: false, IsRequired: false },
@@ -344,7 +344,7 @@ describe('field-management actions', () => {
       mockGetSession.mockResolvedValueOnce(authedSession);
       mockGetPageFields.mockResolvedValueOnce([]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [
           { Name: 'Weird_Separator', DataType: 'Separator', IsPrimaryKey: false, IsRequired: true },
         ],
@@ -376,7 +376,7 @@ describe('field-management actions', () => {
         },
       ]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [],
       });
 
@@ -405,7 +405,7 @@ describe('field-management actions', () => {
         },
       ]);
       mockGetTableMetadata.mockResolvedValueOnce({
-        Table_Name: 'Contacts',
+        Name: 'Contacts',
         Columns: [
           { Name: 'First_Name', IsPrimaryKey: false, IsRequired: true },
           { Name: 'Last_Name', IsPrimaryKey: false, IsRequired: false },

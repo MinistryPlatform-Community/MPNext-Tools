@@ -178,26 +178,47 @@ describe('FieldManagementService', () => {
       expect(result).toBeNull();
     });
 
-    it('should return exact match by Table_Name when multiple tables returned', async () => {
-      const contactsTable = { Table_ID: 1, Table_Name: 'Contacts', Display_Name: 'Contacts' };
-      const otherTable = { Table_ID: 2, Table_Name: 'Contact_Log', Display_Name: 'Contact Log' };
-      mockGetTables.mockResolvedValueOnce([otherTable, contactsTable]);
+    it('returns the exact Name match when it is not the first search result', async () => {
+      const contactLog = { Name: 'Contact_Log', Columns: [] };
+      const contacts = { Name: 'Contacts', Columns: [] };
+      const contactAttributes = { Name: 'Contact_Attributes', Columns: [] };
+      mockGetTables.mockResolvedValueOnce([contactLog, contacts, contactAttributes]);
 
       const service = await FieldManagementService.getInstance();
       const result = await service.getTableMetadata('Contacts');
 
-      expect(result).toBe(contactsTable);
+      expect(mockGetTables).toHaveBeenCalledWith('Contacts');
+      expect(result).toBe(contacts);
     });
 
-    it('should return first result if no exact match found', async () => {
-      const firstTable = { Table_ID: 1, Table_Name: 'Contact_Log', Display_Name: 'Contact Log' };
-      const secondTable = { Table_ID: 2, Table_Name: 'Contact_Attributes', Display_Name: 'Contact Attributes' };
-      mockGetTables.mockResolvedValueOnce([firstTable, secondTable]);
+    it('returns null (no fallback to the first result) when nothing matches exactly', async () => {
+      mockGetTables.mockResolvedValueOnce([
+        { Name: 'Contact_Log', Columns: [] },
+        { Name: 'Contact_Attributes', Columns: [] },
+      ]);
 
       const service = await FieldManagementService.getInstance();
       const result = await service.getTableMetadata('Contacts');
 
-      expect(result).toBe(firstTable);
+      expect(result).toBeNull();
+    });
+
+    it('does not match on a legacy Table_Name key (the API returns Name)', async () => {
+      mockGetTables.mockResolvedValueOnce([{ Name: 'Contacts_Backup', Table_Name: 'Contacts' }]);
+
+      const service = await FieldManagementService.getInstance();
+      const result = await service.getTableMetadata('Contacts');
+
+      expect(result).toBeNull();
+    });
+
+    it('matches case-sensitively', async () => {
+      mockGetTables.mockResolvedValueOnce([{ Name: 'Contacts', Columns: [] }]);
+
+      const service = await FieldManagementService.getInstance();
+      const result = await service.getTableMetadata('contacts');
+
+      expect(result).toBeNull();
     });
   });
 

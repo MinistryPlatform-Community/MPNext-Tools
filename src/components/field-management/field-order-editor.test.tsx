@@ -193,7 +193,7 @@ describe('FieldOrderEditor', () => {
       <FieldOrderEditor
         fields={[]}
         tableMetadata={{
-          Table_Name: 'Contacts',
+          Name: 'Contacts',
           Columns: [
             { Name: 'First_Name', IsRequired: true },
             { Name: 'Last_Name', IsRequired: false },
