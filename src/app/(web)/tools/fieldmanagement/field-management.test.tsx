@@ -170,7 +170,7 @@ describe('FieldManagement', () => {
   it('shows column count when tableMetadata has Columns', async () => {
     mockFetchPageFieldData.mockResolvedValueOnce({
       fields: [{ Page_Field_ID: 1 }],
-      tableMetadata: { Table_Name: 'Contacts', Columns: [{ Name: 'A' }, { Name: 'B' }] },
+      tableMetadata: { Name: 'Contacts', Columns: [{ Name: 'A' }, { Name: 'B' }] },
     });
 
     await selectPage();

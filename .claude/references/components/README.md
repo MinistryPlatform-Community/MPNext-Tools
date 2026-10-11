@@ -21,14 +21,14 @@ Reference docs for `src/components/` — the tool layout framework, layout wrapp
 ## Code surfaces
 | Path | Role |
 |------|------|
-| `src/components/tool/` | `ToolContainer`, `ToolHeader`, `ToolFooter` — 4 files |
+| `src/components/tool/` | `ToolContainer`, `ToolHeader`, `ToolFooter` + barrel + `tool-framework.test.tsx` — 5 files |
 | `src/components/layout/` | `AuthWrapper` server component + test — 3 files |
 | `src/components/ui/` | 22 shadcn/ui primitives |
 | `src/components/shared-actions/` | Cross-feature server actions — `user.ts`, `domain.ts`, `sign-out.ts` + tests (+ local `README.md`) |
-| `src/components/address-labels/` | Address-label feature — 13 files |
-| `src/components/dev-panel/` | Dev overlay — 3 files + `panels/` subdir |
-| `src/components/field-management/` | Field-order editor — 10 files |
-| `src/components/group-wizard/` | Group wizard — 14 files |
+| `src/components/address-labels/` | Address-label feature — 24 files (incl. 11 tests) |
+| `src/components/dev-panel/` | Dev overlay — 3 files + `panels/` subdir (20 files) |
+| `src/components/field-management/` | Field-order editor — 16 files (incl. 7 tests) |
+| `src/components/group-wizard/` | Group wizard — 26 files (incl. 12 tests) |
 
 ## Conventions (domain-wide)
 - File names: `kebab-case.tsx` (e.g., `tool-container.tsx`)

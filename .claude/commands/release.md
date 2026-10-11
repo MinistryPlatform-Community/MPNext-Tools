@@ -20,8 +20,8 @@ Create a GitHub release with auto-generated release notes from merged pull reque
    - Run `git log --oneline` (from last release tag to HEAD, or recent commits if first release) to understand what's new
 
 3. **Identify PRs to include:**
-   - If this is the first release, run `gh pr list --state merged --limit 20 --json number,title,mergedAt,body,labels` to get recent merged PRs
-   - If a previous release exists, find PRs merged since that release using `gh pr list --state merged --search "merged:>YYYY-MM-DD" --json number,title,mergedAt,body,labels`
+   - If this is the first release, run `gh pr list --base dev --state merged --limit 20 --json number,title,mergedAt,body,labels` to get recent merged PRs
+   - If a previous release exists, find PRs merged since that release using `gh pr list --base dev --state merged --search "merged:>YYYY-MM-DD" --json number,title,mergedAt,body,labels` (feature PRs target `dev`; add `--base main` hotfix PRs if any)
    - Present the list of PRs to the user and ask which to include (default: all)
    - Exclude the `dev` → `main` release PR itself — it is a promotion, not a change
 
@@ -105,7 +105,7 @@ gh release list --limit 5
 git tag --sort=-version:refname | head -5
 
 # 2. Get merged PRs since last release
-gh pr list --state merged --limit 20 --json number,title,mergedAt,body,labels
+gh pr list --base dev --state merged --limit 20 --json number,title,mergedAt,body,labels
 
 # 3. Get repo info for changelog URL
 gh repo view --json nameWithOwner --jq .nameWithOwner

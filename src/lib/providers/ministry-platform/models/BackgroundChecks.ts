@@ -133,6 +133,12 @@ export interface BackgroundChecks {
    * Max length: 45 characters
    */
   IP_Address?: string /* max 45 chars */ | null;
+
+  Background_Check_InProgress?: string /* ISO datetime */ | null;
+
+  Background_Check_Cancelled?: string /* ISO datetime */ | null;
+
+  Invitation_Guid?: string /* GUID/UUID */ | null;
 }
 
 export type BackgroundChecksRecord = BackgroundChecks;

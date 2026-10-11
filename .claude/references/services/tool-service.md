@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/services/toolService.ts, src/services/toolService.test.ts]
 symbols: [ToolService, ContactRecord, ContactRecordResult, PageLookup, RoleLookup, DeployToolInput, DeployToolResult]
 related: [query-patterns.md, ../mp-schema/required-procs.md, ../components/dev-panel.md]
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -13,11 +13,24 @@ Resolves MP page metadata, user tool authorization, selection record IDs, and co
 
 ## Files
 - `src/services/toolService.ts` — singleton implementation
-- `src/services/toolService.test.ts` — 548 lines; covers every public method including error paths, batching, and `deployTool` payload shaping
+- `src/services/toolService.test.ts` — 672 lines; covers every public method including error paths, batching, authorization gating, and `deployTool` payload shaping
+
+## Authorization
+Every public method calls `AuthorizationService.getInstance().requireSecurityRole({ table, operation })` before touching MP (see `../security/README.md`). The returned `User_ID` is the acting user for `getSelectionRecordIds` / `getUserTools` and the `$userId` for `deployTool` — callers never pass a user ID.
+
+| Method | Gate `table` / `operation` |
+|--------|---------------------------|
+| `getPageData` | `dp_Pages` / `read` |
+| `getSelectionRecordIds` | `dp_Selections` / `read` |
+| `getUserTools` | `dp_Tools` / `read` |
+| `listPages` | `dp_Pages` / `read` |
+| `listRoles` | `dp_Roles` / `read` |
+| `deployTool` | `dp_Tools` / `create` |
+| `resolveContactIds` | `Contacts` / `read` (plus `dp_Pages` via `getPageData`) |
 
 ## Singleton
 ```typescript
-// src/services/toolService.ts:81-115
+// src/services/toolService.ts:84-118
 export class ToolService {
   private static instance: ToolService;
   private mp: MPHelper | null = null;
@@ -38,8 +51,8 @@ export class ToolService {
 | Method | Returns | Calls |
 |--------|---------|-------|
 | `getPageData(pageID: number)` | `PageData \| null` | SP `api_Tools_GetPageData` |
-| `getSelectionRecordIds(selectionId, userId, pageId)` | `number[]` | SP `api_Common_GetSelection` |
-| `getUserTools(userId: number)` | `string[]` (tool paths) | SP `api_Tools_GetUserTools` |
+| `getSelectionRecordIds(selectionId, pageId)` | `number[]` | SP `api_Common_GetSelection` (`@UserID` from the gate) |
+| `getUserTools()` | `string[]` (tool paths) | SP `api_Tools_GetUserTools` (`@UserId` from the gate) |
 | `resolveContactIds(pageId, recordIds)` | `ContactRecordResult \| null` | `getPageData(pageId)`, then `getTableRecords` on the page's table in batches of 100 |
 | `listPages(search?: string)` | `PageLookup[]` (max 100) | SP `api_MPNextTools_GetPages`, filtered in-memory |
 | `listRoles(search?: string)` | `RoleLookup[]` (max 100) | `getTableRecords('dp_Roles')` |
@@ -48,7 +61,7 @@ export class ToolService {
 ## getPageData
 
 ```typescript
-// src/services/toolService.ts:123-141
+// src/services/toolService.ts:126-148
 const result = await this.mp!.executeProcedureWithBody('api_Tools_GetPageData', {
   "@PageID": pageID
 });
@@ -65,7 +78,11 @@ return null;
 ## getSelectionRecordIds
 
 ```typescript
-// src/services/toolService.ts:152-174
+// src/services/toolService.ts:162-188
+const userId = await AuthorizationService.getInstance().requireSecurityRole({
+  table: 'dp_Selections',
+  operation: 'read',
+});
 const result = await this.mp!.executeProcedureWithBody('api_Common_GetSelection', {
   '@SelectionID': selectionId,
   '@UserID': userId,
@@ -83,11 +100,16 @@ return [];
 ```
 
 - Some procs return metadata in set 0 and records later; the scan picks whichever set contains `Record_ID`.
+- `@UserID` is the gate's return value, never a caller argument: a selection belongs to a specific MP user, so accepting a user ID from the payload would let any caller read someone else's selection.
 
 ## getUserTools
 
 ```typescript
-// src/services/toolService.ts:183-198
+// src/services/toolService.ts:196-215
+const userId = await AuthorizationService.getInstance().requireSecurityRole({
+  table: 'dp_Tools',
+  operation: 'read',
+});
 const result = await this.mp!.executeProcedureWithBody('api_Tools_GetUserTools', {
   "@UserId": userId
 });
@@ -97,7 +119,7 @@ if (result && result.length > 0 && result[0].length > 0) {
 return [];
 ```
 
-- Caller must already have resolved numeric `User_ID` from `session.user.userGuid` (typically via `UserService.getUserIdByGuid`)
+- Takes no arguments: the numeric `User_ID` comes from `requireSecurityRole`, which resolves `session.user.userGuid` → `dp_Users.User_ID`
 
 ## resolveContactIds
 
@@ -131,7 +153,7 @@ public async resolveContactIds(
 
 **Return type:**
 ```typescript
-// src/services/toolService.ts:5-15
+// src/services/toolService.ts:8-18
 export interface ContactRecord { recordId: number; contactId: number; }
 export interface ContactRecordResult {
   tableName: string;
@@ -144,8 +166,9 @@ export interface ContactRecordResult {
 ## listPages / listRoles (deploy-tool pickers)
 
 ```typescript
-// src/services/toolService.ts:206-220
+// src/services/toolService.ts:223-241
 public async listPages(search?: string): Promise<PageLookup[]> {
+  await AuthorizationService.getInstance().requireSecurityRole({ table: 'dp_Pages', operation: 'read' });
   const result = await this.mp!.executeProcedureWithBody('api_MPNextTools_GetPages', {});
   const rows = (result?.[0] as PageLookup[] | undefined) ?? [];
   const term = search?.trim().toLowerCase();
@@ -160,11 +183,12 @@ public async listPages(search?: string): Promise<PageLookup[]> {
 - Reuses `api_MPNextTools_GetPages` (also used by `FieldManagementService.getPages`); SP has no search param so filter happens in-memory.
 
 ```typescript
-// src/services/toolService.ts:226-239
+// src/services/toolService.ts:247-264
 public async listRoles(search?: string): Promise<RoleLookup[]> {
+  await AuthorizationService.getInstance().requireSecurityRole({ table: 'dp_Roles', operation: 'read' });
   const term = search?.trim();
   const filter = term
-    ? `Role_Name LIKE '%${term.replace(/'/g, "''")}%'`
+    ? `Role_Name LIKE '%${escapeFilterString(term)}%'`
     : undefined;
   return this.mp!.getTableRecords<RoleLookup>({
     table: 'dp_Roles',
@@ -175,13 +199,17 @@ public async listRoles(search?: string): Promise<RoleLookup[]> {
   });
 }
 ```
-- Inline single-quote escape (no `%`/`_` allowed in the wildcard position since the wildcards are at the outer `'%{term}%'`).
+- Escaped with `escapeFilterString` (`src/lib/validation.ts`): bracket-escapes `[`, `%`, `_` and doubles `'`, so user input matches literally inside the outer `'%…%'`.
 
 ## deployTool (localhost-only dev feature)
 
 ```typescript
-// src/services/toolService.ts:247-281
+// src/services/toolService.ts:272-310
 public async deployTool(input: DeployToolInput): Promise<DeployToolResult> {
+  const $userId = await AuthorizationService.getInstance().requireSecurityRole({
+    table: 'dp_Tools',
+    operation: 'create',
+  });
   // Pre-flight validation
   if (!input.toolName.trim()) throw new Error('Tool Name is required');
   if (!input.launchPage.trim()) throw new Error('Launch Page is required');
@@ -203,7 +231,7 @@ public async deployTool(input: DeployToolInput): Promise<DeployToolResult> {
     '@RoleIDs': input.roleIds.length ? input.roleIds.join(',') : null,
   };
 
-  const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool', payload);
+  const resultSets = await this.mp!.executeProcedureWithBody('api_dev_DeployTool', payload, { $userId });
   const [toolRows, pageRows, roleRows] = resultSets ?? [];
   const tool = (toolRows?.[0] as DeployedToolRow | undefined);
   if (!tool) {
@@ -220,6 +248,7 @@ public async deployTool(input: DeployToolInput): Promise<DeployToolResult> {
 - SP name prefix `api_dev_` → MP provider switches to `MINISTRY_PLATFORM_DEV_*` client credentials
 - Returns 3 result sets: tool row, page rows, role rows
 - Booleans encoded as `1`/`0` (BIT), empty arrays as `null`
+- `$userId` (audit attribution) comes only from the gate's return value — `deployToolAction` passes no user ID
 
 ## Stored procedures called
 
@@ -235,10 +264,13 @@ public async deployTool(input: DeployToolInput): Promise<DeployToolResult> {
 
 | Action | File | Method(s) used |
 |--------|------|----------------|
-| `fetchAddressLabels` | `src/components/address-labels/actions.ts` | `getPageData`, `getSelectionRecordIds` |
+| `fetchAddressLabels` | `src/components/address-labels/actions.ts` | `getSelectionRecordIds` |
+| `parseToolParams` | `src/lib/tool-params.server.ts` | `getPageData` (dynamic import) |
+| `resolveContactIdFromPage` | `src/app/(web)/tools/addeditfamily/actions.ts` | `getPageData` |
 | `resolveSelection` | `src/components/dev-panel/panels/selection-actions.ts` | `getSelectionRecordIds` |
 | `getUserTools` | `src/components/dev-panel/panels/user-tools-actions.ts` | `getUserTools` |
-| Deploy tool panel | `src/components/dev-panel/panels/deploy-tool-actions.ts` | `listPages`, `listRoles`, `deployTool` |
+| `resolveContactRecords` | `src/components/dev-panel/panels/contact-records-actions.ts` | `resolveContactIds` |
+| `listPagesAction`, `listRolesAction`, `deployToolAction` | `src/components/dev-panel/panels/deploy-tool-actions.ts` | `listPages`, `listRoles`, `deployTool` |
 
 ## Related docs
 - `query-patterns.md` — shared query rules (validation, batching, quote escaping)

@@ -8,8 +8,8 @@ export const JourneysSchema = z.object({
   Gamify: z.boolean().nullable(),
   Active: z.boolean().nullable(),
   Badge: z.string().max(400).nullable(),
-  Start_Date: z.string().datetime().nullable(),
-  End_Date: z.string().datetime().nullable(),
+  Start_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
+  End_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Finish_Message: z.string().max(150).nullable(),
 });
 

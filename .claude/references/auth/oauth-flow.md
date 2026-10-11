@@ -2,7 +2,7 @@
 title: OAuth Flow (genericOAuth, lazy id_token verification, OIDC endsession)
 domain: auth
 type: reference
-applies_to: [src/lib/auth.ts, src/lib/env.ts, src/app/signin/page.tsx, src/app/api/auth/[...all]/route.ts, src/components/shared-actions/sign-out.ts, src/app/session-error/page.tsx]
+applies_to: [src/lib/auth.ts, src/lib/env.ts, src/app/signin/sign-in-content.tsx, src/app/api/auth/[...all]/route.ts, src/components/shared-actions/sign-out.ts, src/app/session-error/page.tsx]
 symbols: [auth, ministryPlatformProviderConfig, lazyIdTokenVerifier, sharedInstance, getMpClient, handleSignOut]
 related: [sessions.md, user-identity.md, route-protection.md, ../security/README.md]
 last_verified: 2026-10-10
@@ -17,7 +17,7 @@ id_token verification, profile mapping, and RP-initiated logout via `endsession`
 - `src/lib/env.ts` — `getMpBaseUrl()`, `getAuthBaseUrl()`, `getMpClient()` (validated env readers)
 - `src/app/signin/sign-in-content.tsx` — calls `authClient.signIn.social({ provider: "ministryplatform", callbackURL })`
 - `src/app/api/auth/[...all]/route.ts` — deny-by-default allowlist in front of `toNextJsHandler(auth)`
-- `src/components/shared-actions/sign-out.ts` — `handleSignOut()` server action (called by the sign-out forms on `/no-access` and `/session-error`)
+- `src/components/shared-actions/sign-out.ts` — `handleSignOut()` server action (the `<form action>` on `/no-access` and `/session-error`)
 - Tests: `src/auth.oidc-discovery.test.ts` (outages, lazy discovery), `src/auth.user-info.test.ts` (`getUserInfo` with signed tokens), `src/auth.id-token-sign-in.test.ts` (F12), `src/auth.shared-instance.test.ts`, `src/auth.test.ts` (config pins), `src/components/shared-actions/sign-out.test.ts`; mock MP in `src/test-utils/mock-oidc.ts`
 
 ## Key concepts
@@ -73,11 +73,11 @@ and the next sign-in recovers on the same process. `PROVIDER_NOT_FOUND` /
 2. The `id_token_hint` is taken from that URL **only if its origin is the MP
    origin**.
 3. The end-session URL is rebuilt:
-   `${MP}/oauth/connect/endsession?post_logout_redirect_uri=<BETTER_AUTH_URL>&client_id=<OIDC client>[&id_token_hint=…]`
+   `${MP}/oauth/connect/endsession?post_logout_redirect_uri=<BETTER_AUTH_URL>&client_id=<MINISTRY_PLATFORM_CLIENT_ID>[&id_token_hint=…]`
    — `post_logout_redirect_uri` exactly as registered (better-auth would add a
    trailing `/` and drop `client_id` when it has a hint).
 4. `redirect()` — a `NEXT_REDIRECT` throw. Invoke it as a `<form action>` (as
-   `/session-error` does) so Next handles the redirect. A future client caller
+   `/no-access` and `/session-error` do) so Next handles the redirect. A future client caller
    that `await`s it in try/catch must call `unstable_rethrow(err)` **first**, or
    it swallows the navigation as an "error".
 

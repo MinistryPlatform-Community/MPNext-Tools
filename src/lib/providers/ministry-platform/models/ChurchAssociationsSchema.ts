@@ -8,8 +8,8 @@ export const ChurchAssociationsSchema = z.object({
   Address_ID: z.number().int().nullable(),
   Website: z.string().url().nullable(),
   Year_Established: z.number().int().nullable(),
-  End_Date: z.string().datetime().nullable(),
-  Review_Date: z.string().datetime().nullable(),
+  End_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/, "Expected YYYY-MM-DD (optionally with a time)").nullable(),
+  Review_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/, "Expected YYYY-MM-DD (optionally with a time)").nullable(),
 });
 
 export type ChurchAssociationsInput = z.infer<typeof ChurchAssociationsSchema>;

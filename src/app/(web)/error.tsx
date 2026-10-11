@@ -6,9 +6,9 @@ import { useEffect } from "react";
  * Error boundary for everything below the `(web)` layout.
  *
  * Placement is the whole design: because this sits INSIDE the `(web)` segment,
- * the shell — header, user menu and critically the SIGN-OUT control — survives
- * the error. A single boundary at `src/app/error.tsx` would replace the shell
- * and strand the user with no way out.
+ * the `(web)` layout (AuthWrapper + Providers) survives the error. A single
+ * boundary at `src/app/error.tsx` would replace that shell. (There is no
+ * in-shell sign-out control; sign-out lives on `/no-access` and `/session-error`.)
  *
  * Two details that bite:
  *

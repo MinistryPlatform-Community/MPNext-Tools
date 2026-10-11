@@ -47,22 +47,26 @@ rendered, so the gate runs at every layer that is independently reachable:
 
 | Layer | File | Call |
 |---|---|---|
-| Page | `src/app/(web)/tools/layout.tsx` | `hasSecurityRole()` then `redirect("/no-access")` |
-| Action | `src/components/<feature>/actions.ts` | `requireAccess()` wrapping `requireSecurityRole()` |
-| Service | `src/services/*.ts` | `requireSecurityRole()` on **every** method, reads included |
+| Page | `src/app/(web)/tools/<tool>/page.tsx` | first statement `await requireToolAccess({ table, operation })` (`src/app/(web)/tools/require-tool-access.ts`) → `requireSecurityRole()`; a refusal redirects to `/no-access` |
+| Action | `src/components/<feature>/actions.ts`, `src/app/(web)/tools/addeditfamily/actions.ts` | `requireAccess()` wrapping `requireSecurityRole()` |
+| Service | `src/services/*.ts` | `requireSecurityRole()` on every MP-data method, reads included. Exceptions: `UserService.getUserProfile` (own-profile carve-out), `FamilyService.getDefaults` (static), `DomainTimezoneService.*` (domain config). `GooglePlacesService.*` gates `dp_Configuration_Settings`/`read` on every call, cached key or not |
 
-A layout gate covers its child pages for free — React renders the layout first
-and only renders `children` once it returns.
+`src/app/(web)/tools/layout.tsx` also calls `hasSecurityRole()` and redirects
+to `/no-access`, but that is **UX only, not enforcement**: Next 16 renders each
+route segment independently, so a layout `redirect()` does not stop the page
+segment running or its output reaching the RSC payload, and layouts are not
+re-rendered on client navigation. That is why every tool page gates itself
+(`require-tool-access.test.ts` fails if one does not).
 
 ### `AuthorizationService` design points
 
 - **Two entry points.** `requireSecurityRole()` throws `UnauthorizedError` and
   logs a structured denial — it is the enforcement point, and it returns the
   acting MP `User_ID`. `hasSecurityRole()` returns a decision without logging —
-  for UI affordances and the layout redirect, **never** as enforcement.
+  for UI affordances and the `tools/layout.tsx` redirect, **never** as enforcement.
 - **Per-request memoization via React `cache()`** — not module-level, not TTL.
-  The gate runs up to three times per request; this collapses that to one MP
-  read. Nothing crosses requests, which is what keeps a role revoked in MP
+  The gate runs up to three times per request (page, action, service); this
+  collapses that to one MP read. Nothing crosses requests, which is what keeps a role revoked in MP
   effective on the user's *very next* request.
 - **Fails closed.** No session, no `userGuid`, no `dp_Users` row, or no role
   means refused.
@@ -306,8 +310,8 @@ So this app keys on the only identifier MP guarantees unique — the OIDC `sub`
 ```
 
 - The **real** address is preserved separately as `mpEmail`, for display only.
-  Nothing in the UI reads `session.user.email`; the header uses
-  `MPUserProfile.Email_Address` straight from MP.
+  Nothing in the UI reads `session.user.email`; the profile `UserProvider`
+  loads (`MPUserProfile.Email_Address`) comes straight from MP.
 - `account.accountLinking.enabled = false` is the second lock.
 - `emailVerified` reports the provider's actual claim instead of asserting
   `true`.
@@ -449,8 +453,8 @@ clone made before 2026-09-30 should:**
    window whose `User_ID` doesn't match the signed-in person.
 4. Port the session hardening above.
 
-`SECURITY.md` at the repo root carries the same list for people who never open
-`.claude/`.
+`.github/SECURITY.md` (GitHub's security policy location) carries the same list
+for people who never open `.claude/`.
 
 ---
 
@@ -474,11 +478,17 @@ Structured events alerts can grep on:
 |---|---|
 | `mp.read.unauthorized` | role gate refuses a read |
 | `mp.write.unauthorized` | role gate refuses a write |
-| `mp.write.non_user` | a write ran with no resolved acting user |
+| `mp.write.non_user` | the gate refused a call whose session resolved to no MP `User_ID` (any reason except `no_session`) |
 | `mp.request.failed` | a non-2xx MP HTTP response |
 | `auth.userinfo.invalid_sub` | MP userinfo returned no usable `sub` |
 | `auth.userinfo.fetch_failed` | MP userinfo endpoint returned non-2xx |
 | `ui.render.error` | a React error boundary caught a render error |
+| `proxy.session_check_failed` | `getSessionCookie` threw in `src/proxy.ts` (request redirected to `/signin`) |
+
+The OIDC sign-in events (`auth.oidc.discovery_failed`,
+`auth.userinfo.id_token_unverified`, `auth.userinfo.id_token_claims_invalid`,
+`auth.userinfo.sub_mismatch`) are listed with their `reason` fields in
+[`../auth/oauth-flow.md`](../auth/oauth-flow.md#failure-modes-and-log-events-identifiers-only).
 
 ---
 
@@ -489,7 +499,7 @@ segment, so one boundary cannot do every job:
 
 | File | Catches | Why separate |
 |---|---|---|
-| `src/app/(web)/error.tsx` | anything below the `(web)` layout | renders **inside** the shell, so the header and **sign-out survive** |
+| `src/app/(web)/error.tsx` | anything below the `(web)` layout | renders **inside** the shell (the `(web)` layout, `AuthWrapper` and `Providers` survive) |
 | `src/app/error.tsx` | `/signin`, `/session-error`, `/auth-error` | those routes have no shell |
 | `src/app/global-error.tsx` | a throw in the root layout itself | replaces it; imports nothing from the app. Has a plain `<a href="/">` that works without JS, and "Try again" is disabled until hydration (`useSyncExternalStore`) so a pre-hydration click is not swallowed |
 
@@ -532,8 +542,8 @@ Closed in this repo, from the upstream MPNext hardening playbook
 
 **Not applicable to this repo:** F4 (no `Made_By` / contact-log feature, and
 attribution was already server-authoritative — no server action ever accepted a
-`userId` parameter), F10 and F11 (no `ContactService`; `getMpTimezone` is a
-documented carve-out).
+`userId` parameter) and F10 (no `ContactService`). F11 *was* ported (2026-09-30):
+`getMpTimezone` now requires a session — see [Carve-outs](#carve-outs).
 
 ### F8 (PKCE) — closed as not-possible, with evidence
 
@@ -562,6 +572,5 @@ and no code-bearing URLs in logs.
 
 ### Still open — needs a human
 
-- **The enforced-CSP browser walk has not been done.** Headers and nonce
-  coverage were verified against `next start`; a human still needs to click
-  through every Radix surface under enforcement.
+Nothing at present. The enforced-CSP browser walk was completed 2026-10-10 —
+see [`CSP_ENFORCE`](#csp_enforce).

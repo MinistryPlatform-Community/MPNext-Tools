@@ -14,7 +14,7 @@ Applies to every doc under `.claude/references/**/*.md`.
 | Line number ref | `Read` with offset — content matches |
 | Count (e.g., "22 components", "507 tests") | Generate current count via `Glob`/`Grep` — fix inline if drift; drop TODO if structural |
 | Version (package version) | `Read` `package.json` — match |
-| Framework API claim (Next.js 16, React 19, Zod v4, Better Auth 1.5, Vitest 4) | **context7 `query-docs`** — do not trust training |
+| Framework API claim (Next.js 16, React 19, Zod v4, Better Auth 1.7, Vitest 5) | **context7 `query-docs`** — do not trust training |
 | Behavior claim | `Read` referenced source — confirm the claim holds |
 | Cross-ref to another doc | Target doc exists at that path |
 

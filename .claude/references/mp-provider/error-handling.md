@@ -12,11 +12,12 @@ symbols:
   - HttpClient
   - MinistryPlatformClient
   - MPHelper
+  - MPValidationError
   - errorName
 related:
   - client.md
   - architecture.md
-last_verified: 2026-09-30
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -25,7 +26,7 @@ How Ministry Platform API errors, token-refresh errors, input-guard refusals and
 ## Key concepts
 
 - **Every layer re-throws.** Services log a structured event (`logger.error('mp.<area>.<op>_failed', { ...ids, error: errorName(e) })`) and re-throw the original error.
-- **Error shape is `Error`, not a custom class.** Consumers must read `.message` for the status code.
+- **Error shape is `Error`.** HTTP/token/guard failures are plain `Error`s — consumers must read `.message` for the status code. The one subclass is `MPValidationError` (Zod failures in `MPHelper`, see below).
 - **Guards throw before any token or network work**, with a fixed message naming the field.
 - **One automatic retry exists:** a 401 triggers a forced token refresh and a single retry. Nothing else is retried.
 
@@ -38,6 +39,7 @@ How Ministry Platform API errors, token-refresh errors, input-guard refusals and
 | Guard | Non-array `ids` to `deleteTableRecords` | `Invalid record IDs` |
 | Guard | Bad file unique ID | `Invalid GUID format` |
 | HttpClient | Unsafe endpoint (traversal, `?#\`, encoded forms, control chars) | `Refusing unsafe MP API endpoint` |
+| HttpClient | Base URL fails to parse | `Invalid MP API base URL` |
 | HttpClient | Non-2xx (after the one 401 retry) | `${METHOD} ${endpoint} failed: ${status} ${statusText}` |
 | HttpClient | Network error / timeout / refused redirect | `${METHOD} ${endpoint} failed: ${errorName}` (e.g. `TimeoutError`) |
 | HttpClient | 2xx with non-JSON content-type | `${METHOD} ${endpoint} failed: unexpected content-type` |
@@ -48,7 +50,7 @@ How Ministry Platform API errors, token-refresh errors, input-guard refusals and
 | Token | Within negative-cache window | `MP access token unavailable: recent refresh failed` |
 | Token | Dev env vars missing | `Dev client credentials are not configured...` |
 | FileService | Download non-2xx | `GET /files/{uniqueId} failed: ${status} ${statusText}` |
-| MPHelper | Zod parse fail on create/update | `Validation failed for record ${index}: ...` (no API call made) |
+| MPHelper | Zod parse fail on create/update | `MPValidationError` (`helper.ts:33`): `Validation failed for record ${index}: ...`, plus `.recordIndex` and `.zodError` (no API call made). A non-`ZodError` throw from `parse` becomes a plain `Error` with the same message prefix |
 
 `${endpoint}` is the path only, with GUIDs replaced by `{uniqueId}`.
 
@@ -69,7 +71,7 @@ All are written as `console.error('[MP]', event, fields)` via `logger.error`.
 
 - **Detecting 401/404:** `e.message.includes('404')`. There is no structured error type.
 - **A 401 you see is after a retry** with a freshly issued token — it is not a stale-cache race.
-- **Zod failures short-circuit the API call**, and the re-wrapped `Error` only carries `.message`.
+- **Zod failures short-circuit the API call.** Check `instanceof MPValidationError` (import from `@/lib/providers/ministry-platform/helper` — it is not re-exported by the barrel) to read `.zodError.issues`.
 
 ## Related docs
 - `client.md` — token pipelines, HttpClient request path

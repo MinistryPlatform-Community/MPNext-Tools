@@ -1,5 +1,6 @@
 import "server-only";
 import { MPHelper } from "@/lib/providers/ministry-platform";
+import { AuthorizationService } from "@/services/authorizationService";
 import { GooglePlacesProvider } from "@/lib/providers/google-places";
 import type { PlacePrediction, PlaceDetails } from "@/lib/providers/google-places";
 
@@ -27,6 +28,8 @@ export class GooglePlacesService {
    *   3. null (feature disabled)
    *
    * Cached on the singleton so MP is queried at most once per process lifetime.
+   * Never call this without `requireAccess()` first: the cache is process-wide,
+   * so the gate must run on every call, not only on a cache miss.
    */
   private async resolveApiKey(): Promise<string | null> {
     if (this.resolvedKey !== undefined) return this.resolvedKey;
@@ -52,7 +55,26 @@ export class GooglePlacesService {
     return this.resolvedKey;
   }
 
+  /**
+   * Authorization gate for every public method (CLAUDE.md rule 12).
+   *
+   * The key comes from an MP read of `dp_Configuration_Settings`, and once
+   * resolved it is cached on this process-wide singleton. Gating only the
+   * cache-miss path would let an unauthorized caller use a key an authorized
+   * caller had already loaded, so each public method gates before touching
+   * either the MP read or the cached key/provider. It runs outside
+   * `resolveApiKey`'s try/catch so a refusal is never swallowed into the
+   * env-var fallback.
+   */
+  private async requireAccess(): Promise<void> {
+    await AuthorizationService.getInstance().requireSecurityRole({
+      table: "dp_Configuration_Settings",
+      operation: "read",
+    });
+  }
+
   public async isEnabled(): Promise<boolean> {
+    await this.requireAccess();
     return (await this.resolveApiKey()) !== null;
   }
 
@@ -69,11 +91,13 @@ export class GooglePlacesService {
   }
 
   async autocomplete(input: string, sessionToken: string): Promise<PlacePrediction[]> {
+    await this.requireAccess();
     const provider = await this.getProvider();
     return provider.autocomplete(input, sessionToken);
   }
 
   async getPlaceDetails(placeId: string, sessionToken: string): Promise<PlaceDetails> {
+    await this.requireAccess();
     const provider = await this.getProvider();
     return provider.getPlaceDetails(placeId, sessionToken);
   }

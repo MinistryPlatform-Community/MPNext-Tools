@@ -21,7 +21,7 @@ related:
   - architecture.md
   - error-handling.md
   - ../auth/README.md
-last_verified: 2026-09-30
+last_verified: 2026-10-10
 ---
 
 ## Purpose

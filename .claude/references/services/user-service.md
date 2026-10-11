@@ -5,7 +5,7 @@ type: reference
 applies_to: [src/services/userService.ts, src/services/userService.test.ts]
 symbols: [UserService, MPUserProfile]
 related: [query-patterns.md, ../auth/sessions.md, ../components/layout.md]
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -89,9 +89,16 @@ Deliberately minimal (client-bound DTO). Formerly also carried `User_ID`, `User_
 > Pass `session.user.userGuid`, **not** `session.user.id`. Better Auth's `user.id` is the internal auth record ID, not the MP `User_GUID`.
 
 ```typescript
-// src/components/shared-actions/user.ts — correct usage
-const profile = await UserService.getInstance().then(s => s.getUserProfile(session.user.userGuid));
+// src/components/shared-actions/user.ts — getCurrentUserProfile (takes no arguments)
+const session = await auth.api.getSession({ headers: await headers() });
+const userGuid = (session?.user as Record<string, unknown> | undefined)?.userGuid;
+if (typeof userGuid !== 'string' || userGuid.length === 0) throw new Error('Unauthorized');
+
+const userService = await UserService.getInstance();
+return userService.getUserProfile(userGuid);
 ```
+
+The GUID comes from the session only — never an action parameter (a `userGuid` argument was an IDOR).
 
 See `../auth/sessions.md` for `userGuid` vs `user.id`.
 
@@ -102,7 +109,7 @@ See `../auth/sessions.md` for `userGuid` vs `user.id`.
 | `getCurrentUserProfile` | `src/components/shared-actions/user.ts` | `getUserProfile` |
 
 ## Gotchas
-- `getUserProfile` does NOT re-check the session; caller is responsible for `auth.api.getSession()`.
+- `getUserProfile` does NOT re-check the session and has **no** `AuthorizationService` gate — the only service method without one. Its sole caller, `getCurrentUserProfile`, is a documented CLAUDE.md rule-12 carve-out (own profile only). Any new caller must gate itself.
 - If `dp_Users` has 0 rows for the GUID, `getUserProfile` returns `undefined` (not throw).
 - The `select` string has no spaces after some commas (`...Nickname,Contact_ID_TABLE...`) — MP REST accepts this; do not "fix" unless the API starts rejecting it.
 

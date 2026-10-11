@@ -14,6 +14,7 @@ applies_to:
   - src/components/dev-panel/panels/user-tools-actions.ts
   - src/components/dev-panel/panels/deploy-tool-panel.tsx
   - src/components/dev-panel/panels/deploy-tool-actions.ts
+  - src/components/dev-panel/panels/require-dev-session.ts
 symbols:
   - DevPanel
   - ParamsPanel
@@ -28,12 +29,13 @@ symbols:
   - listPagesAction
   - listRolesAction
   - getDeployToolEnvStatusAction
+  - requireDevSession
 related:
   - tool-framework.md
   - ../services/tool-service.md
-  - ../routing/tool-params.md
-  - ../required-stored-procs.md
-last_verified: 2026-04-17
+  - ../utils/tool-params.md
+  - ../mp-schema/stored-procs.md
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -47,21 +49,23 @@ Localhost-only developer overlay rendered by `ToolContainer` when `params` is pr
 | `src/components/dev-panel/dev-panel.test.tsx` | Shell tests (gating, localStorage persistence) — sub-panels fully mocked |
 | `src/components/dev-panel/panels/params-panel.tsx` | Renders `ToolParams` as a labelled grid + raw JSON (pure client, no server action) |
 | `src/components/dev-panel/panels/selection-panel.tsx` | Resolves `params.s` → record IDs via `resolveSelection`, bubbles IDs up via `onRecordIdsResolved` |
-| `src/components/dev-panel/panels/selection-actions.ts` | `resolveSelection(selectionId, pageId)` → `{ recordIds, count }` (auth-gated) |
-| `src/components/dev-panel/panels/selection-actions.test.ts` | Tests for auth/userGuid guards and delegation |
+| `src/components/dev-panel/panels/selection-actions.ts` | `resolveSelection(selectionId, pageId)` → `{ recordIds, count }` (`requireDevSession`) |
+| `src/components/dev-panel/panels/selection-actions.test.ts` | Tests for the dev-session guard and delegation |
 | `src/components/dev-panel/panels/contact-records-panel.tsx` | Maps record IDs → Contact IDs via `resolveContactRecords`, driven by `params.recordID` or upstream selection |
 | `src/components/dev-panel/panels/contact-records-actions.ts` | `resolveContactRecords(pageId, recordIds)` → `ContactRecordResult \| null` (page metadata resolved server-side) |
 | `src/components/dev-panel/panels/user-tools-panel.tsx` | Lists the user's authorized tool paths, computes `isAuthorized` against `NEXT_PUBLIC_PROD_URL + pathname`, reports status up via `onAuthorizationChange` |
-| `src/components/dev-panel/panels/user-tools-actions.ts` | `getUserTools()` → `string[]` (paths, auth-gated, resolves `userGuid` → `User_ID`) |
-| `src/components/dev-panel/panels/user-tools-actions.test.ts` | Tests for auth/userGuid guards and delegation |
+| `src/components/dev-panel/panels/user-tools-actions.ts` | `getUserTools()` → `string[]` (paths; `requireDevSession`; acting `User_ID` resolved by the gate inside `ToolService.getUserTools`) |
+| `src/components/dev-panel/panels/user-tools-actions.test.ts` | Tests for the dev-session guard, refusal propagation, delegation |
 | `src/components/dev-panel/panels/deploy-tool-panel.tsx` | Form: tool-name/launch-page/description/flags/pages/roles + server-side env-status badge; rendered only when user is NOT authorized for the current tool path |
-| `src/components/dev-panel/panels/deploy-tool-actions.ts` | `listPagesAction`, `listRolesAction`, `deployToolAction`, `getDeployToolEnvStatusAction` — all gated on `NODE_ENV !== 'production'` + session |
+| `src/components/dev-panel/panels/deploy-tool-actions.ts` | `listPagesAction`, `listRolesAction`, `deployToolAction`, `getDeployToolEnvStatusAction` — all via `requireDevSession("Deploy Tool")` |
 | `src/components/dev-panel/panels/deploy-tool-actions.test.ts` | Tests for prod guard, session guard, delegation, env-status reporting |
+| `src/components/dev-panel/panels/require-dev-session.ts` | `requireDevSession(featureLabel = "Dev panel")` — shared guard for **every** dev-panel action: throws when `NODE_ENV === "production"`, then requires a session with `user.id`; returns the session. CLAUDE.md rule-12 carve-out (the services it calls gate again) |
+| `src/components/dev-panel/panels/*-panel.test.tsx`, `require-dev-session.test.ts` | Per-panel and guard tests (11 test files in the folder tree in total) |
 
 ## Key concepts
 
 ### Triple-gate rendering
-`DevPanel` returns `null` unless **all three** hold (`src/components/dev-panel/dev-panel.tsx:56-58`):
+`DevPanel` returns `null` unless **all three** hold (`src/components/dev-panel/dev-panel.tsx:59-61`):
 1. `mounted === true` — avoids SSR/CSR mismatch (value flipped inside `useEffect`)
 2. `process.env.NODE_ENV === "development"` (`isDevBuild()`)
 3. `window.location.hostname === "localhost" || "127.0.0.1"` (`isLocalhost()`)
@@ -74,7 +78,7 @@ Rendered from `ToolContainer` (`src/components/tool/tool-container.tsx:37`): `{p
 - Restored on mount via `setIsOpen(readOpenState())` in the same `useEffect` that sets `mounted`
 
 ### Sub-panel composition
-Inside the expanded body (`src/components/dev-panel/dev-panel.tsx:94-109`):
+Inside the expanded body (`src/components/dev-panel/dev-panel.tsx:102-111`):
 1. `ParamsPanel` — always
 2. `SelectionPanel` — bubbles `selectionRecordIds` up via `onRecordIdsResolved`
 3. `ContactRecordsPanel` — consumes `params.recordID` OR `selectionRecordIds` from (2)
@@ -87,7 +91,7 @@ Inside the expanded body (`src/components/dev-panel/dev-panel.tsx:94-109`):
 - If `NEXT_PUBLIC_PROD_URL` is unset, renders an amber warning and sets `isAuthorized = false` (so Deploy Tool stays visible)
 
 ### Deploy Tool env status
-`getDeployToolEnvStatusAction` server-side checks two env vars (`src/components/dev-panel/panels/deploy-tool-actions.ts:46-55`):
+`getDeployToolEnvStatusAction` server-side checks two env vars (`src/components/dev-panel/panels/deploy-tool-actions.ts:37-46`):
 - `MINISTRY_PLATFORM_DEV_CLIENT_ID`
 - `MINISTRY_PLATFORM_DEV_CLIENT_SECRET`
 
@@ -96,10 +100,10 @@ When missing, the form disables the submit button and surfaces an amber notice n
 ### Stored procedures called from the dev-panel
 | SP | Called via | From file |
 |----|-----------|-----------|
-| `api_Common_GetSelection` | `ToolService.getSelectionRecordIds` | `src/services/toolService.ts:154` (via `selection-actions.ts`) |
-| `api_Tools_GetUserTools` | `ToolService.getUserTools` | `src/services/toolService.ts:185` (via `user-tools-actions.ts`) |
-| `api_dev_DeployTool` | `ToolService.deployTool` | `src/services/toolService.ts:268` (via `deploy-tool-actions.ts`) |
-| `api_MPNextTools_GetPages` | `ToolService.listPages` | `src/services/toolService.ts:207` (via `deploy-tool-actions.ts`) |
+| `api_Common_GetSelection` | `ToolService.getSelectionRecordIds` | `src/services/toolService.ts:162` (via `selection-actions.ts`) |
+| `api_Tools_GetUserTools` | `ToolService.getUserTools` | `src/services/toolService.ts:196` (via `user-tools-actions.ts`) |
+| `api_dev_DeployTool` | `ToolService.deployTool` | `src/services/toolService.ts:272` (via `deploy-tool-actions.ts`) |
+| `api_MPNextTools_GetPages` | `ToolService.listPages` | `src/services/toolService.ts:223` (via `deploy-tool-actions.ts`) |
 
 `ContactRecordsPanel` does **not** call a stored procedure — it uses `getTableRecords` in `ToolService.resolveContactIds` (`src/services/toolService.ts`).
 
@@ -174,8 +178,8 @@ interface DeployToolPanelProps {
 - `DevPanel` returns `null` on first render (pre-`useEffect`), then re-evaluates the three gates — so the bar appears only after hydration on a qualifying localhost dev build
 - Toggle button writes `"1"`/`"0"` to `localStorage["mp-dev-panel:open"]`; reads in `useEffect` prevent SSR mismatch
 - Sub-panels are arranged so state flows downward from `SelectionPanel` → `ContactRecordsPanel` and upward from `UserToolsPanel` → `DevPanel` (`isAuthorized`) → `DeployToolPanel` (via conditional render). Successful deploy bumps `userToolsRefreshKey`, which re-triggers `UserToolsPanel`'s fetch, which flips `isAuthorized` and unmounts `DeployToolPanel`.
-- Every server action begins with `auth.api.getSession({ headers: await headers() })` and extracts `userGuid` (not `session.user.id`) for MP lookups — see `../auth/sessions.md`
-- `deploy-tool-actions.ts` adds `process.env.NODE_ENV === "production"` → throw before any session check (belt-and-suspenders against accidental exposure)
+- Every dev-panel server action begins with `await requireDevSession(...)` (`panels/require-dev-session.ts`): `NODE_ENV === "production"` → throw, then a Better Auth session with `user.id` is required
+- The actions pass no user identity to the services; `ToolService` resolves the acting MP `User_ID` from `session.user.userGuid` through `AuthorizationService.requireSecurityRole` (see `../auth/sessions.md`)
 
 ## Usage
 
@@ -194,30 +198,33 @@ if (!isDevBuild()) return null;
 if (!isLocalhost()) return null;
 ```
 
-Server-action guard pattern, from `src/components/dev-panel/panels/deploy-tool-actions.ts:13-21`:
+Server-action guard, from `src/components/dev-panel/panels/require-dev-session.ts:26-37` (docstring elided):
 
 ```typescript
-async function requireDevSession(): Promise<void> {
+export async function requireDevSession(
+  featureLabel: string = "Dev panel"
+): Promise<NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>> {
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Deploy Tool is not available in production.");
+    throw new Error(`${featureLabel} is not available in production.`);
   }
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) {
     throw new Error("Unauthorized - Missing user session data");
   }
+  return session;
 }
 ```
 
 ## Gotchas
 
-- **Don't ship DevPanel to production.** The `DevPanel` component gates on `NODE_ENV === "development"` AND `hostname === "localhost" | "127.0.0.1"`. Removing either check (or setting `NODE_ENV=development` on a deployed build) would leak deploy-tool and session internals. Defense-in-depth: `deploy-tool-actions.ts` also throws in production before any session check.
-- **Server actions in a dev-only code path are still reachable.** `/* "use server" */` exports are addressable over the network regardless of where they're imported. `requireDevSession` in `deploy-tool-actions.ts` enforces the `NODE_ENV` check server-side; `selection-actions.ts`, `contact-records-actions.ts`, and `user-tools-actions.ts` only check for a valid session — they do NOT gate on `NODE_ENV`. This is by design (those same services back real features), but it means the "dev-only" label applies to the **UI** only, not the actions. (See TODO `2026-04-17-components-dev-panel-prod-guard-gap.md`.)
+- **Don't ship DevPanel to production.** The `DevPanel` component gates on `NODE_ENV === "development"` AND `hostname === "localhost" | "127.0.0.1"`. Removing either check (or setting `NODE_ENV=development` on a deployed build) would leak deploy-tool and session internals. Defense-in-depth: every dev-panel action calls `requireDevSession`, which throws in production before any session check.
+- **Server actions in a dev-only code path are still reachable.** `"use server"` exports are addressable over the network regardless of where they're imported. That is why all four action files (`selection-`, `contact-records-`, `user-tools-`, `deploy-tool-actions.ts`) call `requireDevSession`, which enforces the `NODE_ENV` check server-side. Any new dev-panel action must do the same.
 - **Missing `NEXT_PUBLIC_PROD_URL` makes the authorization check non-functional.** When unset, `UserToolsPanel` cannot match production URLs and always treats the user as unauthorized, which keeps `DeployToolPanel` visible even for already-registered tools.
-- **`session.user.id` is NOT `User_GUID`.** Every action extracts `userGuid` from `session.user` (see `../auth/sessions.md`) before calling `UserService.getUserIdByGuid`.
+- **`session.user.id` is NOT `User_GUID`.** `requireDevSession` only checks that `user.id` exists; the MP `User_ID` is resolved from `session.user.userGuid` by `AuthorizationService` inside the service (see `../auth/sessions.md`).
 
 ## Related docs
 - `tool-framework.md` — `ToolContainer` that mounts this overlay
 - `../services/tool-service.md` — `ToolService.getSelectionRecordIds`, `getUserTools`, `deployTool`, `resolveContactIds`, `listPages`, `listRoles`
-- `../routing/tool-params.md` — `ToolParams` shape + `parseToolParams`
-- `../required-stored-procs.md` — `api_Common_GetSelection`, `api_Tools_GetUserTools` call contracts
+- `../utils/tool-params.md` — `ToolParams` shape + parsing
+- `../mp-schema/stored-procs.md` — `api_Common_GetSelection`, `api_Tools_GetUserTools` signatures
 - `../auth/sessions.md` — why `userGuid` (not `user.id`) is used for MP lookups

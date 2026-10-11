@@ -24,7 +24,7 @@ related:
   - ../utils/label-stock.md
   - ../services/address-label-service.md
   - tool-framework.md
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
@@ -46,12 +46,13 @@ Per-component `*.test.tsx` files are co-located and not listed.
 | `src/components/address-labels/mail-merge-tab.tsx` | Client mail-merge UI: sample download, template upload, merge + download |
 | `src/components/address-labels/sample-template.ts` | `'use server'` — `generateSampleTemplate()` produces the sample `.docx` with merge tokens |
 | `src/components/address-labels/word-document.ts` | `buildWordDocument()` — Avery-style `.docx` via `docx` package with BMP barcodes |
-| `src/components/address-labels/actions.ts` | Server actions (see API below); shared `prepareLabels` validation helper |
+| `src/components/address-labels/actions.ts` | Server actions (see API below); `requireAccess` (`AuthorizationService` gate) + shared `prepareLabels` validation helper |
 | `src/components/address-labels/limits.ts` | Shared size caps: `MAX_TEMPLATE_BYTES` (2 MB) + `MAX_TEMPLATE_LABEL` (`'2MB'`), `MAX_LABELS` (10,000), `TEMPLATE_ZIP_LIMITS` (`maxEntries: 1_000`, `maxTotalBytes: 64 MB`). Imported by both client (`mail-merge-tab.tsx`) and server (`actions.ts`, `schemas.ts`) |
 | `src/components/address-labels/schemas.ts` | Zod schemas + `parseLabelInput(labels, config)` — server-side validation of client-sent labels/config |
 | `src/lib/zip-guard.ts` | `assertZipWithinLimits` / `ZipLimitError` — zip-bomb pre-flight run before PizZip |
 | `src/components/address-labels/actions.test.ts` | Vitest suite covering all four server actions |
 | `src/components/address-labels/word-document.test.ts` | Vitest suite for `buildWordDocument` geometry paths |
+| `src/components/address-labels/sample-template.test.ts` | `generateSampleTemplate` |
 | `src/components/address-labels/merge-template.integration.test.ts` | Real (unmocked) `mergeTemplate` + PizZip run, incl. a forged-size zip bomb |
 
 Tool route: `src/app/(web)/tools/addresslabels/page.tsx` → `address-labels.tsx` (orchestrates form, fetch, summary, tabs, PDF/Word download).
@@ -166,10 +167,10 @@ const SERVICE_TYPES = [{id:'040',…}, {id:'300',…}, {id:'044',…}, {id:'700'
 ## How it works
 
 ### fetchAddressLabels (selection vs single-record)
-- `actions.ts:28` `getSession()` asserts `session.user.id` or throws `Unauthorized`.
-- Selection mode (`params.s && params.pageID`): resolves MP `User_ID` from `session.user.userGuid` via `UserService.getUserIdByGuid`, then `ToolService.getSelectionRecordIds(s, userId, pageID)` → contact IDs → `AddressLabelService.getAddressesForContacts()`.
-- Single-record mode (`params.recordID !== -1`): `AddressLabelService.getAddressForContact(recordID)`.
-- `filterAndTransform()` (`actions.ts:42`) iterates rows, applies skip rules in fixed order (opted_out → no_address → no_postal_code → no_barcode), dedups by `Household_ID` in household mode, sorts by `postalCode` ascending.
+- `requireAccess('Contacts', 'read')` (`actions.ts:43`) → `AuthorizationService.requireSecurityRole`; throws on no session / no qualifying MP security role. The services gate again (defence in depth).
+- Selection mode (`params.s && params.pageID`): `ToolService.getSelectionRecordIds(s, pageID)` → contact IDs → `AddressLabelService.getAddressesForContacts()`. The acting MP `User_ID` for the selection SP comes from the gate inside the service, never from the action.
+- Single-record mode (`params.recordID` set and `!== -1`): `AddressLabelService.getAddressForContact(recordID)`.
+- `filterAndTransform()` (`actions.ts:51`) iterates rows, applies skip rules in fixed order (opted_out → no_address → no_postal_code → no_barcode → no_household), dedups by `Household_ID` in household mode, sorts by `postalCode` ascending.
 
 ### prepareLabels (shared input validation)
 Called by `generateLabelPdf`, `generateLabelDocx`, `mergeTemplate` after `requireAccess('Contacts', 'read')`. Labels/config are caller-shaped input (they round-trip through the client after `fetchAddressLabels`), so every render action re-validates them. Returns `{ ok: true, labels, config, stock }` or `{ ok: false, result }` (the action returns `result` as-is). Order:
@@ -209,7 +210,7 @@ Called by `generateLabelPdf`, `generateLabelDocx`, `mergeTemplate` after `requir
 
 ## Usage
 
-Dashboard card entry (from `src/app/(web)/page.tsx:41`):
+Dashboard card entry (from `src/app/(web)/page.tsx:27`):
 ```tsx
 <Card className="flex flex-col">
   <CardHeader>
@@ -226,7 +227,7 @@ Dashboard card entry (from `src/app/(web)/page.tsx:41`):
 </Card>
 ```
 
-Tool page wiring (from `src/app/(web)/tools/addresslabels/address-labels.tsx:180`):
+Tool page wiring (abridged, from `src/app/(web)/tools/addresslabels/address-labels.tsx:183`):
 ```tsx
 <ToolContainer params={params} title="Address Labels" onClose={handleClose} hideFooter>
   <div className="px-6 py-4 space-y-6 max-w-2xl">
@@ -251,12 +252,12 @@ Tool page wiring (from `src/app/(web)/tools/addresslabels/address-labels.tsx:180
 
 ## Gotchas
 
-- **Mailer ID is user-supplied** (not an env var). `LabelConfig.mailerId` persists in `localStorage`; both the PDF (`address-labels.tsx:98`) and `mergeTemplate` (`mail-merge-tab.tsx:111`) reject IMb generation unless the length is exactly 6 or 9. `preEncodeBarcodes` silently falls back from IMb → POSTNET when `mailerId` is empty (`src/lib/barcode-helpers.ts:41`).
+- **Mailer ID is user-supplied** (not an env var). `LabelConfig.mailerId` persists in `localStorage`; both the PDF/Word handlers (`address-labels.tsx:100,139`) and `mergeTemplate` (`mail-merge-tab.tsx:111`) reject IMb generation unless the length is exactly 6 or 9. `preEncodeBarcodes` falls back from IMb → POSTNET when `mailerId` is empty (silently) or IMb encoding throws (`console.warn`) (`src/lib/barcode-helpers.ts:53-66`).
 - **Label geometry is in PDF points** (72pt = 1in). `buildWordDocument` converts via `convertInchesToTwip(ptToIn(...))`. Adding a new `LABEL_STOCKS` entry in the wrong unit silently produces misaligned pages.
 - **React-pdf type cast**: `pdf(doc as any)` in `generateLabelPdf` (`actions.ts`) is a runtime-safe cast because `LabelDocument` returns `<Document>` at its root; `@react-pdf/renderer` types don't permit a wrapper with its own props.
 - **PizZip/docxtemplater expect strings, not Buffers**, as image tag values — `mergeTemplate` keys the buffer map with `barcode_${i}` strings; passing the buffer directly makes the image module misinterpret it as a cached result (`mergeTemplate` in `actions.ts`).
 - **Size limits are coupled to the request-body ceiling.** `next.config.ts` sets `experimental.serverActions.bodySizeLimit: "4mb"` (Next default 1 MB made the template limit unreachable) to stay under Vercel's 4.5 MB function request cap. A 2 MB template is ~2.7 MB as base64, leaving ~1.3 MB for the label list on a merge. Change `limits.ts` and `next.config.ts` together.
-- **Selection mode requires MP `User_ID`** (not Better Auth `user.id`). `getMPUserId()` does a GUID→ID lookup per call — no memoization.
+- **Selection mode requires MP `User_ID`** (not Better Auth `user.id`). It is resolved by the `AuthorizationService` gate inside `ToolService.getSelectionRecordIds` (memoized per request), not by the action.
 
 ## Related docs
 

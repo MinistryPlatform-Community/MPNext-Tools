@@ -38,7 +38,7 @@ Consumers (services in src/services/, server actions)
    src/lib/providers/ministry-platform/utils/http-client.ts
         │ fetch()
         ▼
-   Ministry Platform REST API  (https://<domain>.ministryplatformapi.com)
+   Ministry Platform REST API  (MINISTRY_PLATFORM_BASE_URL, e.g. https://mpi.ministryplatform.com/ministryplatformapi)
 ```
 
 ## File map
@@ -47,7 +47,7 @@ Consumers (services in src/services/, server actions)
 |------|---------|--------------|
 | `architecture.md` | Stack layers, singleton rationale, entry-point semantics | First — to place other docs |
 | `client.md` | `MinistryPlatformClient`, OAuth2 client credentials, token refresh, dev-token pipeline | When debugging auth or adding a new token-consuming surface |
-| `type-generation.md` | `generate-types.ts` CLI, `--clean`, `--zod`, `--detailed`, model output (603 files) | When running `npm run mp:generate:models` or changing the generator |
+| `type-generation.md` | `generate-types.ts` CLI, `--clean`, `--zod`, `--detailed`, model output (615 files) | When running `npm run mp:generate:models` or changing the generator |
 | `error-handling.md` | How MP API errors (401/404/409/500), token-refresh errors, Zod errors surface | When diagnosing a failure at any layer |
 
 Services (each MP service wrapping one area of the API) live in `services/` and are documented separately.
@@ -62,9 +62,9 @@ Services (each MP service wrapping one area of the API) live in `services/` and 
 | `src/lib/providers/ministry-platform/index.ts` | Barrel: `MinistryPlatformProvider`, `MPHelper`, `MinistryPlatformClient`, types, models, services, auth |
 | `src/lib/providers/ministry-platform/auth/client-credentials.ts` | `getClientCredentialsToken(profile)` |
 | `src/lib/providers/ministry-platform/utils/http-client.ts` | `HttpClient` — fetch wrapper |
-| `src/lib/providers/ministry-platform/utils/logger.ts` | `logger` — console wrapper gated on `NODE_ENV` |
+| `src/lib/providers/ministry-platform/utils/logger.ts` | `logger` — `[MP]`-prefixed `console.error` wrapper (no debug channel); `errorName` |
 | `src/lib/providers/ministry-platform/scripts/generate-types.ts` | Type-generator CLI |
-| `src/lib/providers/ministry-platform/models/` | 603 generated model + Zod schema files |
+| `src/lib/providers/ministry-platform/models/` | 615 generated model + Zod schema files (307 tables) |
 
 ## Related domains
 - `../services/README.md` — app-level service singletons that instantiate `MPHelper`

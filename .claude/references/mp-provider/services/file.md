@@ -5,19 +5,19 @@ type: reference
 applies_to: [src/lib/providers/ministry-platform/services/file.service.ts]
 symbols: [FileService, getFilesByRecord, uploadFiles, updateFile, deleteFile, getFileContentByUniqueId, getFileMetadata, getFileMetadataByUniqueId]
 related: [../README.md, table.md, communication.md]
-last_verified: 2026-09-30
+last_verified: 2026-10-10
 ---
 
 ## Purpose
 CRUD on files attached to MP records via `/files/*` REST endpoints. Uploads use `multipart/form-data`; downloads by UniqueFileId are public (no auth header).
 
 ## Files
-- `src/lib/providers/ministry-platform/services/file.service.ts` — implementation (213 lines)
-- `src/lib/providers/ministry-platform/services/file.service.test.ts` — tests (332 lines)
+- `src/lib/providers/ministry-platform/services/file.service.ts` — implementation (251 lines)
+- `src/lib/providers/ministry-platform/services/file.service.test.ts` — tests (446 lines)
 
 ## Key concepts
-- Uploads use `FormData` with field key pattern `file-{index}` per file (`file.service.ts:52-54`). Optional params (`description`, `isDefaultImage`, `longestDimension`) are appended as both form fields AND query string params (`file.service.ts:57-71`).
-- `getFileContentByUniqueId` is the only method that does **NOT** call `ensureValidToken` and does **NOT** send an Authorization header — it uses raw `fetch()` (`file.service.ts:159-185`).
+- Uploads use `FormData` with field key pattern `file-{index}` per file (`file.service.ts:81-83`). Optional params (`description`, `isDefaultImage`, `longestDimension`) are appended as both form fields AND query string params (`file.service.ts:85-100`).
+- `getFileContentByUniqueId` is the only method that does **NOT** call `ensureValidToken` and does **NOT** send an Authorization header — it uses raw `fetch()` (`file.service.ts:190-221`).
 - Query-string `$` prefix pattern: `$description`, `$default`, `$longestDimension`, `$fileName`, `$userId`, `$thumbnail`.
 - `isDefaultImage: boolean` maps to query param `$default` (name mismatch is intentional).
 - `FileDescription` shape: `src/lib/providers/ministry-platform/types/provider.types.ts:19-34`.
@@ -75,7 +75,7 @@ public async getFileMetadataByUniqueId(uniqueFileId: string): Promise<FileDescri
 
 ### Param types
 
-`FileUploadParams` (`provider.types.ts:168`):
+`FileUploadParams` (`provider.types.ts:167`):
 
 ```typescript
 export interface FileUploadParams {
@@ -86,18 +86,18 @@ export interface FileUploadParams {
 }
 ```
 
-`FileUpdateParams` (`provider.types.ts:175`) adds `fileName?: string`.
+`FileUpdateParams` (`provider.types.ts:174`) adds `fileName?: string`.
 
 ## How it works
-- `uploadFiles` builds FormData: appends each file as `file-{i}`, then appends optional params as string form fields. Separately builds `queryParams` with `$`-prefixed keys and calls `postFormData(endpoint, formData, queryParams)` (`file.service.ts:50-77`).
-- `updateFile` — same pattern but PUT, file field is `file` (singular) not `file-0`, and an extra `fileName`/`$fileName` is supported (`file.service.ts:87-131`).
-- `getFileContentByUniqueId` builds URL via `client.getHttpClient().buildUrl(...)`, then uses global `fetch` with `method: 'GET'` only (no headers). Throws `Error` with `"GET /files/{id} failed: {status} {statusText}"` on non-ok response (`file.service.ts:176-178`).
-- `deleteFile` omits the `$userId` query param entirely when `userId` is undefined (`file.service.ts:143-146`).
-- `getFilesByRecord` sends `{ $default: 'true'|'false' }` only when `defaultOnly !== undefined` (`file.service.ts:23-26`).
+- `uploadFiles` builds FormData: appends each file as `file-{i}`, then appends optional params as string form fields. Separately builds `queryParams` with `$`-prefixed keys and calls `postFormData(endpoint, formData, queryParams)` (`file.service.ts:69-111`).
+- `updateFile` — same pattern but PUT, file field is `file` (singular) not `file-0`, and an extra `fileName`/`$fileName` is supported (`file.service.ts:116-161`).
+- `getFileContentByUniqueId` builds URL via `client.getHttpClient().buildUrl(...)`, then uses global `fetch` with `method: 'GET'`, `redirect: 'error'`, and `AbortSignal.timeout(FILE_CONTENT_TIMEOUT_MS)` (no headers). Throws `Error` with `"GET /files/{uniqueId} failed: {status} {statusText}"` (literal `{uniqueId}`, never the ID) on non-ok response (`file.service.ts:212-214`).
+- `deleteFile` omits the `$userId` query param entirely when `userId` is falsy (`file.service.ts:174-177`).
+- `getFilesByRecord` sends `{ $default: 'true'|'false' }` only when `defaultOnly !== undefined` (`file.service.ts:51-54`).
 
 ## Usage
 
-From test fixtures (`file.service.test.ts:97-119`):
+From test fixtures (`file.service.test.ts:108-131`):
 
 ```typescript
 const file = new File(['a'], 'doc.pdf', { type: 'application/pdf' });
@@ -111,10 +111,10 @@ await service.uploadFiles('Contacts', 10, [file], {
 // Query string: $description, $default, $longestDimension, $userId
 ```
 
-Public blob download (`file.service.test.ts:230-243`):
+Public blob download (`file.service.test.ts:242-259`):
 
 ```typescript
-const blob = await service.getFileContentByUniqueId('abc');
+const blob = await service.getFileContentByUniqueId('0f8fad5b-d9cb-469f-a165-70867728950e'); // must be a GUID
 // No Authorization header, no ensureValidToken
 ```
 
@@ -122,19 +122,19 @@ const blob = await service.getFileContentByUniqueId('abc');
 
 | Status | Operation | Test location |
 |---|---|---|
-| 404 Not Found | `getFilesByRecord` / metadata lookups | `file.service.test.ts:62-66`, `:307-311`, `:326-330` |
-| 404 Not Found | `getFileContentByUniqueId` (thrown as `GET /files/... failed: 404 Not Found`) | `file.service.test.ts:281-292` |
-| 403 Forbidden | `deleteFile` | `file.service.test.ts:222-226` |
-| 413 Payload Too Large | `uploadFiles` | `file.service.test.ts:133-140` |
-| 500 Internal Server Error | `updateFile` | `file.service.test.ts:197-201` |
+| 404 Not Found | `getFilesByRecord` / metadata lookups | `file.service.test.ts:74-78`, `:323-327`, `:342-346` |
+| 404 Not Found | `getFileContentByUniqueId` (thrown as `GET /files/... failed: 404 Not Found`) | `file.service.test.ts:297-309` |
+| 403 Forbidden | `deleteFile` | `file.service.test.ts:234-238` |
+| 413 Payload Too Large | `uploadFiles` | `file.service.test.ts:145-152` |
+| 500 Internal Server Error | `updateFile` | `file.service.test.ts:209-213` |
 
 ## Gotchas
-- **`isDefaultImage` → `$default`** — param name changes between the TS interface and the query string. Don't search for `$isDefaultImage`; it is always `$default` (`file.service.ts:69, :118`).
+- **`isDefaultImage` → `$default`** — param name changes between the TS interface and the query string. Don't search for `$isDefaultImage`; it is always `$default` (`file.service.ts:98, :148`).
 - **`getFileContentByUniqueId` bypasses auth** — relies on MP's public blob endpoint (so the unique ID is a download capability: it never appears in logs or messages, which say `{uniqueId}`). Its raw `fetch` has its own `FILE_CONTENT_TIMEOUT_MS` (20 s) and `redirect: "error"`, but no token refresh.
 - **Every path segment is validated** before any token work: table name (`Invalid table name`), record/file ID (`Expected positive integer for record ID` / `file ID`), unique ID (`Invalid GUID format`).
 - **Duplicate param transmission** — `uploadFiles` and `updateFile` send the same optional values in both FormData AND query string. Intentional (MP API accepts either) but doubles the wire payload for large descriptions.
-- **`userId` is NOT put in FormData for uploads** — only the query string gets `$userId` (`file.service.ts:71`). Compare to other optional params which go to both.
-- **`$thumbnail` omitted when undefined** — only `thumbnail === true | false` sends it; implicit `undefined` skips (`file.service.ts:165-167`).
+- **`userId` is NOT put in FormData for uploads** — only the query string gets `$userId` (`file.service.ts:100`). Compare to other optional params which go to both.
+- **`$thumbnail` omitted when undefined** — only `thumbnail === true | false` sends it; implicit `undefined` skips (`file.service.ts:197-199`).
 
 ## Related docs
 - `../README.md` — provider overview

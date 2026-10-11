@@ -12,7 +12,9 @@
 [![Radix UI](https://img.shields.io/badge/Radix_UI-primitives-161618?logo=radixui&logoColor=white)](https://www.radix-ui.com/)
 [![Lucide](https://img.shields.io/badge/Lucide-icons-F56565?logo=lucide&logoColor=white)](https://lucide.dev/)
 
-A Ministry Platform page tools application powered by Next.js 16, React 19, Better Auth, and a comprehensive Ministry Platform REST API integration with TypeScript and Zod validation.
+A Ministry Platform page tools application powered by Next.js 16, React 19, Better Auth, and a Ministry Platform REST API integration with TypeScript and Zod validation.
+
+MPNext-Tools is a **template**: churches fork or copy it and run their own instance. If you run a copy, read [`.github/SECURITY.md`](.github/SECURITY.md) — fixes made here do not reach your fork automatically.
 
 ## Table of Contents
 
@@ -23,12 +25,9 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
   - [Quick Setup](#quick-setup)
   - [Manual Setup](#manual-setup)
   - [OAuth Client Setup](#oauth-client-setup)
+  - [Production Deployment](#production-deployment)
 - [Project Structure](#project-structure)
 - [Tools](#tools)
-  - [Address Labels](#address-labels)
-  - [Field Management](#field-management)
-  - [Template Tool](#template-tool)
-  - [Building Custom Tools](#building-custom-tools)
 - [Ministry Platform Integration](#ministry-platform-integration)
 - [Components](#components)
 - [Services](#services)
@@ -37,19 +36,21 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 - [Claude Code Commands](#claude-code-commands)
 - [Documentation](#documentation)
 - [Code Style & Conventions](#code-style--conventions)
+- [Security](#security)
 
 ## Features
 
-- **Authentication**: Better Auth with Ministry Platform OAuth (genericOAuth plugin), stateless encrypted-cookie sessions, and OIDC RP-initiated logout
-- **Tools Framework**: Reusable components for building Ministry Platform page tools with URL parameter parsing and dual-mode support (create/edit)
-- **Address Labels**: Print address labels with USPS Intelligent Mail Barcodes (IMb), POSTNET fallback, and Word document mail merge
-- **Modern UI**: 22 Radix UI + shadcn/ui components with Tailwind CSS v4
-- **Type-Safe API**: Full TypeScript strict mode with auto-generated model and schema files from Ministry Platform
-- **REST API Client**: Six specialized services covering tables, procedures, communications, files, metadata, and domain operations
-- **Type Generation**: CLI tool to generate TypeScript interfaces and Zod v4 schemas from MP database schema
-- **Validation**: Optional Zod v4 runtime validation in MPHelper before API calls
-- **Testing**: Comprehensive Vitest 4.1 suite (see `.claude/references/_meta/facts/` for the authoritative snapshot)
-- **Setup Wizard**: Interactive CLI setup with environment configuration, dependency management, and build verification
+- **Authentication**: Better Auth with Ministry Platform OAuth/OIDC (genericOAuth plugin), stateless encrypted-cookie sessions, and OIDC RP-initiated logout
+- **Authorization**: every MP read and write is gated by MP security role (`MP_SECURITY_ROLES`, fails closed); users without an allowed role land on `/no-access`
+- **Tools Framework**: reusable components for building Ministry Platform page tools, with URL parameter parsing and create/edit dual mode
+- **Address Labels**: print labels with USPS Intelligent Mail Barcodes (IMb), POSTNET fallback, and Word document mail merge
+- **Group Wizard**: six-step create/edit wizard for MP `Groups` records
+- **Field Management**: drag-and-drop editor for MP page field order, groups and per-field flags
+- **Add/Edit Family**: household editor with contact search, address autocomplete (Google Places) and envelope numbering
+- **Type-Safe API**: TypeScript strict mode with model and Zod v4 schema files generated from your MP instance
+- **Security hardening**: nonce-based CSP, security headers, boot-time refusal of weak secrets and malformed URLs, sign-in rate limiting
+- **Testing**: Vitest 5 suite with enforced coverage thresholds (see [Testing](#testing))
+- **Setup Wizard**: interactive CLI for environment configuration, dependency install, type generation and build verification
 
 ## Architecture
 
@@ -58,9 +59,9 @@ A Ministry Platform page tools application powered by Next.js 16, React 19, Bett
 - **Next.js 16** with App Router and Turbopack (default bundler for dev and build)
 - **React 19** with Server Components by default
 - **TypeScript 6.0** in strict mode
-- **Tailwind CSS v4** with `@tailwindcss/postcss` plugin
+- **Tailwind CSS v4** with the `@tailwindcss/postcss` plugin
 - **Zod v4** for runtime validation
-- **Vitest 4.1** for testing with v8 coverage
+- **Vitest 5** with jsdom and v8 coverage
 
 ### Ministry Platform Integration
 
@@ -74,20 +75,24 @@ MPHelper (Public API Facade)
         -> HttpClient (Raw HTTP with Bearer Auth)
 ```
 
-- REST API client with automatic OAuth2 client credentials token management (5-minute refresh buffer)
-- Type-safe models and Zod validation schemas auto-generated from the MP schema
+- REST API client using OAuth2 client credentials; the token is re-fetched every 5 minutes, well inside its 1-hour lifetime
+- Type-safe models and Zod validation schemas generated from the MP schema
 - Six services: Table, Procedure, Communication, File, Metadata, Domain
 
-### Authentication
+### Authentication & Authorization
 
-Better Auth with Ministry Platform OAuth via genericOAuth plugin (`src/lib/auth.ts`):
+Better Auth with Ministry Platform OAuth via the genericOAuth plugin (`src/lib/auth.ts`):
 
-- **Stateless sessions** (no database required): hard 12-hour lifetime, encrypted cookie cache, no user OAuth tokens stored, and boot-time refusal of a weak/missing `BETTER_AUTH_SECRET` or bad base URLs
-- **Custom session enrichment** with name splitting via `customSession` plugin
+- **One MP API client** (`MINISTRY_PLATFORM_CLIENT_ID`) serves as both the server-side service account and the sign-in client
+- **Stateless sessions** (no database): hard 12-hour lifetime, encrypted (JWE) cookie cache, no user OAuth tokens stored, and boot-time refusal of a weak/missing `BETTER_AUTH_SECRET` or malformed base URLs
 - **OIDC RP-initiated logout** for proper MP session termination
-- **Dual-layer route protection**: proxy-level cookie check (`src/proxy.ts`) + component-level session validation (`AuthWrapper`)
-- **Client-side profile loading**: `UserProvider` context fetches full `MPUserProfile` (roles, groups, contact data) on mount
-- **Critical**: `session.user.id` is Better Auth's internal ID. Use `session.user.userGuid` for all MP API lookups.
+- **Layered protection**:
+  1. `src/proxy.ts` — session-cookie check on every non-public route (plus the CSP nonce)
+  2. `AuthWrapper` — server-side session validation; redirects to `/signin`, or to `/session-error` for a session with no `userGuid`
+  3. `requireToolAccess()` — every tool page checks the caller's MP security role before parsing params or loading data
+  4. `AuthorizationService.requireSecurityRole()` — every server action and service method that touches MP data, reads included
+- **Client-side profile**: `UserProvider` loads the signed-in user's display profile (name, nickname, email)
+- **Critical**: `session.user.id` is Better Auth's internal ID. Use `session.user.userGuid` for all MP lookups.
 
 ### Data Flow
 
@@ -99,12 +104,12 @@ Component -> Server Action -> Service (singleton) -> MPHelper -> Ministry Platfo
 
 - **Node.js**: **v24.15.0 or later on the 24.x line** (pinned via `engines.node` in `package.json`, `.nvmrc`, and the setup script). Node 24 is the current LTS and the version Vercel deploys; 20.x and 22.x are not supported. Use `nvm use` (or `fnm use`) to pick it up from `.nvmrc`.
 - **Package Manager**: npm
-- **Ministry Platform**: Active instance with API credentials and OAuth client configured
-- **Ministry Platform Database**: SQL install script applied (see [Database Setup](#database-setup) below)
+- **Ministry Platform**: active instance with an API client configured (see [OAuth Client Setup](#oauth-client-setup))
+- **Ministry Platform Database**: SQL install script applied (see [Database Setup](#database-setup))
 
 ### Database Setup
 
-The repo ships a bundled SQL install script at `_INSTALL/ministryplatform-install.sql`. It contains the stored procedures and DDL that several tools depend on (for example, the Field Management tool requires `api_MPNextTools_GetPages`, `api_MPNextTools_GetPageFields`, and `api_MPNextTools_UpdatePageFieldOrder`).
+The repo ships a bundled SQL install script at `_INSTALL/ministryplatform-install.sql`. It contains the stored procedures and DDL several tools depend on (for example, Field Management requires `api_MPNextTools_GetPages`, `api_MPNextTools_GetPageFields`, and `api_MPNextTools_UpdatePageFieldOrder`).
 
 Deploy it once per Ministry Platform database (and again whenever the SQL bundle changes):
 
@@ -112,13 +117,13 @@ Deploy it once per Ministry Platform database (and again whenever the SQL bundle
 2. Open `_INSTALL/ministryplatform-install.sql`
 3. Execute the script against the MP database
 
-The script is regenerated automatically as part of `npm run build` (via `npm run mp:build:install`), bundling everything under `src/lib/providers/ministry-platform/db/` into the single install file.
+The script is regenerated automatically as part of `npm run build` (via the same script as `npm run mp:build:install`), bundling everything under `src/lib/providers/ministry-platform/db/` into the single install file.
 
 ## Getting Started
 
 ### Quick Setup
 
-The interactive setup wizard automates the entire configuration process:
+The interactive setup wizard automates the configuration:
 
 ```bash
 git clone <repository-url>
@@ -128,13 +133,13 @@ npm run setup
 ```
 
 The setup wizard will:
-1. Verify Node.js version (v20+ required)
-2. Detect project origin and configure git
-3. Create `.env.local` from `.env.example` (if needed)
-4. Prompt for Ministry Platform host and derive API and file URLs automatically
-5. Configure Ministry Platform API client credentials
-6. Auto-generate `BETTER_AUTH_SECRET`
-7. Install and update dependencies
+1. Verify the Node.js version (24.x, at least 24.15.0)
+2. Detect the project origin (template clone → convert to a fork or reinitialize git)
+3. Check git status
+4. Create `.env.local` from `.env.example` (if needed)
+5. Validate environment variables — prompts for the MP host (deriving `MINISTRY_PLATFORM_BASE_URL` and `NEXT_PUBLIC_MINISTRY_PLATFORM_FILE_URL`), the API client ID/secret, and `MP_SECURITY_ROLES`, and auto-generates `BETTER_AUTH_SECRET`
+6. Run `npm install`
+7. Run `npm update`
 8. Regenerate Ministry Platform types against your MP instance
 9. Generate the stored procedure reference (powers Claude Code suggestions)
 10. Run a production build to verify configuration
@@ -164,53 +169,57 @@ cd MPNext-Tools
 npm install
 ```
 
+`npm install` also runs the `prepare` script, which points git at `.githooks/` — its pre-commit hook refuses to commit any `.env*` file other than `.env.example`.
+
 #### 2. Environment Configuration
 
 ```bash
 cp .env.example .env.local
 ```
 
-Update `.env.local` with the required variables:
+Set the required variables in `.env.local`. `.env.example` documents every variable inline.
 
 ```env
-# Generate with: openssl rand -base64 32
+# Generate with: openssl rand -base64 32 (at least 32 characters)
 BETTER_AUTH_SECRET=your_generated_secret
 
-# Update for production
+# An origin only; https:// for every real host (http:// only for localhost)
 BETTER_AUTH_URL=http://localhost:3000
 
-# Ministry Platform API Configuration
+# The app's one MP API client — service account AND sign-in client
 MINISTRY_PLATFORM_CLIENT_ID=MPNext
 MINISTRY_PLATFORM_CLIENT_SECRET=your_client_secret
 MINISTRY_PLATFORM_BASE_URL=https://your-instance.ministryplatform.com/ministryplatformapi
+
+# Who may use the tools. FAILS CLOSED: unset/blank = nobody.
+# "*" = any MP security role; or a comma list, e.g. Administrators,Staff
+MP_SECURITY_ROLES=*
 ```
 
-**Optional environment variables** (see `.env.example` for full inline documentation):
+**The app refuses to start** (including `next build`) when `BETTER_AUTH_SECRET` is missing, shorter than 32 characters or Better Auth's public default; when `BETTER_AUTH_SECRETS` is set; or when a base URL is malformed or non-https. `NEXTAUTH_SECRET` / `NEXTAUTH_URL` are accepted as fallbacks for migrations from NextAuth.
+
+**Optional environment variables:**
 
 | Variable | Purpose |
 |----------|---------|
-| `MINISTRY_PLATFORM_DEV_CLIENT_ID` | Dev/staging-only MP API client ID. Ignored in production builds. |
-| `MINISTRY_PLATFORM_DEV_CLIENT_SECRET` | Dev/staging-only MP API client secret. Ignored in production builds. |
-| `GOOGLE_PLACES_API_KEY` | Enables address autocomplete (falls back to MP `dp_Configuration_Settings` → `GoogleMapsAPIKey` first). |
-| `NEXT_PUBLIC_MINISTRY_PLATFORM_FILE_URL` | MP file URL — derived from the MP host by the setup wizard. |
-| `NEXT_PUBLIC_APP_NAME` | Application display name. Default: `MPNextApp`. |
-| `NEXT_PUBLIC_PROD_URL` | Production URL used by the Authorized Tools debug panel for path comparison. |
+| `MINISTRY_PLATFORM_DEV_CLIENT_ID` / `_SECRET` | Dev/staging-only MP API client, used only to run `api_dev_*` procedures from the dev panel's Deploy Tool. Ignored in production builds. |
+| `GOOGLE_PLACES_API_KEY` | Address autocomplete in Add/Edit Family. The MP `dp_Configuration_Settings` value (`COMMON` / `GoogleMapsAPIKey`) wins; this variable is the fallback. Neither set = plain text input. |
+| `NEXT_PUBLIC_MINISTRY_PLATFORM_FILE_URL` | MP file URL — derived from the MP host by the setup wizard; also allowed by the CSP. |
+| `NEXT_PUBLIC_PROD_URL` | Production URL used by the dev panel's Authorized Tools check. |
+| `CSP_ENFORCE` | The CSP is enforced by default; only the exact string `false` switches to report-only. |
+| `CSP_REPORT_URI` | Optional https:// CSP violation collector. |
+| `AUTH_IP_ADDRESS_HEADERS` | Client-IP header(s) for sign-in rate limiting. Default on Vercel: `x-vercel-forwarded-for,x-real-ip`. |
+| `AUTH_TRUSTED_PROXIES` | Proxy IPs/CIDRs to skip when walking an appended `X-Forwarded-For` chain. |
 
 #### 3. Regenerate Ministry Platform Types
 
-The repo ships with pre-generated models under `src/lib/providers/ministry-platform/models/` so a fresh clone can build immediately. Regenerate them against **your own** MP instance to pick up custom tables, columns, and constraints:
+The repo ships pre-generated models under `src/lib/providers/ministry-platform/models/` so a fresh clone builds immediately. Regenerate them against **your own** MP instance to pick up custom tables, columns, and constraints:
 
 ```bash
 npm run mp:generate:models
 ```
 
-This connects to your Ministry Platform API, fetches all table metadata, and regenerates:
-- TypeScript interfaces for each table
-- Zod v4 validation schemas for runtime validation
-- Schema documentation at `.claude/references/ministryplatform.schema.md`
-- Output to `src/lib/providers/ministry-platform/models/`
-
-Run this any time your MP schema changes. The `--clean` flag in `npm run mp:generate:models` removes stale files before regenerating.
+This connects to your MP API, fetches all table metadata, and regenerates TypeScript interfaces and Zod v4 schemas into `src/lib/providers/ministry-platform/models/` (the `--clean` flag removes stale files first). Run it whenever your MP schema changes.
 
 Optionally, also refresh the stored procedure reference (used by Claude Code for query suggestions):
 
@@ -218,22 +227,7 @@ Optionally, also refresh the stored procedure reference (used by Claude Code for
 npm run mp:generate:storedprocs
 ```
 
-**Advanced options:**
-```bash
-# Generate types for specific tables only
-npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -s "Contact"
-
-# Generate without Zod schemas
-npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -o ./types
-
-# Generate with detailed mode (samples records for better type inference)
-npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -d --sample-size 10
-
-# See all options
-npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
-```
-
-> **Running the generators directly?** Pass `--conditions=react-server` to `tsx`, as above. The MP client modules start with `import 'server-only'`, which throws under plain Node without that condition. The `npm run mp:generate*` scripts already include it, so `npm run mp:generate -- -s "Contact"` is the shorter equivalent.
+See [Type Generation](#type-generation) for advanced options.
 
 #### 4. Run the Development Server
 
@@ -243,206 +237,198 @@ npm run dev
 
 1. Navigate to [http://localhost:3000](http://localhost:3000)
 2. You'll be redirected to Ministry Platform login
-3. After successful login, you'll see the dashboard with available tools
+3. After signing in you'll see the dashboard with the available tools (or `/no-access` if you hold none of the roles in `MP_SECURITY_ROLES`)
 
 ---
 
 ### OAuth Client Setup
 
-Before running the application, configure an OAuth 2.0 / OIDC client in Ministry Platform.
-
-Log in as an administrator and navigate to **Administration > API Clients**.
+The app uses **one** MP API client for both server-side data access and user sign-in. In Ministry Platform, sign in as an administrator and go to **Administration > API Clients**.
 
 #### Basic Settings
-- **Client ID**: Your client ID (must match `MINISTRY_PLATFORM_CLIENT_ID` in `.env.local`)
-- **Client Secret**: Generate a secure secret
+- **Client ID**: must match `MINISTRY_PLATFORM_CLIENT_ID`
+- **Client Secret**: generate a secure secret (→ `MINISTRY_PLATFORM_CLIENT_SECRET`)
 - **Display Name**: MPNext-Tools (or your preferred name)
-- **Client User**: Create a scoped user or use API User
+- **Client User**: a scoped user (it is the audit-log user for writes made without a signed-in user)
 
 #### Redirect URIs (Required)
 
-Separate each entry with a semicolon (`;`):
+Separate multiple entries with a semicolon (`;`). The path is `<BETTER_AUTH_URL>/api/auth/callback/ministryplatform`:
 
 | Environment | URI |
 |-------------|-----|
-| Development | `http://localhost:3000/api/auth/oauth2/callback/ministry-platform` |
-| Production | `https://yourdomain.com/api/auth/oauth2/callback/ministry-platform` |
-
-> The callback path uses Better Auth's genericOAuth plugin convention: `/api/auth/oauth2/callback/{providerId}`.
+| Development | `http://localhost:3000/api/auth/callback/ministryplatform` |
+| Production | `https://yourdomain.com/api/auth/callback/ministryplatform` |
 
 #### Post-Logout Redirect URIs (Required)
+
+Exactly `<BETTER_AUTH_URL>`, with no trailing slash:
 
 | Environment | URI |
 |-------------|-----|
 | Development | `http://localhost:3000` |
 | Production | `https://yourdomain.com` |
 
-> Post-logout redirect URIs are **required** for proper OIDC logout. Without them, users will be auto-logged back in after signing out (SSO behavior).
-
-#### Generate Better Auth Secret
-
-```bash
-openssl rand -base64 32
-```
+> Without a post-logout redirect URI, users are signed straight back in after signing out (SSO behavior).
 
 ---
 
 ### Production Deployment
 
-1. Deploy `_INSTALL/ministryplatform-install.sql` to the production Ministry Platform database (see [Database Setup](#database-setup))
-2. Update `BETTER_AUTH_URL` to your production domain
-3. Add production redirect and post-logout redirect URIs to Ministry Platform OAuth client
-4. Ensure all environment variables are set in your hosting provider
-5. Enable HTTPS/SSL certificates
-6. Run `npm run mp:generate:models` to ensure types are current
-7. Test the complete authentication flow
+1. Deploy `_INSTALL/ministryplatform-install.sql` to the production MP database (see [Database Setup](#database-setup))
+2. Set every required variable in your hosting provider — including `MP_SECURITY_ROLES`, which fails closed — with `BETTER_AUTH_URL` set to your production origin (https)
+3. Add the production redirect and post-logout redirect URIs to the MP API client
+4. On a proxy other than Vercel, set `AUTH_IP_ADDRESS_HEADERS` (or `AUTH_TRUSTED_PROXIES`) to match it
+5. Run `npm run mp:generate:models` so types match your instance
+6. Test the complete sign-in, tool access and sign-out flow
 
 ## Project Structure
 
 ```
 MPNext-Tools/
+├── .github/
+│   ├── SECURITY.md                         # Vulnerability reporting policy
+│   └── workflows/test.yml                  # CI: lint, typecheck, coverage, build, prerender check
+├── .githooks/pre-commit                    # Blocks staged .env* files (except .env.example)
+├── _INSTALL/ministryplatform-install.sql   # Bundled MP SQL install (generated at build)
 ├── src/
-│   ├── app/                              # Next.js App Router
-│   │   ├── (web)/                        # Protected route group (AuthWrapper + Providers)
-│   │   │   ├── page.tsx                  # Dashboard with tool cards
-│   │   │   ├── home/                     # Redirect to /
-│   │   │   ├── tools/                    # Tools section
-│   │   │   │   ├── layout.tsx            # Full-height gray background
-│   │   │   │   ├── addresslabels/        # Address label printing tool
-│   │   │   │   ├── fieldmanagement/      # MP page field layout editor
-│   │   │   │   └── template/             # Template tool (scaffold/demo)
-│   │   │   └── layout.tsx                # Auth + Providers wrapper
-│   │   ├── api/auth/[...all]/            # Better Auth route handler
-│   │   ├── signin/                       # OAuth sign-in page
-│   │   ├── layout.tsx                    # Root HTML layout
-│   │   └── providers.tsx                 # Context providers (UserProvider)
+│   ├── app/                                # Next.js App Router
+│   │   ├── (web)/                          # Protected route group (AuthWrapper + Providers)
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx                    # Dashboard with tool cards
+│   │   │   ├── error.tsx
+│   │   │   ├── no-access/                  # Users without an allowed MP security role
+│   │   │   └── tools/
+│   │   │       ├── layout.tsx
+│   │   │       ├── require-tool-access.ts  # Per-page role gate (every tool page calls it first)
+│   │   │       ├── addeditfamily/          # Add/Edit Family (UI + actions co-located here)
+│   │   │       ├── addresslabels/          # Address label printing
+│   │   │       ├── fieldmanagement/        # MP page field layout editor
+│   │   │       ├── groupwizard/            # Group create/edit wizard
+│   │   │       └── template/               # Template tool (scaffold/demo)
+│   │   ├── api/auth/[...all]/              # Better Auth handler (deny-by-default route allowlist)
+│   │   ├── auth-error/                     # OAuth callback failure page (public)
+│   │   ├── session-error/                  # Session without userGuid; sign-out escape hatch
+│   │   ├── signin/                         # OAuth sign-in page
+│   │   ├── error.tsx, global-error.tsx     # Error boundaries
+│   │   ├── layout.tsx                      # Root HTML layout
+│   │   └── providers.tsx                   # Context providers (UserProvider)
 │   │
-│   ├── components/                       # React components
-│   │   ├── address-labels/               # Address label printing & mail merge
-│   │   ├── field-management/             # Drag-and-drop MP page field order editor
-│   │   ├── layout/                       # AuthWrapper (server component)
-│   │   ├── shared-actions/               # Cross-feature server actions
-│   │   ├── tool/                         # Tool framework (Container, Header, Footer)
-│   │   ├── ui/                           # 22 shadcn/ui components
-│   │   └── dev-panel/                    # Unified dev panel (localhost-only)
+│   ├── components/                         # See Component Organization below
+│   ├── contexts/                           # user-context.tsx, use-app-session.ts, index.ts
 │   │
-│   ├── contexts/                         # React Context providers
-│   │   ├── user-context.tsx              # UserProvider (MP profile + roles)
-│   │   ├── session-context.tsx           # useAppSession() hook
-│   │   └── index.ts
-│   │
-│   ├── lib/                              # Shared libraries
-│   │   ├── auth.ts                       # Better Auth server config
-│   │   ├── auth-client.ts                # Better Auth client hooks
-│   │   ├── dto/                          # Hand-written DTOs/ViewModels
-│   │   ├── tool-params.ts                # Tool URL parameter parsing
-│   │   ├── utils.ts                      # Tailwind cn() utility
-│   │   ├── imb-encoder.ts                # USPS Intelligent Mail barcode encoder
-│   │   ├── postnet-encoder.ts            # POSTNET barcode encoder
-│   │   ├── barcode-helpers.ts            # Barcode generation utilities
-│   │   ├── label-stock.ts                # Label stock definitions (Avery 5160, etc.)
+│   ├── lib/
+│   │   ├── auth.ts, auth-client.ts         # Better Auth server config / client hooks
+│   │   ├── env.ts                          # Validated env access (getMpBaseUrl, getAuthBaseUrl, getMpClient)
+│   │   ├── security-headers.ts             # CSP + security headers
+│   │   ├── tool-params.ts                  # Client-safe tool URL param types/helpers
+│   │   ├── tool-params.server.ts           # parseToolParams() (server-only)
+│   │   ├── imb-encoder.ts, postnet-encoder.ts, barcode-helpers.ts, barcode-image.ts
+│   │   ├── label-stock.ts                  # Label stock definitions (Avery 5160, etc.)
+│   │   ├── constants.ts, utils.ts, validation.ts, zip-guard.ts
+│   │   ├── dto/                            # Hand-written DTOs (address-label.dto.ts, family.ts)
 │   │   └── providers/
-│   │       └── ministry-platform/        # Ministry Platform provider
-│   │           ├── auth/                 # Client credentials OAuth
-│   │           ├── services/             # 6 API services
-│   │           ├── models/               # Generated types + Zod schemas
-│   │           ├── types/                # Type definitions
-│   │           ├── utils/                # HttpClient utility
-│   │           ├── scripts/              # Type generation CLI
-│   │           ├── docs/                 # Provider documentation
-│   │           ├── client.ts             # Core MP client (token management)
-│   │           ├── provider.ts           # Singleton provider
-│   │           ├── helper.ts             # Public API (MPHelper)
-│   │           └── index.ts              # Barrel export
+│   │       ├── google-places/              # Google Places API client
+│   │       └── ministry-platform/          # MP provider
+│   │           ├── auth/                   # Client-credentials OAuth
+│   │           ├── db/                     # SQL stored procedures/DDL (bundled into _INSTALL)
+│   │           ├── docs/                   # Provider documentation
+│   │           ├── models/                 # Generated types + Zod schemas
+│   │           ├── scripts/                # Type/proc generators, SQL bundler
+│   │           ├── services/               # 6 API services
+│   │           ├── types/, utils/          # Type definitions, HttpClient
+│   │           └── client.ts, provider.ts, helper.ts, index.ts
 │   │
-│   ├── services/                         # Application services (singletons)
-│   │   ├── addressLabelService.ts        # Address fetching & label data
-│   │   ├── toolService.ts                # Page data and user permissions
-│   │   └── userService.ts                # User profile with roles/groups
-│   │
-│   ├── proxy.ts                          # Route protection (session cookie check)
-│   └── test-setup.ts                     # Vitest environment setup
+│   ├── services/                           # 9 application services (singletons, server-only)
+│   ├── proxy.ts                            # Route protection (session cookie check + CSP nonce)
+│   └── test-setup.ts                       # Vitest environment setup
 │
 ├── scripts/
-│   └── setup.ts                          # Interactive setup wizard
+│   ├── setup.ts                            # Interactive setup wizard
+│   └── check-prerender.mjs                 # Fails if a route was statically prerendered (no CSP nonce)
 │
-├── .claude/                              # Claude Code configuration
-│   ├── commands/                         # 5 Claude Code skills
-│   └── references/                       # 6 reference documents
+├── .claude/                                # Claude Code configuration
+│   ├── commands/                           # 4 Claude Code commands
+│   ├── references/                         # Agent-facing reference docs (start at INDEX.md)
+│   ├── packages/                           # Dependency audit records
+│   ├── playbooks/                          # Porting guides for downstream forks
+│   └── TODO/                               # Known open issues
 │
-├── .env.example                          # Environment template
-├── CLAUDE.md                             # Development guide
-├── vitest.config.ts                      # Vitest configuration
-├── components.json                       # shadcn/ui config (new-york style, slate theme)
-├── next.config.ts                        # Next.js configuration
-├── tsconfig.json                         # TypeScript strict mode, @/* alias
-└── package.json                          # Dependencies and scripts
+├── .env.example                            # Environment template (every variable documented)
+├── CLAUDE.md                               # Development guide
+├── vitest.config.mts                       # Vitest configuration (coverage thresholds)
+├── components.json                         # shadcn/ui config (new-york style, slate theme)
+├── next.config.ts                          # Next.js configuration
+├── tsconfig.json                           # TypeScript strict mode, @/* alias
+└── package.json                            # Dependencies and scripts
 ```
 
 ## Tools
 
-The application provides a dashboard at `/` with cards linking to each available tool. All tools are protected behind Ministry Platform OAuth authentication.
+The dashboard at `/` shows a card for each tool. All tools require a Ministry Platform sign-in **and** an MP security role allowed by `MP_SECURITY_ROLES`.
+
+| Route | Tool |
+|-------|------|
+| `/tools/addresslabels` | Address Labels |
+| `/tools/groupwizard` | Group Wizard |
+| `/tools/fieldmanagement` | Field Management |
+| `/tools/addeditfamily` | Add/Edit Family |
+| `/tools/template` | Template (reference implementation) |
 
 ### Address Labels
 
 **Route**: `/tools/addresslabels`
 
-A tool for printing address labels with USPS Intelligent Mail Barcodes (IMb) and optional Word document mail merge.
+Prints address labels with USPS Intelligent Mail Barcodes (IMb) and optional Word document mail merge.
 
-**Features:**
-- Fetch addresses from Ministry Platform selections or saved selections
-- Generate USPS Intelligent Mail Barcodes (IMb) with configurable Mailer ID
-- POSTNET barcode fallback for simpler addressing
-- Print-ready label sheets (Avery 5160 and other stock formats)
+- Fetch addresses from Ministry Platform selections or the current record
+- USPS Intelligent Mail Barcodes (IMb) with configurable Mailer ID, POSTNET fallback
+- Print-ready label sheets (Avery 5160 and other stock formats) as PDF
 - Word document mail merge with `.docx` template support
 - Address validation and skip reporting
-- Configurable label formats and barcode options
 
-**Components** (`src/components/address-labels/`):
-- `AddressLabelsForm` — Configuration form (address source, barcode format, label stock)
-- `AddressLabelsSummary` — Results summary with skip reporting
-- `LabelDocument` — Print-ready label sheet layout
-- `AddressLabel` — Individual label rendering
-- `ImbBarcode` — USPS Intelligent Mail barcode SVG
-- `PostnetBarcode` — POSTNET barcode SVG
-- `MailMergeTab` — Word document mail merge interface
+**Components** (`src/components/address-labels/`): `AddressLabelsForm`, `AddressLabelsSummary`, `LabelDocument`, `AddressLabel`, `ImbBarcode`, `PostnetBarcode`, `MailMergeTab`.
+
+### Group Wizard
+
+**Route**: `/tools/groupwizard`
+
+A six-step create/edit wizard for MP `Groups` records — identity, organization, meeting, attributes, settings, review — with per-step React Hook Form + Zod validation and contact/group search comboboxes. Opened from a Groups record it edits that group; otherwise it creates one.
+
+**Components** (`src/components/group-wizard/`): `StepIdentity`, `StepOrganization`, `StepMeeting`, `StepAttributes`, `StepSettings`, `StepReview`, `WizardStepper`, `WizardNavigation`, `ContactSearch`, `GroupSearch`.
 
 ### Field Management
 
 **Route**: `/tools/fieldmanagement`
 
-A drag-and-drop editor for configuring Ministry Platform page field layout — reorder fields, assign groups, and toggle per-field flags (required, hidden, writing-assistant) without touching the MP UI.
+A drag-and-drop editor for Ministry Platform page field layout — reorder fields, assign groups, and toggle per-field flags (required, hidden, writing-assistant) without touching the MP UI.
 
-**Features:**
 - Searchable page picker sourced from `dp_Pages`
 - Drag-and-drop reordering within and across field groups
 - Inline editing for label, default value, filter clause, depends-on field, and writing-assistant toggle
 - Create new groups on the fly
-- Auto-merges table columns not yet present in `dp_Page_Fields` so new columns can be added to a page layout
+- Auto-merges table columns not yet present in `dp_Page_Fields`
 
-**Components** (`src/components/field-management/`):
-- `PageSearch` — Searchable page picker
-- `FieldOrderEditor` — Main drag-and-drop editor surface
-- `SortableGroup` — Droppable group container
-- `SortableFieldItem` — Draggable field row with inline flag editors
-- `NewGroupDialog` — Create a new field group
-- `useFieldOrderState` — State hook for field order/edits
+**Components** (`src/components/field-management/`): `PageSearch`, `FieldOrderEditor`, `SortableGroup`, `SortableFieldItem`, `NewGroupDialog`, `useFieldOrderState`.
 
-**Stored procedures:**
-- `api_MPNextTools_GetPages` — List configurable pages
-- `api_MPNextTools_GetPageFields` — Fetch current `dp_Page_Fields` rows for a page
-- `api_MPNextTools_UpdatePageFieldOrder` — Upsert field order and per-field flags
+**Stored procedures**: `api_MPNextTools_GetPages`, `api_MPNextTools_GetPageFields`, `api_MPNextTools_UpdatePageFieldOrder`.
+
+### Add/Edit Family
+
+**Route**: `/tools/addeditfamily`
+
+A household editor: search for a contact (or open from a record), then edit the household, its address (with Google Places autocomplete when configured) and its members, and save. Assigns a unique envelope number when needed. Its UI and server actions live in the route folder, `src/app/(web)/tools/addeditfamily/`.
 
 ### Template Tool
 
 **Route**: `/tools/template`
 
-A reference implementation demonstrating the tool framework pattern. Use this as a starting point for building new tools.
+A reference implementation of the tool framework pattern. Use it as a starting point for new tools.
 
-**Structure:**
 ```
 src/app/(web)/tools/template/
-├── page.tsx           # Server component — parses URL params via parseToolParams()
+├── page.tsx           # Server component — requireToolAccess(), then parseToolParams()
+├── loading.tsx        # Loading state
 └── template-tool.tsx  # Client component — renders inside ToolContainer
 ```
 
@@ -450,40 +436,39 @@ src/app/(web)/tools/template/
 
 All tools follow a consistent pattern:
 
-1. **Server component** (`page.tsx`) parses URL search params and fetches page metadata
+1. **Server component** (`page.tsx`) calls `requireToolAccess(...)` **first**, then parses URL search params with `parseToolParams()` and fetches page metadata
 2. **Client component** renders the UI inside `ToolContainer` with header/footer actions
-3. **Server actions** (`actions.ts`) call service singletons for MP operations
-4. Tools receive standard MP parameters: `pageID`, `s` (selection), `recordID`, `recordDescription`
+3. **Server actions** (`actions.ts`) call service singletons, which gate every MP call with `AuthorizationService`
+4. Tools receive standard MP parameters: `pageID`, `s` (selection), `sc`, `p`, `q`, `v`, `recordID`, `recordDescription`, `addl`
 
-**Quick start:**
+**Quick start** — use the Claude Code command to scaffold a new tool:
 ```bash
-# Use the Claude Code command to scaffold a new tool
 /newtool MyToolName
 ```
 
-Or manually:
-1. Copy the `template` folder to create your new tool directory
-2. Rename files and components
-3. Implement your logic inside the `ToolContainer`
+Or manually: copy the `template` folder, rename files and components, and implement your logic inside `ToolContainer`.
 
-**URL Parameter Utilities** (`src/lib/tool-params.ts`):
-- `parseToolParams(searchParams)` — Parses and fetches page metadata
-- `isNewRecord(params)` — Returns true if `recordID === -1` or undefined
-- `isEditMode(params)` — Returns true if editing an existing record
+**URL parameter utilities**:
+- `parseToolParams(searchParams)` (`src/lib/tool-params.server.ts`) — parses params and fetches page metadata
+- `isNewRecord(params)` / `isEditMode(params)` (`src/lib/tool-params.ts`, client-safe) — create vs. edit mode
 
 ## Ministry Platform Integration
 
 ### MPHelper — Public API
 
-The main entry point for interacting with Ministry Platform:
+`MPHelper` is the entry point to the MP REST API. Application code calls it from **service classes** in `src/services/`, never from components or server actions, and every call is preceded by the authorization gate:
 
 ```typescript
 import { MPHelper } from '@/lib/providers/ministry-platform';
-import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
+import { AuthorizationService } from '@/services/authorizationService';
+import { DomainTimezoneService } from '@/services/domainTimezoneService';
 
 const mp = new MPHelper();
+const authz = AuthorizationService.getInstance();
 
-// Get records with query parameters
+// Read — gated like a write
+await authz.requireSecurityRole({ table: 'Contacts', operation: 'read' });
 const contacts = await mp.getTableRecords({
   table: 'Contacts',
   filter: 'Contact_Status_ID=1',
@@ -492,21 +477,24 @@ const contacts = await mp.getTableRecords({
   top: 50
 });
 
-// Create records with Zod validation (recommended)
+// Create — $userId comes from the gate, datetimes from DomainTimezoneService.
+// The generated schema accepts MP wall-clock datetimes (`YYYY-MM-DD HH:MM:SS`).
+const userId = await authz.requireSecurityRole({ table: 'Contact_Log', operation: 'create' });
 await mp.createTableRecords('Contact_Log', [{
   Contact_ID: 12345,
-  Contact_Date: new Date().toISOString(),
-  Made_By: 1,
+  Contact_Date: await DomainTimezoneService.getInstance().toMpSqlDatetime(new Date()),
+  Made_By: userId,
   Notes: 'Follow-up call completed'
 }], {
   schema: ContactLogSchema,
-  $userId: 1
+  $userId: userId
 });
 
-// Update with partial validation (default)
-await mp.updateTableRecords('Contact_Log', records, {
+// Partial update with Zod validation
+await mp.updateTableRecords('Contact_Log', [{ Contact_Log_ID: 67890, Notes: 'Updated' }], {
   schema: ContactLogSchema,
-  partial: true
+  partial: true,
+  $userId: userId
 });
 
 // Execute stored procedures
@@ -516,7 +504,7 @@ const results = await mp.executeProcedureWithBody('api_Custom_Procedure', {
 
 // File operations
 const files = await mp.getFilesByRecord({
-  tableName: 'Contacts',
+  table: 'Contacts',
   recordId: 12345
 });
 ```
@@ -528,26 +516,29 @@ const files = await mp.getFilesByRecord({
 | **Table** | CRUD operations | `getTableRecords`, `createTableRecords`, `updateTableRecords`, `deleteTableRecords` |
 | **Procedure** | Stored procedures | `getProcedures`, `executeProcedure`, `executeProcedureWithBody` |
 | **Communication** | Email/SMS with attachments | `createCommunication`, `sendMessage` |
-| **File** | File management | `getFilesByRecord`, `uploadFiles`, `updateFile`, `deleteFile`, `getFileContentByUniqueId` |
+| **File** | File management | `getFilesByRecord`, `uploadFiles`, `updateFile`, `deleteFile`, `getFileContentByUniqueId`, `getFileMetadata` |
 | **Metadata** | Schema info | `getTables`, `refreshMetadata` |
 | **Domain** | Domain config | `getDomainInfo`, `getGlobalFilters` |
 
+MPHelper also exposes `copyRecord`, `copyRecordWithSubpages` and `generateSequence`. See the [provider docs](src/lib/providers/ministry-platform/docs/README.md).
+
 ### Type Generation
 
-Generate TypeScript interfaces and Zod schemas from your Ministry Platform database:
-
 ```bash
-# Generate all types with Zod schemas (recommended)
+# Generate all types with Zod schemas into models/ (recommended)
 npm run mp:generate:models
 
 # Generate for specific tables
-npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -s "Contact"
+npm run mp:generate -- -s "Contact"
+
+# Generate with detailed mode (samples records for better type inference)
+npm run mp:generate -- -d --sample-size 10
 
 # See all options
-npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help
+npm run mp:generate -- --help
 ```
 
-> **Running the generators directly?** Pass `--conditions=react-server` to `tsx`, as above. The MP client modules start with `import 'server-only'`, which throws under plain Node without that condition. The `npm run mp:generate*` scripts already include it, so `npm run mp:generate -- -s "Contact"` is the shorter equivalent.
+> **Running the generators directly?** Pass `--conditions=react-server` to `tsx` (e.g. `npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts --help`). The MP client modules start with `import 'server-only'`, which throws under plain Node without that condition. The `npm run mp:generate*` scripts already include it.
 
 **CLI Options:**
 | Flag | Description | Default |
@@ -559,105 +550,70 @@ npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/ge
 | `-d, --detailed` | Sample records for type inference | `false` |
 | `--sample-size <num>` | Records to sample | `5` |
 
-**Generated output** (for `mp:generate:models`):
-- TypeScript interfaces for every MP table with JSDoc comments, FK annotations, and type constraints
-- Matching Zod validation schemas with email/URL/length validators
-- A barrel export `index.ts`
-- Schema documentation at `.claude/references/ministryplatform.schema.md`
+**Generated output** (for `mp:generate:models`): one TypeScript interface per MP table (JSDoc, FK annotations, constraints), a matching `<Table>Schema.ts` Zod schema per table, and a barrel `index.ts` that re-exports the **types** — import a schema from its own file, e.g. `@/lib/providers/ministry-platform/models/ContactLogSchema`.
 
 ## Components
 
 ### UI Components (`src/components/ui/`)
 
-22 shadcn/ui components built with Radix UI primitives and Tailwind CSS v4 (new-york style, slate theme, lucide icons):
+22 shadcn/ui components built on Radix UI primitives and Tailwind CSS v4 (new-york style, slate theme, lucide icons).
 
-Alert, Alert Dialog, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Command, Dialog, Drawer, Dropdown Menu, Form, Input, Label, Popover, Radio Group, Select, Skeleton, Switch, Textarea, Tooltip
+### Layout & Tool Framework
 
-### Layout Components (`src/components/layout/`)
-
-- **AuthWrapper** — Server component that validates session via `auth.api.getSession()` and redirects to `/signin` if unauthenticated
-
-### Tool Framework (`src/components/tool/`)
-
-- **ToolContainer** — Full-screen flex layout with header, scrollable content, and footer actions. Automatically renders `DevPanel` above the title bar on localhost (NODE_ENV=development only).
-- **ToolHeader** — Dark slate title bar with optional info tooltip
+- **AuthWrapper** (`layout/`) — server component; validates the session via `auth.api.getSession()`, redirects to `/signin` if unauthenticated and to `/session-error` if the session has no `userGuid`
+- **ToolContainer** (`tool/`) — full-screen layout with header, scrollable content, and footer actions. Renders `DevPanel` above the title bar on localhost in development only.
+- **ToolHeader** — dark slate title bar with optional info tooltip
 - **ToolFooter** — Close/Save action buttons with loading state
 
 ### Feature Components
 
-- **address-labels/** — 12 components for address label printing, barcode generation, and mail merge
-- **field-management/** — Drag-and-drop editor for MP page field order and flags (`PageSearch`, `FieldOrderEditor`, sortable group/field items, `useFieldOrderState`)
-- **dev-panel/** — Unified developer overlay (localhost-only) showing parsed URL params, MP selection data, contact records, and authorized tools
-- **shared-actions/** — Cross-feature server actions (`getCurrentUserProfile()` — returns the *calling* user's MP profile; the `User_GUID` comes from the session, never from a parameter); `handleSignOut()` — app sign-out plus MP RP-initiated logout, used by the sign-out forms on `/no-access` and `/session-error`
+- **address-labels/** — label printing, IMb/POSTNET barcodes, PDF/DOCX output, mail merge
+- **group-wizard/** — six-step group create/edit wizard
+- **field-management/** — drag-and-drop MP page field order editor
+- **dev-panel/** — localhost-only developer overlay: parsed URL params, MP selection data, contact records, authorized tools, deploy tool
+- **shared-actions/** — cross-feature server actions: `getCurrentUserProfile()` (the *calling* user's profile; the `User_GUID` comes from the session, never a parameter), domain config, and `handleSignOut()` (app sign-out plus MP RP-initiated logout, used by the sign-out forms on `/no-access` and `/session-error`)
 
-All components use kebab-case file naming, PascalCase component names, and named exports with barrel index files.
+All components use kebab-case file names, PascalCase component names, and named exports with barrel `index.ts` files.
 
 ## Services
 
-Application services provide business logic abstraction with the singleton pattern:
+Application services in `src/services/` are server-only singletons that wrap MPHelper:
 
-| Service | File | Purpose | Key Methods |
-|---------|------|---------|-------------|
-| **UserService** | `userService.ts` | User profile with roles and groups | `getUserProfile(userGuid)` — parallel queries for user data, roles, and group memberships |
-| **ToolService** | `toolService.ts` | Page metadata and permissions | `getPageData(pageID)`, `getUserTools(domainId, userId)` — via stored procedures |
-| **AddressLabelService** | `addressLabelService.ts` | Address fetching and label data | Address queries from MP selections and saved selections for label printing |
+| Service | Purpose | Key Methods |
+|---------|---------|-------------|
+| **AuthorizationService** | Role gate for all MP data access (`MP_SECURITY_ROLES`, fails closed); returns the acting MP `User_ID` for write attribution | `requireSecurityRole`, `hasSecurityRole` |
+| **DomainTimezoneService** | MP domain time zone and wall-clock ↔ instant conversion at the MP boundary | `getMpTimezone`, `toMpSqlDatetime`, `parseMpDatetime` |
+| **ToolService** | Page metadata, selections, the user's authorized tools, dev-tool deploy | `getPageData`, `getSelectionRecordIds`, `getUserTools`, `resolveContactIds`, `listPages`, `listRoles`, `deployTool` |
+| **UserService** | Signed-in user's display profile by `User_GUID` | `getUserProfile` |
+| **AddressLabelService** | Mailing addresses for contacts | `getAddressesForContacts`, `getAddressForContact` |
+| **GroupService** | Group Wizard lookups, search, read/create/update | `fetchAllLookups`, `searchContacts`, `searchGroups`, `getGroup`, `createGroup`, `updateGroup` |
+| **FieldManagementService** | MP pages, page fields, table metadata, field-order saves | `getPages`, `getPageFields`, `getTableMetadata`, `updatePageFieldOrder` |
+| **FamilyService** | Add/Edit Family: contact search, household load/save, lookups, envelope numbers | `searchContacts`, `resolveContactIdFromPage`, `getHousehold`, `getLookups`, `getDefaults`, `getNextEnvelopeNumber`, `saveHousehold` |
+| **GooglePlacesService** | Address autocomplete (key from MP config, else env) | `isEnabled`, `autocomplete`, `getPlaceDetails` |
 
-**Data flow:**
-```
-Server Action -> Service.getInstance() -> MPHelper -> Ministry Platform API
-```
-
-**DTOs** (`src/lib/dto/`): Hand-written application-level types including `LabelData`, `LabelConfig`, `SkipRecord`, `AddressMode`, `BarcodeFormat`, and more.
+**DTOs** (`src/lib/dto/`): hand-written application types — address labels (`LabelData`, `LabelConfig`, `SkipRecord`, …) and family (`Household` and related schemas).
 
 ## Testing
 
-### Overview
-
-- **Framework**: Vitest 4.1 with jsdom environment
-- **Libraries**: @testing-library/react, @testing-library/jest-dom
-- **Coverage**: v8 provider
-- **Total**: **621 test cases across 43 test files** (authoritative snapshot: `.claude/references/_meta/facts/`)
-
-### Running Tests
+- **Framework**: Vitest 5 with jsdom
+- **Libraries**: `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`
+- **Coverage**: v8 provider, **enforced** thresholds (statements 97%, lines 98%) in `vitest.config.mts`
+- **Co-location**: `foo.ts` → `foo.test.ts`, next to the source
+- **Counts**: test totals drift quickly — trust `npm run test:run`; the latest snapshot lives in `.claude/references/_meta/facts/`
 
 ```bash
 npm test              # Watch mode
 npm run test:run      # Single run
-npm run test:coverage # With coverage report
+npm run test:coverage # With coverage report (what CI runs)
 ```
 
-### Test Coverage
+Per-file coverage and the full test inventory are in the [Testing Reference](.claude/references/testing/README.md).
 
-| Area | Test File | What's Covered |
-|------|-----------|----------------|
-| MPHelper | `helper.test.ts` | All CRUD operations, Zod validation, domain/metadata/procedure/file methods |
-| HTTP Client | `http-client.test.ts` | URL building, GET/POST/PUT/DELETE, FormData uploads, error handling |
-| Table Service | `table.service.test.ts` | Table CRUD with query params, error codes (404, 401, 409) |
-| Address Label Service | `addressLabelService.test.ts` | Address fetching, label data generation |
-| Address Label Actions | `actions.test.ts` | Address label server actions |
-| MP Client | `client.test.ts` | OAuth token lifecycle, refresh, concurrent calls, expiry buffer |
-| Auth | `auth.test.ts` | Custom session, name splitting, OAuth config, userGuid mapping |
-| Provider | `provider.test.ts` | Singleton pattern, service delegation |
-| Proxy | `proxy.test.ts` | Route protection, public paths, session cookie checks |
-| Tool Service | `toolService.test.ts` | Page data, user tools, stored procedure calls |
-| Selection Panel | `selection-actions.test.ts` | Selection resolution server actions |
-| User Context | `user-context.test.tsx` | UserProvider lifecycle, profile loading, error handling |
-| User Service | `userService.test.ts` | Profile with roles/groups, parallel queries |
-| User Tools Panel | `user-tools-actions.test.ts` | Authorization checks, session validation |
-| User Menu | `actions.test.ts` | Sign-out action, OIDC logout redirect |
-| Shared Actions | `user.test.ts` | getCurrentUserProfile session-derived GUID, unauthorized paths, IDOR regression |
-| Session Context | `session-context.test.tsx` | useAppSession hook wrapper |
-| IMb Encoder | `imb-encoder.test.ts` | USPS Intelligent Mail barcode encoding |
-| POSTNET Encoder | `postnet-encoder.test.ts` | POSTNET barcode encoding |
-| Barcode Helpers | `barcode-helpers.test.ts` | Barcode generation utilities |
-| Label Stock | `label-stock.test.ts` | Label stock definitions and calculations |
-
-### Key Testing Patterns
-
+**Key testing patterns**:
 - **`vi.hoisted()`** for mock variables referenced inside `vi.mock()` factories
-- **MPHelper mock**: Use mock class syntax, not `vi.fn().mockImplementation()`
+- **MPHelper mock**: use mock class syntax, not `vi.fn().mockImplementation()`
 - **Singleton reset**: `(ServiceClass as any).instance = undefined` in `beforeEach`
-- **Server action mocks**: Mock `@/lib/auth`, `next/headers`, and service singletons
+- **Server action mocks**: mock `@/lib/auth`, `next/headers`, and service singletons
 - **Fake timers**: `vi.useFakeTimers()` for token expiry testing
 
 ## Development
@@ -667,176 +623,106 @@ npm run test:coverage # With coverage report
 ```bash
 # Development
 npm run dev              # Start dev server (Turbopack)
-npm run build            # Production build (includes type checking)
+npm run build            # Bundle SQL install script, then production build (with type checking)
 npm start                # Start production server
+npm run check:prerender  # After a build: fail if a route was statically prerendered (no CSP nonce)
 
 # Code Quality
 npm run lint             # ESLint (native flat config)
+npm run typecheck        # tsc --noEmit
 npm test                 # Vitest watch mode
 npm run test:run         # Single test run
 npm run test:coverage    # Coverage report
 
 # Ministry Platform
 npm run mp:generate:models      # Generate types + Zod schemas to models/ (recommended)
+npm run mp:generate             # Type generator with your own flags (-- --help)
 npm run mp:generate:storedprocs # Generate stored procedure reference
+npm run mp:build:install        # Bundle db/ SQL into _INSTALL/ministryplatform-install.sql
 
 # Setup
 npm run setup            # Interactive setup wizard
 npm run setup:check      # Validate setup without changes
 ```
 
+CI (`.github/workflows/test.yml`) runs lint, typecheck, tests with coverage, the build, and the prerender check as steps of a single required `test` job.
+
+### Branching
+
+`dev` is the default branch: branch from it and open PRs against it (squash-merged). `main` is production and only receives `dev` through a release PR (merge commit, never squash). See [CLAUDE.md § Branching & Release](CLAUDE.md#branching--release).
+
 ### Key Dependencies
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| next | ^16.1.7 | App Router, Turbopack, React Server Components |
-| react | ^19.2.4 | UI framework |
-| better-auth | ^1.5.5 | OAuth authentication with genericOAuth plugin |
-| zod | ^4.3.6 | Runtime validation (v4 API) |
-| react-hook-form | ^7.71.1 | Form state management |
+| next | ^16.4.0 | App Router, Turbopack, React Server Components |
+| react | ^19.3.0 | UI framework |
+| better-auth | ^1.7.7 | OAuth authentication with genericOAuth plugin |
+| jose | ^6.2.12 | id_token (JWT) verification |
+| zod | ^4.6.5 | Runtime validation (v4 API) |
+| react-hook-form | ^7.89.0 | Form state management |
 | tailwindcss | ^4.2.0 | Utility-first CSS |
-| lucide-react | ^1.8.0 | Icon library |
-| vitest | ^4.1.0 | Test framework |
-| typescript | ^6.0.2 | Type safety |
+| lucide-react | ^1.55.0 | Icon library |
+| @react-pdf/renderer | ^4.9.0 | Label sheet PDFs |
+| docx / docxtemplater | ^9.9.0 / ^3.71.0 | Word document output and mail merge |
+| @dnd-kit/react | ^0.5.0 | Drag and drop (Field Management) |
+| vitest | ^5.0.0 | Test framework |
+| typescript | ^6.0.3 | Type safety |
+
+Dependency audits and known version holds are recorded in [`.claude/packages/`](.claude/packages/).
 
 ## Claude Code Commands
 
-This project includes 5 custom [Claude Code](https://claude.ai/code) commands to streamline development:
+This project includes 4 custom [Claude Code](https://claude.ai/code) commands in `.claude/commands/`:
 
 | Command | Description |
 |---------|-------------|
-| `/audit-deps` | Security audit + dependency update analysis with CVE checks |
-| `/branch-commit [args]` | Create branch and commit, optionally from GitHub issue |
-| `/newtool [name]` | Scaffold a new tool with route, component, and homepage card |
-| `/pr [args]` | Create a validated pull request with auto-detected issue links |
-| `/release [args]` | Create a GitHub release with calver versioning and auto-generated changelog |
-
-### `/audit-deps`
-
-Runs `npm audit`, searches for CVEs affecting major dependencies, categorizes updates as safe (patch/minor) vs major, and generates a prioritized action plan.
-
-### `/branch-commit`
-
-```bash
-/branch-commit                    # Prompts for branch name and message
-/branch-commit #123               # Auto-generates from GitHub issue
-/branch-commit feature/my-change: Add new feature
-```
-
-Branch naming: `fix/issue-<id>-<slug>` for bugs, `feature/issue-<id>-<slug>` for features.
-
-### `/newtool`
-
-```bash
-/newtool TeamRoster               # Creates route, component, and homepage card
-/newtool EventCheckin, BatchEmail  # Multiple tools at once
-```
-
-Generates: route page, client component with ToolContainer, and a card on the dashboard.
-
-### `/pr`
-
-```bash
-/pr                    # Create PR to main
-/pr --base dev         # Target dev branch
-/pr --draft            # Draft PR
-/pr #123               # Link to issue
-```
-
-Validates: not on main, no uncommitted changes, branch pushed, no duplicate PR.
-
-### `/release`
-
-```bash
-/release               # Auto-detect version, generate changelog
-/release --draft       # Create as draft release
-/release --prerelease  # Mark as pre-release
-```
-
-Uses calver format: `v{YYYY}.{MM}.{DD}.{HHmm}`. Categorizes PRs as features, fixes, docs, or maintenance.
-
-### Command Files
-
-```
-.claude/commands/
-├── audit-deps.md
-├── branch-commit.md
-├── newtool.md
-├── pr.md
-└── release.md
-```
+| `/newtool <name>[, <name>…]` | Scaffold one or more tools: a self-gating route page, a client component in `ToolContainer`, and a dashboard card |
+| `/newstoredproc <name>` | Scaffold an `api_*` stored procedure (with `@DomainID INT` as the first parameter) and add it to the SQL install bundle |
+| `/release` | Promote `dev` → `main` with a merge commit, then tag `main` with calver `vYYYY.MM.DD.HHmm` and publish a GitHub release (`--draft`, `--prerelease`, `--tag`, `--target`, `--since`) |
+| `/update-deps` | Apply in-range updates, evaluate each major separately, sweep OSV.dev for advisories, and write a record to `.claude/packages/` (`--security-only`, `--check`) |
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| **[CLAUDE.md](CLAUDE.md)** | Development guide — commands, architecture, code style, testing patterns |
-| **[Ministry Platform Provider](src/lib/providers/ministry-platform/docs/README.md)** | Complete REST API client documentation |
-| **[Type Generator](src/lib/providers/ministry-platform/scripts/README.md)** | CLI tool for generating TypeScript types from MP schema |
-| **[Auth Reference](.claude/references/auth/README.md)** | Better Auth config, OAuth flow, session access, userGuid vs user.id |
-| **[Components Reference](.claude/references/components/README.md)** | Component inventory with compliance status |
-| **[Services Reference](.claude/references/services/README.md)** | Service layer docs, MP query patterns, DTOs |
+| **[CLAUDE.md](CLAUDE.md)** | Development guide — commands, architecture, rules, testing patterns |
+| **[Security Policy](.github/SECURITY.md)** | How to report a vulnerability; required steps for downstream forks |
+| **[Reference Index](.claude/references/INDEX.md)** | Entry point to all agent-facing reference docs |
+| **[Ministry Platform Provider](src/lib/providers/ministry-platform/docs/README.md)** | REST API client documentation |
+| **[Type Generator](src/lib/providers/ministry-platform/scripts/README.md)** | CLI for generating TypeScript types from the MP schema |
+| **[Auth Reference](.claude/references/auth/README.md)** | Better Auth config, OAuth flow, sessions, userGuid vs user.id |
+| **[Security Reference](.claude/references/security/README.md)** | Authorization model, write attribution, logging rules, headers/CSP |
+| **[Components Reference](.claude/references/components/README.md)** | Component inventory |
+| **[Services Reference](.claude/references/services/README.md)** | Service layer, MP query patterns |
 | **[Testing Reference](.claude/references/testing/README.md)** | Vitest patterns, mock setup, coverage data |
-| **[MP Schema Reference](.claude/references/ministryplatform.schema.md)** | Auto-generated database schema |
-| **[MP Stored Procedures](.claude/references/ministryplatform.storedprocs.md)** | Auto-generated stored procedure reference |
+| **[Decisions](.claude/references/DECISIONS.md)** / **[Gotchas](.claude/references/GOTCHAS.md)** | Architectural decisions and known traps |
+| **[MP Schema Reference](.claude/references/mp-schema/README.md)** | Generated table and stored procedure catalogs |
 
 ## Code Style & Conventions
 
-### Import Paths
+See [CLAUDE.md](CLAUDE.md) for the full rules. The essentials:
 
-Use the `@/*` path alias for all internal imports:
-```typescript
-import { MPHelper } from '@/lib/providers/ministry-platform';
-import { Button } from '@/components/ui/button';
-import { AuthWrapper } from '@/components/layout';
-import { ToolContainer } from '@/components/tool';
-import { useUser, useAppSession } from '@/contexts';
-```
+- **`@/*` path alias** for all internal imports
+- **Naming**: PascalCase for components/types, camelCase for functions/variables, kebab-case for all files and folders, snake_case for Ministry Platform API fields
+- **React Server Components by default**; `"use client"` only when needed
+- **Named exports only** (no default exports, except where Next.js requires them)
+- **Feature folders** in kebab-case with `index.ts` barrels; server actions co-located as `actions.ts`; shared actions in `src/components/shared-actions/`
+- **Server modules start with `import 'server-only'`**
+- **Authorize, don't just authenticate**: MP-touching actions and service methods call `AuthorizationService.requireSecurityRole()`, reads included
+- **Use `session.user.userGuid`** for MP lookups (not `session.user.id`)
+- **Convert datetimes at the MP boundary** with `DomainTimezoneService`
+- **Never edit generated files** in `src/lib/providers/ministry-platform/models/` — regenerate with `npm run mp:generate:models`
+- Access MP fields with special characters using bracket notation: `event["Allow_Check-in"]`
 
-### Naming Conventions
+## Security
 
-| Convention | Usage |
-|------------|-------|
-| **PascalCase** | Components, types, interfaces |
-| **camelCase** | Functions, variables |
-| **kebab-case** | All files and folders |
-| **snake_case** | Ministry Platform API fields |
-
-### Component Conventions
-
-- React Server Components by default; `"use client"` only when needed
-- Named exports only (no default exports)
-- Feature components organized in kebab-case folders with `index.ts` barrel exports
-- Server actions co-located as `actions.ts` in feature folders
-- Shared actions in `src/components/shared-actions/`
-
-### Component Organization
-
-```
-src/components/
-├── address-labels/       # Address label printing & mail merge (12 files)
-├── field-management/     # Drag-and-drop MP page field order editor
-├── layout/               # AuthWrapper
-├── shared-actions/       # Cross-feature server actions
-├── tool/                 # Tool framework (Container, Header, Footer)
-├── ui/                   # shadcn/ui components (22)
-└── dev-panel/            # Unified dev panel (localhost-only)
-```
-
-### Best Practices
-
-1. **Use service classes in server actions** — call `src/services/` singletons, not MPHelper directly
-2. **Validate at API boundaries** — pass optional `schema` parameter in `createTableRecords()` / `updateTableRecords()`
-3. **Regenerate types** after MP schema changes: `npm run mp:generate:models`
-4. **Never edit generated files** in `src/lib/providers/ministry-platform/models/`
-5. **Run tests** before committing: `npm run test:run`
-6. **Use `session.user.userGuid`** for all MP API lookups (not `session.user.id`)
-7. Access MP fields with special characters using bracket notation: `event["Allow_Check-in"]`
+Please **do not** open a public issue for a security problem. Report it privately as described in [`.github/SECURITY.md`](.github/SECURITY.md), which also lists the steps every downstream fork must take.
 
 ## License
 
-Private
+No license has been chosen for this repository yet. Until one is added, all rights are reserved by default. (`"private": true` in `package.json` only prevents publishing to npm.)
 
 ## Support
 
-For Ministry Platform API documentation, refer to your instance's API documentation portal.
+For Ministry Platform API documentation, see your instance's API documentation portal. For bugs and feature requests, open a [GitHub issue](https://github.com/MinistryPlatform-Community/MPNext-Tools/issues).

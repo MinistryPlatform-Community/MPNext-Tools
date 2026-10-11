@@ -9,7 +9,7 @@ export const PledgesSchema = z.object({
   Installments_Planned: z.number().int(),
   Installments_Per_Year: z.number().int(),
   _Installment_Amount: z.number().nullable(),
-  First_Installment_Date: z.string().datetime(),
+  First_Installment_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)"),
   Notes: z.string().max(500).nullable(),
   Beneficiary: z.string().max(50).nullable(),
   Trip_Leader: z.boolean(),
@@ -20,8 +20,9 @@ export const PledgesSchema = z.object({
   Donation_Source_ID: z.number().int().nullable(),
   Send_Pledge_Statement: z.boolean(),
   _Original_Amount: z.number().nullable(),
-  _Last_Installment_Date: z.string().datetime().nullable(),
+  _Last_Installment_Date: z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected MP datetime YYYY-MM-DD HH:MM[:SS] (space or T, optional Z/offset)").nullable(),
   Batch_ID: z.number().int().nullable(),
+  _Vendor_Pledge_Code: z.string().max(16).nullable(),
 });
 
 export type PledgesInput = z.infer<typeof PledgesSchema>;

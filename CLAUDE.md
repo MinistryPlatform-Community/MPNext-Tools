@@ -61,10 +61,10 @@ to keep them from diverging.
   - **Optional**: `AUTH_IP_ADDRESS_HEADERS` / `AUTH_TRUSTED_PROXIES` — client-IP source for rate limiting (default on Vercel: `x-vercel-forwarded-for,x-real-ip`; see `.env.example`)
   - **Git hooks**: `npm install` runs `prepare`, which sets `core.hooksPath=.githooks`; `.githooks/pre-commit` refuses staged `.env*` files other than `.env.example`
   - **`MP_SECURITY_ROLES` fails closed**: `*` = any MP security role, a comma list = only those roles, **unset/blank/`","` = nobody** (every tool redirects to `/no-access`). Set it in every environment.
-- **Services Layer**: Singleton service classes in `src/services/` wrap MPHelper for domain logic (ToolService, UserService, AddressLabelService, GroupService, FieldManagementService)
+- **Services Layer**: Singleton service classes in `src/services/` wrap MPHelper for domain logic (AuthorizationService, DomainTimezoneService, ToolService, UserService, AddressLabelService, GroupService, FamilyService, FieldManagementService, GooglePlacesService)
 - **Contexts**: React context providers in `src/contexts/` (UserProvider) composed in `src/app/providers.tsx`; `useAppSession()` wraps Better Auth's `authClient.useSession()`
 - **UI**: Radix UI primitives + shadcn/ui components in `src/components/ui/`, Tailwind CSS v4
-- **Validation**: Zod v4 (`zod@^4.3`) — note: different API from Zod v3 (e.g., `z.object()` vs `z.interface()`)
+- **Validation**: Zod v4 (`zod@^4.6`) — different API from Zod v3 (e.g., top-level `z.email()`/`z.url()`, `error` instead of `message` for custom messages); check context7 before relying on v3 habits
 - **Path Alias**: `@/*` maps to `src/*`
 
 ## Next.js 16 Notes
@@ -107,7 +107,7 @@ to keep them from diverging.
 ```
 src/components/
 ├── address-labels/       # Address label printing & mail merge
-├── dev-panel/            # Unified dev panel (localhost-only) - params, selection, contact records, user tools
+├── dev-panel/            # Unified dev panel (localhost-only) - params, selection, contact records, user tools, deploy tool
 ├── field-management/     # Drag-and-drop MP page field order editor (PageSearch + FieldOrderEditor)
 ├── group-wizard/         # Multi-step group creation/edit wizard (6 steps)
 ├── layout/               # Layout components (AuthWrapper)
@@ -119,6 +119,8 @@ src/components/
     ├── actions.ts        # Feature-specific server actions
     └── index.ts          # Barrel exports
 ```
+
+Exception: the Add/Edit Family tool keeps its UI and `actions.ts` co-located in its route folder, `src/app/(web)/tools/addeditfamily/`.
 
 ## Data Flow
 
@@ -156,10 +158,10 @@ import { authClient } from '@/lib/auth-client';
 const { data: session, isPending } = authClient.useSession();
 
 // Ministry Platform models (generated)
-import { Congregation } from '@/lib/providers/ministry-platform/models';
+import { Congregations } from '@/lib/providers/ministry-platform/models';
 
-// Ministry Platform Zod schemas (for runtime validation)
-import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+// Ministry Platform Zod schemas (for runtime validation) — not in the models barrel; import the file directly
+import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
 
 // Ministry Platform helper (used by services, not directly by components)
 import { MPHelper } from '@/lib/providers/ministry-platform';
@@ -197,53 +199,62 @@ export default MyComponent;            // ❌ Avoid
 
 ## Validation Best Practices
 
-When working with Ministry Platform data:
+When working with Ministry Platform data — inside a **service** method, with `$userId` taken from the authorization gate (rule 13):
 
 ```typescript
 import { MPHelper } from '@/lib/providers/ministry-platform';
-import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
+import { AuthorizationService } from '@/services/authorizationService';
 
 const mp = new MPHelper();
+
+// The gate returns the acting MP dp_Users.User_ID — the only valid $userId source
+const userId = await AuthorizationService.getInstance().requireSecurityRole({
+  table: 'Contact_Log',
+  operation: 'create',
+});
 
 // ✅ Good: Validate data before creating records
 await mp.createTableRecords('Contact_Log', records, {
   schema: ContactLogSchema,
-  $userId: currentUser.Contact_ID
+  $userId: userId
 });
 
 // ✅ Good: Partial validation for updates (default)
 await mp.updateTableRecords('Contact_Log', partialRecords, {
   schema: ContactLogSchema,
   partial: true, // default, allows partial updates
-  $userId: currentUser.Contact_ID
+  $userId: userId
 });
 
 // ✅ Good: Strict validation for full record updates
 await mp.updateTableRecords('Contact_Log', fullRecords, {
   schema: ContactLogSchema,
   partial: false, // require all fields
-  $userId: currentUser.Contact_ID
+  $userId: userId
 });
 
 // ⚠️ Acceptable: Skip validation (backward compatible)
 await mp.createTableRecords('Contact_Log', records, {
-  $userId: currentUser.Contact_ID
+  $userId: userId
 });
 ```
+
+Generated schemas validate `DateTime`/`Timestamp` columns with a regex that accepts both MP wall-clock (`YYYY-MM-DD HH:MM:SS`, what `DomainTimezoneService.toMpSqlDatetime()` returns) and ISO forms (`T` separator, optional `Z`/offset), so `schema` and rule 17 work together. Import a schema from its own file (`models/ContactLogSchema`) — the `models` barrel re-exports types only.
 
 ## Testing
 
 - **Framework**: Vitest with jsdom environment, `@testing-library/react` + `@testing-library/user-event` for hooks/components, v8 coverage
 - **Counts**: test/file totals live in `.claude/references/_meta/facts/` (bit-rots quickly — trust `vitest run` output over any doc claim)
-- **Coverage is enforced**: `vitest.config.mts` sets `thresholds: { statements: 97, lines: 98 }`, checked by the existing `test:coverage` CI job. Branches/functions are deliberately unenforced. Raise the thresholds as coverage rises; never lower them to green a red build.
+- **Coverage is enforced**: `vitest.config.mts` sets `thresholds: { statements: 97, lines: 98 }`, checked by the "Test with coverage" step of the CI `test` job. Branches/functions are deliberately unenforced. Raise the thresholds as coverage rises; never lower them to green a red build.
 - **`coverage.include` is load-bearing**: without `include: ['src/**/*.{ts,tsx}']` the v8 provider reports only files a test imported, so untested files vanish instead of counting as 0%. Two traps: `coverage.all` was **removed in Vitest 5** (setting it is a type error and does nothing), and directory exclusions must end in `**` — a bare `'src/components/ui/'` matches nothing.
-- **Config**: `vitest.config.ts` (runner), `src/test-setup.ts` (env vars + jest-dom)
+- **Config**: `vitest.config.mts` (runner), `src/test-setup.ts` (env vars + jest-dom)
 - **jest-dom import**: `src/test-setup.ts` must import `@testing-library/jest-dom/vitest`, **not** the bare `@testing-library/jest-dom`. Since jest-dom v7 only the `/vitest` entry augments Vitest's `expect` types; the bare import registers matchers at runtime, so tests pass while `next build` fails with `Property 'toBeInTheDocument' does not exist`.
 - **Co-location**: Test files live next to source — `foo.ts` → `foo.test.ts`
 - **Critical**: Use `vi.hoisted()` for any mock variables referenced inside `vi.mock()` factories (hoisting causes `ReferenceError` otherwise)
 - **MPHelper mock**: Use mock class (`MPHelper: class { method = mockFn; }`), not `vi.fn().mockImplementation()`
 - **Singleton reset**: Reset `(ServiceClass as any).instance = undefined` in `beforeEach` to prevent state leakage
-- **Server action tests**: Mock `@/lib/auth` (`auth.api.getSession`), `next/headers` (`headers()`), and service singletons
+- **Server action tests**: Mock `@/lib/auth` (`auth.api.getSession`), `next/headers` (`headers()`), the `AuthorizationService` gate (`requireSecurityRole`), and service singletons
 - **CI type-checks**: `npm run typecheck` (`tsc --noEmit`) runs as a required step in the `test` job, alongside `npm run lint`. `tsconfig.json` includes `**/*.ts`/`**/*.tsx`, so a type error in a *test* file breaks `npm run build` — that used to reach `dev` unnoticed because CI ran tests only.
 - See **[Testing Reference](.claude/references/testing/README.md)** for all mock patterns, coverage data, and test inventory
 
@@ -259,7 +270,7 @@ condition that clears it. Do not re-derive that analysis.
 
 - **Node**: pinned to the **Node 24 LTS line** — `engines.node` is `^24.15.0`
   (the `24.15` floor is jsdom 30's, the strictest dev dependency). `@types/node`
-  is pinned to the matching major (`^24.13.4`); do not let it drift ahead of the
+  is pinned to the matching major (`^24.19.2`); do not let it drift ahead of the
   runtime. `.nvmrc` holds `24` and CI reads it via `node-version-file`.
   **Vercel** deploys the latest `24.x` for this range (it only offers majors:
   24.x/22.x/20.x), so `engines.node` overrides whatever the project's

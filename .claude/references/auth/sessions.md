@@ -2,7 +2,7 @@
 title: Sessions (stateless, encrypted cookie cache + customSession)
 domain: auth
 type: reference
-applies_to: [src/lib/auth.ts, src/lib/env.ts, src/lib/auth-client.ts, src/contexts/session-context.tsx]
+applies_to: [src/lib/auth.ts, src/lib/env.ts, src/lib/auth-client.ts, src/contexts/use-app-session.ts]
 symbols: [auth, authClient, useAppSession, Session, SessionData, enrichSession, stripUserOAuthTokens, assertAuthEnvironment, parseIpAddressOptions]
 related: [oauth-flow.md, user-identity.md, route-protection.md, ../security/README.md]
 last_verified: 2026-09-30
@@ -21,9 +21,9 @@ the cookie was a readable JWT, and the user's MP access/refresh tokens rode in a
 - `src/lib/auth.ts` — `session`, `account`, `databaseHooks`, `advanced`,
   `assertAuthEnvironment`, `parseIpAddressOptions`, `enrichSession`,
   `stripUserOAuthTokens`
-- `src/lib/env.ts` — `getMpBaseUrl()`, `getAuthBaseUrl()`
+- `src/lib/env.ts` — `getMpBaseUrl()`, `getAuthBaseUrl()`, `getMpClient()`
 - `src/lib/auth-client.ts` — client `authClient` with `customSessionClient<typeof auth>()`
-- `src/contexts/session-context.tsx` — `useAppSession()` hook
+- `src/contexts/use-app-session.ts` — `useAppSession()` hook (returns `authClient.useSession().data`) + `SessionData` type
 - Tests: `src/auth.session-lifetime.test.ts` (clock walks), `src/auth.session-config.test.ts`
   (cookie names/attrs, decrypted `session_data`, withheld fields),
   `src/auth.user-oauth-tokens.test.ts`, `src/auth.secret-guard.test.ts`,

@@ -2,25 +2,26 @@
 title: MP query patterns for services
 domain: services
 type: reference
-applies_to: [src/services/toolService.ts, src/services/userService.ts, src/services/addressLabelService.ts, src/services/groupService.ts, src/services/fieldManagementService.ts, src/lib/validation.ts]
-symbols: [validateGuid, validatePositiveInt, validateColumnName, escapeFilterString]
+applies_to: [src/services/toolService.ts, src/services/userService.ts, src/services/addressLabelService.ts, src/services/groupService.ts, src/services/fieldManagementService.ts, src/services/familyService.ts, src/services/authorizationService.ts, src/lib/validation.ts, src/lib/constants.ts]
+symbols: [validateGuid, validatePositiveInt, validateColumnName, validateFkPath, escapeFilterString, MP_FETCH_BATCH_SIZE]
 related: [../mp-provider/architecture.md, ../mp-schema/required-procs.md, tool-service.md, user-service.md, address-label-service.md, group-service.md]
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
 Conventions for building safe MP REST queries inside service methods — FK traversal via `_TABLE`, ambiguous-column prefixing, quote escaping, `$userId` audit, and batching.
 
 ## Files
-- `src/lib/validation.ts` — `validateGuid`, `validatePositiveInt`, `validateColumnName`, `escapeFilterString`
+- `src/lib/validation.ts` — `validateGuid`, `validatePositiveInt`, `validateColumnName`, `validateFkPath`, `escapeFilterString` (also `validateMailerId`, not a filter guard)
+- `src/lib/constants.ts` — `MP_FETCH_BATCH_SIZE` (100)
 - `src/services/*.ts` — all call sites follow these rules
 
 ## Key concepts
 - **Implicit joins.** MP's REST API auto-joins tables named via `_TABLE` in `$select`. If a column appears in more than one joined table, the API returns an **ambiguous column** error.
 - **`_TABLE` FK traversal.** Suffix an FK column with `_TABLE` then dot-access a field on the target table. Chain `_TABLE_` between levels; use the dot **only** before the final field.
-- **Quote-escape all user input.** `'` → `''` via `escapeFilterString()` (also `%` → `[%]`, `_` → `[_]` for LIKE).
-- **Typed ID validators.** `validateGuid`, `validatePositiveInt`, `validateColumnName` throw before a value reaches any filter string.
-- **`$userId` audit.** Passing `$userId` to `createTableRecords` / `updateTableRecords` stamps MP audit columns with that MP User ID (not the Better Auth session user ID).
+- **Quote-escape all user input.** `'` → `''` via `escapeFilterString()` (also `[` → `[[]`, `%` → `[%]`, `_` → `[_]` for LIKE; quote look-alikes → `_`).
+- **Typed ID validators.** `validateGuid`, `validatePositiveInt`, `validateColumnName`, `validateFkPath` throw before a value reaches any filter/select string. Errors name the field, never the value (CLAUDE.md rule 14).
+- **`$userId` audit.** Passing `$userId` to `createTableRecords` / `updateTableRecords` / `executeProcedureWithBody` stamps the MP audit log with that MP `User_ID`. Its only source is `AuthorizationService.requireSecurityRole()`'s return value, taken inside the service (CLAUDE.md rule 13).
 
 ## FK traversal
 
@@ -59,7 +60,7 @@ const records = await this.mp!.getTableRecords<MPUserProfile>({
 
 ### Multi-level FK traversal — `AddressLabelService`
 ```typescript
-// src/services/addressLabelService.ts:23-38
+// src/services/addressLabelService.ts:24-39
 const SELECT_FIELDS = [
   'Contact_ID',
   'Display_Name',
@@ -91,19 +92,22 @@ const records = await mp.getTableRecords<{ Role_Name: string }>({
 ## Quote escaping (SQL-injection prevention)
 
 ```typescript
-// src/lib/validation.ts
+// src/lib/validation.ts:127-144 (abridged)
 export function escapeFilterString(value: string): string {
+  // throws on non-string, length > MAX_SEARCH_TERM_LENGTH (100), or ASCII control chars
   return value
-    .replace(/'/g, "''")        // escape single quotes (SQL-literal escape)
+    .replace(/\[/g, '[[]')      // FIRST — `[` opens a LIKE character class
     .replace(/%/g, '[%]')       // escape LIKE wildcard
-    .replace(/_/g, '[_]');      // escape LIKE any-single-char wildcard
+    .replace(/_/g, '[_]')       // escape LIKE any-single-char wildcard
+    .replace(/'/g, "''")        // escape single quotes (SQL-literal escape)
+    .replace(QUOTE_LOOKALIKES, '_'); // curly/fullwidth quotes → single-char wildcard
 }
 ```
 
 Used where?
 
 ```typescript
-// src/services/groupService.ts:151-160
+// src/services/groupService.ts:241-255 (gate call omitted)
 async searchContacts(term: string): Promise<ContactSearchResult[]> {
   const escaped = escapeFilterString(term);
   return this.mp!.getTableRecords<ContactSearchResult>({
@@ -116,75 +120,72 @@ async searchContacts(term: string): Promise<ContactSearchResult[]> {
 }
 ```
 
-Inline escape (no `%`/`_` wildcards): `ToolService.listRoles`
+Contains-match: `ToolService.listRoles`
 ```typescript
-// src/services/toolService.ts:226-239
+// src/services/toolService.ts:252-255
 const filter = term
-  ? `Role_Name LIKE '%${term.replace(/'/g, "''")}%'`
+  ? `Role_Name LIKE '%${escapeFilterString(term)}%'`
   : undefined;
 ```
+
+Also used by `FamilyService.searchContacts` (`src/services/familyService.ts:116`).
 
 ## Typed validators — fail fast before building a filter
 
 ```typescript
 // src/lib/validation.ts
-export function validateGuid(value: string): string { /* /^[0-9a-f]{8}-.../ throws on fail */ }
-export function validatePositiveInt(value: number): number { /* throws on 0, negative, non-int */ }
+export function validateGuid(value: string): string { /* /^[0-9a-f]{8}-.../i throws on fail */ }
+export function validatePositiveInt(value: number, field?: string): number { /* throws on non-number, 0, negative, non-safe-integer */ }
 export function validateColumnName(value: string): string { /* throws if ≠ /^[A-Za-z_][A-Za-z0-9_]*$/ */ }
+export function validateFkPath(value: unknown, field = 'column path'): string { /* `X_TABLE.Col` / `A_TABLE_B_TABLE.Col`; ≤4 FK segments, ≤256 chars; no spaces, commas, AS */ }
 ```
 
 | Where | Call | Purpose |
 |-------|------|---------|
 | `userService.ts` (`getUserProfile`), `authorizationService.ts` (`resolveUserId`) | `validateGuid(...)` | Guard `User_GUID = '...'` filter |
-| `toolService.ts:307-334` | `validateColumnName`, `validateFkPath`, `validatePositiveInt` | Guard `resolveContactIds` — rejects bad page-metadata table/PK/contact-id-field and record-ID values |
-| `addressLabelService.ts:76` | `batch.forEach(validatePositiveInt)` | Guard batched `Contact_ID IN (...)` |
-| `groupService.ts:176` | `validatePositiveInt(groupId)` | Guard `Group_ID = ${id}` in `getGroup` |
+| `toolService.ts:335-371` | `validateColumnName`, `validateFkPath`, `validatePositiveInt` | Guard `resolveContactIds` — rejects bad page-metadata table/PK/contact-id-field and record-ID values |
+| `familyService.ts:167-174` | `validateColumnName`, `validateFkPath`, `validatePositiveInt` | Guard `resolveContactIdFromPage` (same page-metadata shape) |
+| `addressLabelService.ts:83`, `:107` | `validatePositiveInt` | Guard batched `Contact_ID IN (...)` and single `Contact_ID = ${id}` |
+| `groupService.ts:289`, `:390` | `validatePositiveInt(groupId)` | Guard `Groups.Group_ID = ${id}` in `getGroup`; `Group_ID` in `updateGroup` |
 
 ## `$userId` for MP audit trail
 
-`createTableRecords` / `updateTableRecords` accept a `$userId` option — MP records it as the audit user for the created/updated row. Pass the numeric MP `User_ID` (not `User_GUID`, not `session.user.id`).
+`createTableRecords` / `updateTableRecords` (and `executeProcedureWithBody` via its third `queryParams` argument) accept a `$userId` option — MP records it as the audit user. It must be the numeric MP `User_ID` (not `User_GUID`, not `session.user.id`), and it comes **only** from the gate's return value inside the service — never a method parameter, never an action payload.
 
 ```typescript
-// src/services/groupService.ts:227-237
-async createGroup(data, userId) {
-  const apiData = prepareForApi(data);
+// src/services/groupService.ts:365-379
+async createGroup(data: GroupWizardFormData) {
+  // Gate FIRST; its return value is the ONLY source of write attribution.
+  const $userId = await AuthorizationService.getInstance().requireSecurityRole({
+    table: 'Groups',
+    operation: 'create',
+  });
+  const apiData = await prepareForApi(data);
   const result = await this.mp!.createTableRecords('Groups', [apiData], {
     $select: 'Group_ID, Group_Name',
-    $userId: userId,
-  });
-  return result[0] as unknown as { Group_ID: number; Group_Name: string };
-}
-
-// src/services/groupService.ts:239-251
-async updateGroup(groupId, data, userId) {
-  const apiData = { Group_ID: groupId, ...prepareForApi(data as GroupWizardFormData) };
-  const result = await this.mp!.updateTableRecords('Groups', [apiData], {
-    partial: true,
-    $select: 'Group_ID, Group_Name',
-    $userId: userId,
+    $userId,
   });
   return result[0] as unknown as { Group_ID: number; Group_Name: string };
 }
 ```
 
-To resolve the numeric MP User ID from the session's `User_GUID`, call `UserService.getUserIdByGuid(userGuid)`.
+Same pattern: `GroupService.updateGroup`, `FamilyService.saveHousehold` (one gate; `userId` threaded through every address/household/contact/participant/donor write), `FieldManagementService.updatePageFieldOrder` and `ToolService.deployTool` (SP calls with `{ $userId }`). `User_GUID` → `User_ID` resolution lives in `resolveUserId` inside `src/services/authorizationService.ts`.
 
 ## Batching guards
 
 Guard empty arrays, batch large IN-lists to ≤100 IDs per request:
 
 ```typescript
-// src/services/addressLabelService.ts:21, 69-90
-const BATCH_SIZE = 100;
-
+// src/services/addressLabelService.ts:70-97 (gate call omitted)
+// MP_FETCH_BATCH_SIZE = 100 — src/lib/constants.ts
 async getAddressesForContacts(contactIds: number[]): Promise<ContactAddressRow[]> {
   if (contactIds.length === 0) return [];
 
   const results: ContactAddressRow[] = [];
 
-  for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
-    const batch = contactIds.slice(i, i + BATCH_SIZE);
-    batch.forEach(validatePositiveInt);
+  for (let i = 0; i < contactIds.length; i += MP_FETCH_BATCH_SIZE) {
+    const batch = contactIds.slice(i, i + MP_FETCH_BATCH_SIZE);
+    batch.forEach((id) => validatePositiveInt(id));
     const idList = batch.join(', ');
 
     const rows = await this.mp!.getTableRecords<ContactAddressRow>({
@@ -201,7 +202,7 @@ async getAddressesForContacts(contactIds: number[]): Promise<ContactAddressRow[]
 }
 ```
 
-`ToolService.resolveContactIds` uses the same pattern with `BATCH_SIZE = 100` at `src/services/toolService.ts:283, 332-339`.
+`ToolService.resolveContactIds` uses the same `MP_FETCH_BATCH_SIZE` loop at `src/services/toolService.ts:369-384`.
 
 ## Filtering quick reference
 
@@ -231,7 +232,7 @@ filter: "Group_ID = 5 AND Group_Role_ID = 7 AND End_Date IS NULL"
 |--------|-------|-------|----------------|
 | `State/Region` | Addresses | `/` | Bracket: `[State/Region]` in select; `'State/Region'` as TS key |
 | `Allow_Check-in` | Events | `-` | Bracket in select; `obj["Allow_Check-in"]` in TS |
-| `Secure_Check-in` | Groups | `-` | `r['Secure_Check-in']` in TS (see `groupService.ts:214`) |
+| `Secure_Check-in` | Groups | `-` | `r['Secure_Check-in']` in TS (see `groupService.ts:327`) |
 
 ## MPHelper parameter mapping
 
@@ -254,11 +255,12 @@ filter: "Group_ID = 5 AND Group_Role_ID = 7 AND End_Date IS NULL"
 ## Gotchas
 - Forgetting to prefix an ambiguous column in `$select` or `$filter` → MP returns "Ambiguous column name" 500. Rule of thumb: any time you use `_TABLE` traversal AND the base table shares a column name with the related table, prefix the base-table column.
 - Using dots between FK levels (`Building_ID_TABLE.Location_ID_TABLE.Column`) — invalid; use `_TABLE_` underscores.
-- Passing Better Auth `session.user.id` as `$userId` — it's a Better Auth internal ID, not the MP `User_ID`. Resolve via `UserService.getUserIdByGuid(session.user.userGuid)` first.
-- Building a filter from unescaped user input → risk of broken queries and injection. Always `escapeFilterString()` or `term.replace(/'/g, "''")`.
+- Taking `$userId` from anywhere but `requireSecurityRole()`'s return value (a method parameter, the action payload, `session.user.id`) — `session.user.id` is a Better Auth internal ID, not the MP `User_ID`, and a caller-supplied value is forgeable.
+- Building a filter from unescaped user input → risk of broken queries and injection. Always `escapeFilterString()` for strings, a typed validator for IDs/column names.
 
 ## Related docs
 - `../mp-provider/architecture.md` — `MPHelper` facade (what services call)
 - `../mp-schema/required-procs.md` — stored procs called from services
 - `../auth/sessions.md` — `userGuid` vs `user.id`
-- `tool-service.md`, `user-service.md`, `address-label-service.md`, `group-service.md`, `field-management-service.md`
+- `tool-service.md`, `user-service.md`, `address-label-service.md`, `group-service.md`, `field-management-service.md`, `family-service.md`
+- `../security/README.md` — authorization gate and write attribution

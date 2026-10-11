@@ -176,9 +176,10 @@ export class MPHelper {
    * });
    *
    * @example
-   * // Create with Zod validation (recommended)
-   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+   * // Create with a datetime, validated against the generated schema
+   * // (its datetime rule accepts MP wall-clock `YYYY-MM-DD HH:MM:SS`)
    * import { DomainTimezoneService } from '@/services/domainTimezoneService';
+   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
    *
    * // MP stores datetimes as wall-clock in the domain's TZ, not UTC.
    * // Route every datetime write through DomainTimezoneService.
@@ -268,7 +269,7 @@ export class MPHelper {
    *
    * @example
    * // Update with Zod validation (recommended)
-   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+   * import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
    *
    * const updatedLogs = await mp.updateTableRecords('Contact_Log', [{
    *   Contact_Log_ID: 67890,

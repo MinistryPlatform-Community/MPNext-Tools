@@ -15,14 +15,14 @@ A CLI utility that generates TypeScript interfaces and Zod schemas from your Min
 - ✅ **Zod Schema Generation**: Optional runtime validation schemas with length and type constraints
 - ✅ **Flexible Output**: Choose your output directory
 - ✅ **Search Filtering**: Generate types for specific tables only
-- ✅ **Auto-generated Index**: Creates barrel exports for easy importing
+- ✅ **Auto-generated Index**: Creates an `index.ts` barrel re-exporting every generated **interface** file (the `*Schema.ts` files are not re-exported — import them by path)
 
 ## Prerequisites
 
 Ensure your environment contains the required Ministry Platform configuration:
 
 ```env
-MINISTRY_PLATFORM_BASE_URL=https://your-domain.ministryplatformapi.com
+MINISTRY_PLATFORM_BASE_URL=https://your-domain.ministryplatform.com/ministryplatformapi
 MINISTRY_PLATFORM_CLIENT_ID=your_client_id
 MINISTRY_PLATFORM_CLIENT_SECRET=your_client_secret
 ```
@@ -83,43 +83,48 @@ npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/ge
 |--------|-------|-------------|---------|
 | `--output` | `-o` | Output directory for generated types | `./generated-types` |
 | `--search` | `-s` | Filter tables by search term | (none) |
-| `--detailed` | `-d` | Generate detailed types by sampling records | `false` |
+| `--detailed` | `-d` | Sample records to infer types — only for tables that have no column metadata | `false` |
 | `--sample-size` | | Number of records to sample in detailed mode | `5` |
 | `--zod` | `-z` | Generate Zod schemas for runtime validation | `false` |
+| `--clean` | `-c` | Delete every `.ts` file in an existing output directory before generating | `false` |
 | `--help` | `-h` | Show help message | |
 
 ## Output Examples
 
 ### Standard Interface
 
+Excerpt of the committed `models/Contacts.ts`:
+
 ```typescript
 /**
  * Interface for Contacts
- * Table: Contacts
+* Table: Contacts
  * Access Level: ReadWriteAssignDelete
  * Special Permissions: FileAttach, DataExport, SecureRecord
  * Generated from column metadata
  */
-export interface ContactsRecord {
-  Contact_ID: number; // Primary Key
-  
+export interface Contacts {
+
+  Contact_ID: number /* 32-bit integer */; // Primary Key
+
   /**
    * Max length: 125 characters
    */
-  Display_Name: string;
-  
+  Display_Name: string /* max 125 chars */;
+
   /**
    * Max length: 254 characters
    */
-  Email_Address?: string /* email */ | null;
-  
+  Email_Address?: string /* email, max 254 chars */ | null;
+
   Mobile_Phone?: string /* phone number */ | null;
-  Contact_GUID: string /* GUID/UUID */;
-  
+
+  Contact_GUID: string /* GUID/UUID */; // Has Default
+
   // ... additional fields
 }
 
-export type Contacts = ContactsRecord;
+export type ContactsRecord = Contacts;
 ```
 
 ### Zod Schema (with --zod flag)
@@ -133,6 +138,9 @@ export const ContactsSchema = z.object({
   Email_Address: z.string().email().max(254).nullable(),
   Mobile_Phone: z.string().nullable(),
   Contact_GUID: z.string().uuid(),
+  // Date columns: YYYY-MM-DD with an optional time part. DateTime columns use the
+  // same shape with the time required — MP wall-clock ("2026-05-17 14:30:00") or ISO.
+  Date_of_Birth: z.string().regex(/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/, "...").nullable(),
   // ... additional fields
 });
 
@@ -143,7 +151,8 @@ export type ContactsInput = z.infer<typeof ContactsSchema>;
 
 ```typescript
 import { MPHelper } from '@/lib/providers/ministry-platform';
-import { Contacts, ContactsSchema } from './generated-types';
+import { Contacts } from './generated-types';                   // barrel: interfaces only
+import { ContactsSchema } from './generated-types/ContactsSchema'; // schemas: import by path
 
 const mp = new MPHelper();
 
@@ -160,36 +169,39 @@ await mp.createTableRecords('Contacts', [validatedContact]);
 
 ## Recommended Workflow
 
-1. Generate types to the models directory:
+1. Regenerate the committed models (all tables, cleaned first):
    ```bash
-   npx tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts \
-     -o src/lib/providers/ministry-platform/models \
-     --zod \
-     --search "Contact"
+   npm run mp:generate:models
    ```
+   A `--search` run into the same directory is safe: `index.ts` is rebuilt from every type file in the output directory, so other tables stay exported, and the `mp-schema/tables.md` catalog is left untouched (it is only rewritten on a full run).
 
 2. Import and use in your app:
    ```typescript
-   import { ContactLog, ContactLogSchema } from '@/lib/providers/ministry-platform/models';
+   import { ContactLog } from '@/lib/providers/ministry-platform/models';
+   import { ContactLogSchema } from '@/lib/providers/ministry-platform/models/ContactLogSchema';
    ```
 
 3. Re-run when schema changes to keep types in sync
 
 ## Package.json Scripts
 
-Add to your `package.json` for easier access:
+Already defined in `package.json`:
 
 ```json
 {
   "scripts": {
     "mp:generate": "tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts",
-    "mp:generate:models": "tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models --zod"
+    "mp:generate:models": "tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-types.ts -o src/lib/providers/ministry-platform/models --zod --clean",
+    "mp:generate:storedprocs": "tsx --conditions=react-server src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts",
+    "mp:build:install": "tsx src/lib/providers/ministry-platform/scripts/build-sql-install.ts"
   }
 }
 ```
 
-Then run with:
-```bash
-npm run mp:generate
-npm run mp:generate:models
-```
+## Other scripts in this folder
+
+- `generate-storedprocs.ts` — writes the stored-procedure reference to `.claude/references/mp-schema/stored-procs.md` (with frontmatter; `-o`, `-s`, `-h` — a `-s` run requires `-o` so it cannot overwrite the full catalog).
+- `build-sql-install.ts` — combines `../db/*.sql` into `_INSTALL/ministryplatform-install.sql`; skips when the content hash is unchanged. Imports nothing from the provider, so it needs no `--conditions` flag.
+- `codegen-escape.ts` — escaping helpers (`propertyKey`, `commentText`, `positiveInt`) for MP metadata interpolated into generated source.
+
+The type generator also writes the table catalog `.claude/references/mp-schema/tables.md` (with frontmatter) on full runs; a `--search` run skips it, and rebuilds `models/index.ts` from every type file in the output directory so other tables stay exported.

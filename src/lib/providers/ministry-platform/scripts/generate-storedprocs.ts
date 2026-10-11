@@ -22,8 +22,13 @@ envFiles.forEach(file => {
 import { MPHelper } from "../helper";
 import type { ProcedureInfo, ParameterInfo } from "../types";
 
+/** The committed catalog this script refreshes (with its frontmatter). */
+export const STORED_PROCS_DOC_PATH = '.claude/references/mp-schema/stored-procs.md';
+
 interface CLIOptions {
   output: string;
+  /** True when -o was given; a --search run only writes when it was. */
+  outputExplicit?: boolean;
   search?: string;
   help?: boolean;
 }
@@ -31,7 +36,7 @@ interface CLIOptions {
 function parseArguments(): CLIOptions {
   const args = process.argv.slice(2);
   const options: CLIOptions = {
-    output: path.resolve(process.cwd(), '.claude/references/ministryplatform.storedprocs.md'),
+    output: path.resolve(process.cwd(), STORED_PROCS_DOC_PATH),
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -41,6 +46,7 @@ function parseArguments(): CLIOptions {
       case "-o":
       case "--output":
         options.output = args[++i];
+        options.outputExplicit = true;
         break;
       case "-s":
       case "--search":
@@ -80,13 +86,14 @@ Prerequisites:
   Supports .env.local, .env.development, and .env files (loaded in that order)
 
 Options:
-  -o, --output <path>    Output file path (default: .claude/references/ministryplatform.storedprocs.md)
+  -o, --output <path>    Output file path (default: .claude/references/mp-schema/stored-procs.md;
+                         a -s run needs -o, so it never overwrites the full catalog)
   -s, --search <term>    Optional search term to filter procedures
   -h, --help             Show this help message
 
 Examples:
   npm run mp:generate:storedprocs
-  npm run mp:generate:storedprocs -- -s "Contact"
+  npm run mp:generate:storedprocs -- -s "Contact" -o ./contact-procs.md
   npm run mp:generate:storedprocs -- -o ./my-procs-reference.md
 `);
 }
@@ -108,7 +115,7 @@ function validateEnvironment() {
   }
 }
 
-function groupByPrefix(procedures: ProcedureInfo[]): Map<string, ProcedureInfo[]> {
+export function groupByPrefix(procedures: ProcedureInfo[]): Map<string, ProcedureInfo[]> {
   const groups = new Map<string, ProcedureInfo[]>();
 
   for (const proc of procedures) {
@@ -140,7 +147,7 @@ function groupByPrefix(procedures: ProcedureInfo[]): Map<string, ProcedureInfo[]
   return sorted;
 }
 
-function formatParamSignature(params: ParameterInfo[]): string {
+export function formatParamSignature(params: ParameterInfo[]): string {
   const inputParams = params.filter(p => p.Direction !== "ReturnValue");
   if (inputParams.length === 0) return "(no parameters)";
 
@@ -153,12 +160,25 @@ function formatParamSignature(params: ParameterInfo[]): string {
   }).join(", ") + ")";
 }
 
-function generateDocument(procedures: ProcedureInfo[], search?: string): string {
+export function generateDocument(procedures: ProcedureInfo[], search?: string, now: Date = new Date()): string {
   const groups = groupByPrefix(procedures);
 
-  let md = "# Ministry Platform Stored Procedures Reference\n\n";
-  md += "This document provides a summary of stored procedures available via the Ministry Platform API for LLM assistants working on the MPNext project.\n\n";
-  md += `**Generated:** ${new Date().toISOString()}\n`;
+  let md = "---\n";
+  md += "title: Ministry Platform Stored Procedures\n";
+  md += "domain: mp-schema\n";
+  md += "type: generated-reference\n";
+  md += `last_verified: ${now.toISOString().slice(0, 10)}\n`;
+  md += "source: npm run mp:generate:storedprocs\n";
+  md += "---\n\n";
+  md += "## Purpose\n";
+  md += "Auto-generated reference of every Ministry Platform stored procedure exposed via the MP API, with its input parameters and bounded string sizes. Regenerate with `npm run mp:generate:storedprocs` (runs `src/lib/providers/ministry-platform/scripts/generate-storedprocs.ts`). Do not edit by hand — the generator overwrites this file.\n\n";
+  md += "## How to call\n";
+  md += "- HTTP: `POST /procs/{procName}` with JSON body `{ \"@ParamName\": value, ... }` (or GET for simple query params).\n";
+  md += "- Code: use `MPHelper.executeProcedure()` / `executeProcedureWithBody()` (`src/lib/providers/ministry-platform/helper.ts`), which delegate to `ProcedureService`.\n";
+  md += "- Return shape: `unknown[][]` — an array of result sets, each an array of row objects.\n";
+  md += "- `@DomainID` is auto-injected by the MP API — do not pass it.\n\n";
+  md += "## Generated metadata\n\n";
+  md += `**Generated (source):** ${now.toISOString()}\n`;
   md += `**Procedures:** ${procedures.length}\n`;
   if (search) {
     md += `**Filter:** "${search}"\n`;
@@ -186,6 +206,11 @@ async function main() {
   if (options.help) {
     showHelp();
     return;
+  }
+
+  if (options.search && !options.outputExplicit) {
+    console.error(`A --search run lists only matching procedures; pass -o <path> so it does not overwrite ${STORED_PROCS_DOC_PATH}.`);
+    process.exit(1);
   }
 
   validateEnvironment();
@@ -240,6 +265,7 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+// Guarded so tests can import the pure generators without running main().
+if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
   main().catch(console.error);
 }

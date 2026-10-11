@@ -79,10 +79,12 @@ export class FieldManagementService {
     });
     const tables = await this.mp!.getTables(tableName);
 
-    if (tables.length === 0) return null;
-
-    // getTables with search may return multiple matches — find the exact one
-    return tables.find((t) => t.Table_Name === tableName) ?? tables[0];
+    // `$search` can return several tables. Take only the exact `Name` match
+    // (the API's key — there is no `Table_Name` on a /tables entry). No
+    // fallback to `tables[0]`: a near-miss would merge another table's columns
+    // into this page's layout. `null` is the "no metadata" case the caller
+    // already handles — it merges nothing and tags no separators.
+    return tables.find((t) => t.Name === tableName) ?? null;
   }
 
   private static readonly CONCURRENCY = 5;

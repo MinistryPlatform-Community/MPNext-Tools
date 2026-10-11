@@ -5,19 +5,29 @@ type: reference
 applies_to: [src/services/fieldManagementService.ts, src/services/fieldManagementService.test.ts]
 symbols: [FieldManagementService, PageListItem, PageField]
 related: [query-patterns.md, ../mp-schema/required-procs.md, ../components/field-management.md]
-last_verified: 2026-04-17
+last_verified: 2026-10-10
 ---
 
 ## Purpose
-Reads MP page list + `dp_Page_Fields` rows for the drag-and-drop field editor, merges in table-metadata columns to surface unsaved fields, and persists reorders via `api_MPNextTools_UpdatePageFieldOrder` (concurrency-capped at 5).
+Reads MP page list, `dp_Page_Fields` rows and table metadata for the drag-and-drop field editor (the `fetchPageFieldData` action merges metadata columns in to surface unsaved fields), and persists reorders via `api_MPNextTools_UpdatePageFieldOrder` (concurrency-capped at 5).
 
 ## Files
-- `src/services/fieldManagementService.ts` — 110 lines
-- `src/services/fieldManagementService.test.ts` — 254 lines
+- `src/services/fieldManagementService.ts` — 134 lines
+- `src/services/fieldManagementService.test.ts` — 303 lines
+
+## Authorization
+Every method calls `AuthorizationService.getInstance().requireSecurityRole(...)` first (see `../security/README.md`). `updatePageFieldOrder` is a **domain-wide** configuration write (changes page layout for every MP user), and takes `$userId` from the gate's return value.
+
+| Method | Gate `table` / `operation` |
+|--------|---------------------------|
+| `getPages` | `dp_Pages` / `read` |
+| `getPageFields` | `dp_Page_Fields` / `read` |
+| `getTableMetadata` | `dp_Tables` / `read` |
+| `updatePageFieldOrder` | `dp_Page_Fields` / `update` |
 
 ## Singleton
 ```typescript
-// src/services/fieldManagementService.ts:25-41
+// src/services/fieldManagementService.ts:27-43
 export class FieldManagementService {
   private static instance: FieldManagementService;
   private mp: MPHelper | null = null;
@@ -33,13 +43,13 @@ export class FieldManagementService {
 |--------|---------|-------|
 | `getPages()` | `PageListItem[]` | SP `api_MPNextTools_GetPages` |
 | `getPageFields(pageId)` | `PageField[]` | SP `api_MPNextTools_GetPageFields` |
-| `getTableMetadata(tableName)` | `TableMetadata \| null` | `mp.getTables(tableName)` — exact-match preferred |
-| `updatePageFieldOrder(fields[])` | `void` | SP `api_MPNextTools_UpdatePageFieldOrder` per field (batches of 5 via `Promise.all`) |
+| `getTableMetadata(tableName)` | `TableMetadata \| null` | `mp.getTables(tableName)` — exact `Name` match only, else `null` |
+| `updatePageFieldOrder(fields[])` | `void` | SP `api_MPNextTools_UpdatePageFieldOrder` per field (batches of 5 via `Promise.all`), `$userId` from gate |
 
 ## Types
 
 ```typescript
-// src/services/fieldManagementService.ts:4-23
+// src/services/fieldManagementService.ts:6-25
 export interface PageListItem {
   Page_ID: number;
   Display_Name: string;
@@ -65,7 +75,7 @@ export interface PageField {
 ## getPages
 
 ```typescript
-// src/services/fieldManagementService.ts:43-51
+// src/services/fieldManagementService.ts:45-57 (gate call omitted)
 public async getPages(): Promise<PageListItem[]> {
   const result = await this.mp!.executeProcedureWithBody('api_MPNextTools_GetPages', {});
   if (result && result.length > 0 && result[0].length > 0) {
@@ -80,7 +90,7 @@ Same SP also used by `ToolService.listPages` (which wraps it with in-memory sear
 ## getPageFields
 
 ```typescript
-// src/services/fieldManagementService.ts:53-63
+// src/services/fieldManagementService.ts:59-73 (gate call omitted)
 public async getPageFields(pageId: number): Promise<PageField[]> {
   const result = await this.mp!.executeProcedureWithBody('api_MPNextTools_GetPageFields', {
     "@PageID": pageId,
@@ -95,21 +105,21 @@ public async getPageFields(pageId: number): Promise<PageField[]> {
 ## getTableMetadata
 
 ```typescript
-// src/services/fieldManagementService.ts:65-72
+// src/services/fieldManagementService.ts:75-88 (gate call and comment omitted)
 public async getTableMetadata(tableName: string): Promise<TableMetadata | null> {
   const tables = await this.mp!.getTables(tableName);
-  if (tables.length === 0) return null;
-  // getTables with search may return multiple matches — find the exact one
-  return tables.find((t) => t.Table_Name === tableName) ?? tables[0];
+  return tables.find((t) => t.Name === tableName) ?? null;
 }
 ```
 
-`mp.getTables()` delegates to MP's metadata endpoint; `search` is a LIKE-style param so a prefix match may return multiple tables.
+`mp.getTables()` delegates to MP's `GET /tables?$search=`, which can return several tables. Each entry's name is under **`Name`** — a live `/tables?$search=Contacts` response (2026-10-11) carried exactly `Name`, `AccessLevel`, `SpecialPermissions`, `Columns` per entry; there is no `Table_Name`. The match is exact and case-sensitive (the page's `Table_Name` and the `/tables` `Name` both come from MP's own table metadata, so they agree verbatim).
+
+There is **no fallback to `tables[0]`**: a near-miss would merge another table's columns into this page's layout. With no exact match it returns `null`, which `fetchPageFieldData` already handles — it merges no extra columns and tags no separators, so the editor shows only the page's existing `dp_Page_Fields` rows.
 
 ## updatePageFieldOrder — concurrency-capped
 
 ```typescript
-// src/services/fieldManagementService.ts:74-109
+// src/services/fieldManagementService.ts:88-133
 private static readonly CONCURRENCY = 5;
 
 public async updatePageFieldOrder(
@@ -127,6 +137,12 @@ public async updatePageFieldOrder(
     Writing_Assistant_Enabled: boolean;
   }[]
 ): Promise<void> {
+  const $userId = await AuthorizationService.getInstance().requireSecurityRole({
+    table: "dp_Page_Fields",
+    operation: "update",
+  });
+  const queryParams = { $userId };
+
   for (let i = 0; i < fields.length; i += FieldManagementService.CONCURRENCY) {
     const batch = fields.slice(i, i + FieldManagementService.CONCURRENCY);
     await Promise.all(batch.map((f) =>
@@ -142,13 +158,13 @@ public async updatePageFieldOrder(
         "@DependsOnField": f.Depends_On_Field,
         "@FieldLabel": f.Field_Label,
         "@WritingAssistantEnabled": f.Writing_Assistant_Enabled,
-      })
+      }, queryParams)
     ));
   }
 }
 ```
 
-- One SP call per field, 5 parallel calls per batch.
+- One SP call per field, 5 parallel calls per batch, each carrying `$userId` for MP audit.
 - Not atomic — partial failures leave some fields updated, others not. The server action wraps in try/catch and surfaces an error to the UI.
 
 ## Stored procedures
@@ -159,7 +175,7 @@ public async updatePageFieldOrder(
 | `api_MPNextTools_GetPageFields` | `getPageFields` | `@PageID INT` |
 | `api_MPNextTools_UpdatePageFieldOrder` | `updatePageFieldOrder` (1-per-field) | `@PageID, @FieldName, @GroupName, @ViewOrder, @Required, @Hidden, @DefaultValue, @FilterClause, @DependsOnField, @FieldLabel, @WritingAssistantEnabled` |
 
-Each SP accepts `@DomainID INT` as the implicit first parameter (auto-injected by MP API — see MP install scripts in `src/lib/providers/ministry-platform/db/`).
+Each SP declares `@DomainID INT` as its first parameter (auto-injected by MP API — see MP install scripts in `src/lib/providers/ministry-platform/db/`).
 
 See `../mp-schema/required-procs.md` for full parameter/return docs.
 
@@ -167,13 +183,13 @@ See `../mp-schema/required-procs.md` for full parameter/return docs.
 
 | Action | File |
 |--------|------|
-| `fetchPages` | `src/components/field-management/actions.ts` |
+| `fetchPages` | `src/components/field-management/actions.ts` — gate `dp_Pages`/`read` |
 | `fetchPageFieldData` | `src/components/field-management/actions.ts` (parallels `getPageFields` + `getTableMetadata`, merges unsaved rows with negative `Page_Field_ID` values) |
-| `savePageFieldOrder` | `src/components/field-management/actions.ts` — wraps `updatePageFieldOrder` in try/catch |
+| `savePageFieldOrder` | `src/components/field-management/actions.ts` — gate `dp_Page_Fields`/`update`, wraps `updatePageFieldOrder` in try/catch |
 
 ## Gotchas
 - `updatePageFieldOrder` is not transactional. A mid-batch failure leaves `dp_Page_Fields` partially updated.
-- `getTableMetadata` falls back to `tables[0]` when there's no exact `Table_Name` match — this can misbehave if MP returns a prefix-matching unrelated table. Exact match is preferred; the caller assumes this is usually right.
+- `getTableMetadata` matches on `Name`, not `Table_Name` — `/tables` entries have no `Table_Name` key (the `PageListItem.Table_Name` from `dp_Pages` is a different shape). No exact match → `null`, never the first search result.
 - `getPages` shape is `result[0]` — not `result[0][0]`. Different from `getPageData` in ToolService (which returns a single row).
 
 ## Related docs

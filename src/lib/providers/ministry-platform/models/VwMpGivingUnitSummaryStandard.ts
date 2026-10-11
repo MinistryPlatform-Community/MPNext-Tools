@@ -1,13 +1,13 @@
 /**
- * Interface for vw_mp_giving_unit_summary
-* Table: vw_mp_giving_unit_summary
+ * Interface for vw_mp_giving_unit_summary_standard
+* Table: vw_mp_giving_unit_summary_standard
  * Access Level: Read
  * Special Permissions: DataExport
  * Generated from column metadata
  */
-export interface VwMpGivingUnitSummary {
+export interface VwMpGivingUnitSummaryStandard {
 
-  Household_ID?: number /* 32-bit integer */ | null; // Primary Key, Foreign Key -> Households.Household_ID
+  Household_ID: number /* 32-bit integer */; // Primary Key, Foreign Key -> Households.Household_ID
 
   /**
    * Max length: 75 characters
@@ -15,38 +15,40 @@ export interface VwMpGivingUnitSummary {
   Household_Name: string /* max 75 chars */;
 
   /**
-   * Max length: 103 characters
+   * Max length: 105 characters
    */
-  Primary_Individuals?: string /* max 103 chars */ | null;
+  Primary_Individuals?: string /* max 105 chars */ | null;
 
   /**
-   * Max length: 9 characters
+   * Max length: 10 characters
    */
-  Giving_Unit_Type: string /* max 9 chars */;
+  Giving_Unit_Type: string /* max 10 chars */;
+
+  Last_Refresh: string /* ISO datetime */;
 
   /**
-   * Max length: 97 characters
+   * Max length: 100 characters
    */
-  Giving_Notes: string /* max 97 chars */;
+  Giving_Notes: string /* max 100 chars */;
 
   Giving_YTD: number /* currency amount */;
 
   Giving_YTD_Last_Year: number /* currency amount */;
 
-  Giving_Variance_Last_YTD?: number /* currency amount */ | null;
+  Giving_Variance_Last_YTD: number /* currency amount */;
 
   Giving_Last_Year: number /* currency amount */;
 
   /**
-   * Max length: 47 characters
+   * Max length: 50 characters
    */
-  Online_Giving_Notes: string /* max 47 chars */;
+  Online_Giving_Notes: string /* max 50 chars */;
 
   Online_Giving_YTD: number /* currency amount */;
 
   Online_Giving_YTD_Last_Year: number /* currency amount */;
 
-  Online_Giving_Variance_Last_YTD?: number /* currency amount */ | null;
+  Online_Giving_Variance_Last_YTD: number /* currency amount */;
 
   Online_Giving_Last_Year: number /* currency amount */;
 
@@ -54,7 +56,7 @@ export interface VwMpGivingUnitSummary {
 
   Gifts_YTD_Last_Year: number /* 32-bit integer */;
 
-  Gifts_Variance_Last_YTD?: number /* 32-bit integer */ | null;
+  Gifts_Variance_Last_YTD: number /* 32-bit integer */;
 
   Gifts_Last_Year: number /* 32-bit integer */;
 
@@ -62,62 +64,62 @@ export interface VwMpGivingUnitSummary {
 
   Online_Gifts_YTD_Last_Year: number /* 32-bit integer */;
 
-  Online_Gifts_Variance_Last_YTD?: number /* 32-bit integer */ | null;
+  Online_Gifts_Variance_Last_YTD: number /* 32-bit integer */;
 
   Online_Gifts_Last_Year: number /* 32-bit integer */;
 
   /**
-   * Max length: 102 characters
+   * Max length: 120 characters
    */
-  Giver_Notes: string /* max 102 chars */;
+  Giver_Notes: string /* max 120 chars */;
 
   Givers_YTD: number /* 32-bit integer */;
 
   Givers_Last_Year: number /* 32-bit integer */;
 
   /**
-   * Max length: 171 characters
+   * Max length: 200 characters
    */
-  Comparison_Notes: string /* max 171 chars */;
+  Comparison_Notes: string /* max 200 chars */;
 
   /**
-   * Max length: 4000 characters
+   * Max length: 50 characters
    */
-  Date_Range_Before?: string /* max 4000 chars */ | null;
+  Date_Range_Before: string /* max 50 chars */;
 
   /**
-   * Max length: 4000 characters
+   * Max length: 50 characters
    */
-  Date_Range_After?: string /* max 4000 chars */ | null;
+  Date_Range_After: string /* max 50 chars */;
 
   Giving_Before: number /* currency amount */;
 
   Giving_After: number /* currency amount */;
 
-  Giving_After_Variance?: number /* currency amount */ | null;
+  Giving_After_Variance: number /* currency amount */;
 
   Gifts_Before: number /* 32-bit integer */;
 
   Gifts_After: number /* 32-bit integer */;
 
-  Gifts_After_Variance?: number /* 32-bit integer */ | null;
+  Gifts_After_Variance: number /* 32-bit integer */;
 
   Online_Giving_Before: number /* currency amount */;
 
   Online_Giving_After: number /* currency amount */;
 
-  Online_Giving_After_Variance?: number /* currency amount */ | null;
+  Online_Giving_After_Variance: number /* currency amount */;
 
   Online_Gifts_Before: number /* 32-bit integer */;
 
   Online_Gifts_After: number /* 32-bit integer */;
 
-  Online_Gifts_After_Variance?: number /* 32-bit integer */ | null;
+  Online_Gifts_After_Variance: number /* 32-bit integer */;
 
   /**
-   * Max length: 93 characters
+   * Max length: 120 characters
    */
-  HH_Member_Notes: string /* max 93 chars */;
+  HH_Member_Notes: string /* max 120 chars */;
 
   /**
    * Max length: 50 characters
@@ -137,12 +139,9 @@ export interface VwMpGivingUnitSummary {
   /**
    * Max length: 254 characters
    */
-  Email_Address?: string /* email, max 254 chars */ | null;
+  Email_Address?: string /* max 254 chars */ | null;
 
-  /**
-   * Max length: 25 characters
-   */
-  Mobile_Phone?: string /* max 25 chars */ | null;
+  Mobile_Phone?: string /* phone number */ | null;
 
   /**
    * Max length: 25 characters
@@ -169,14 +168,11 @@ export interface VwMpGivingUnitSummary {
    */
   Participant_Type?: string /* max 50 chars */ | null;
 
-  Age?: number /* 32-bit integer */ | null;
+  Age?: unknown | null;
 
   Contact_ID: number /* 32-bit integer */; // Foreign Key -> Contacts.Contact_ID
 
-  /**
-   * Max length: 25 characters
-   */
-  Home_Phone?: string /* max 25 chars */ | null;
+  Home_Phone?: string /* phone number */ | null;
 
   Congregation_ID?: number /* 32-bit integer */ | null;
 
@@ -189,7 +185,7 @@ export interface VwMpGivingUnitSummary {
 
   Last_HH_Donation?: string /* ISO datetime */ | null;
 
-  Months_Since_Last_HH_Donation?: number /* 32-bit integer */ | null;
+  Months_Since_Last_HH_Donation: number /* 32-bit integer */;
 
   /**
    * Max length: 50 characters
@@ -209,12 +205,9 @@ export interface VwMpGivingUnitSummary {
   /**
    * Max length: 254 characters
    */
-  Spouse_Email?: string /* email, max 254 chars */ | null;
+  Spouse_Email?: string /* max 254 chars */ | null;
 
-  /**
-   * Max length: 25 characters
-   */
-  Spouse_Mobile?: string /* max 25 chars */ | null;
+  Spouse_Mobile?: string /* phone number */ | null;
 
   /**
    * Max length: 25 characters
@@ -241,7 +234,7 @@ export interface VwMpGivingUnitSummary {
    */
   Spouse_Participant_Type?: string /* max 50 chars */ | null;
 
-  Spouse_Age?: number /* 32-bit integer */ | null;
+  Spouse_Age?: unknown | null;
 }
 
-export type VwMpGivingUnitSummaryRecord = VwMpGivingUnitSummary;
+export type VwMpGivingUnitSummaryStandardRecord = VwMpGivingUnitSummaryStandard;
