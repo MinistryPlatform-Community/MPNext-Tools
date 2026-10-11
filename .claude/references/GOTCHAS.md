@@ -209,10 +209,10 @@ Known pitfalls for agents working on MPNext-Tools. Each entry has a symptom-firs
 
 ### GOTCHA-017: `getTables('Contacts')` returns multiple tables
 
-**Symptom:** Calling `getTables('Contacts')` returns `Contacts`, `Contact_Addresses`, `Contact_Log`, `Contact_Attributes`, etc. — not just the exact match you wanted.
-**Root cause:** The MP REST `$search` parameter is a substring match, not an exact match.
-**Fix:** Always post-filter: `tables.find((t) => t.Table_Name === exactName)`. Return `tables.find(...) ?? tables[0]` or raise if no exact match found.
-**Enforced where:** `src/services/fieldManagementService.ts:85`.
+**Symptom:** `getTables(term)` can return more than the one table you asked for (other tables matching the search term), in no guaranteed order.
+**Root cause:** The MP REST `$search` parameter is a search, not an exact-name lookup. (A live `$search=Contacts` on 2026-10-11 returned a single entry, but callers must not rely on that.)
+**Fix:** Always post-filter on the **`Name`** key (a `/tables` entry has no `Table_Name`): `tables.find((t) => t.Name === exactName) ?? null`. Never fall back to `tables[0]` — that silently uses a different table.
+**Enforced where:** `src/services/fieldManagementService.ts:87`.
 **Related:** [services/](services/)
 
 ---

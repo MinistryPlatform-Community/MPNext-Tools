@@ -261,11 +261,16 @@ export interface RequestBody {
   [key: string]: unknown;
 }
 
+/**
+ * One entry from `GET /tables`. Verified against a live response (2026-10-11):
+ * each entry carries exactly `Name`, `AccessLevel`, `SpecialPermissions` and
+ * `Columns` — there is no `Table_ID`, `Table_Name` or `Display_Name`.
+ * `AccessLevel`/`SpecialPermissions` are left to the index signature until a
+ * caller needs them typed.
+ */
 export interface TableMetadata {
-  Table_ID: number;
-  Table_Name: string;
-  Display_Name: string;
-  Description?: string;
+  /** The table's name, e.g. `Contacts` (the API's key is `Name`, not `Table_Name`). */
+  Name: string;
   Columns?: ColumnMetadata[];
   [key: string]: unknown;
 }

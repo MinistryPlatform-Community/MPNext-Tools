@@ -43,7 +43,7 @@ export class FieldManagementService {
 |--------|---------|-------|
 | `getPages()` | `PageListItem[]` | SP `api_MPNextTools_GetPages` |
 | `getPageFields(pageId)` | `PageField[]` | SP `api_MPNextTools_GetPageFields` |
-| `getTableMetadata(tableName)` | `TableMetadata \| null` | `mp.getTables(tableName)` — exact-match preferred |
+| `getTableMetadata(tableName)` | `TableMetadata \| null` | `mp.getTables(tableName)` — exact `Name` match only, else `null` |
 | `updatePageFieldOrder(fields[])` | `void` | SP `api_MPNextTools_UpdatePageFieldOrder` per field (batches of 5 via `Promise.all`), `$userId` from gate |
 
 ## Types
@@ -105,16 +105,16 @@ public async getPageFields(pageId: number): Promise<PageField[]> {
 ## getTableMetadata
 
 ```typescript
-// src/services/fieldManagementService.ts:75-86 (gate call omitted)
+// src/services/fieldManagementService.ts:75-88 (gate call and comment omitted)
 public async getTableMetadata(tableName: string): Promise<TableMetadata | null> {
   const tables = await this.mp!.getTables(tableName);
-  if (tables.length === 0) return null;
-  // getTables with search may return multiple matches — find the exact one
-  return tables.find((t) => t.Table_Name === tableName) ?? tables[0];
+  return tables.find((t) => t.Name === tableName) ?? null;
 }
 ```
 
-`mp.getTables()` delegates to MP's metadata endpoint; `search` is a LIKE-style param so a prefix match may return multiple tables.
+`mp.getTables()` delegates to MP's `GET /tables?$search=`, which can return several tables. Each entry's name is under **`Name`** — a live `/tables?$search=Contacts` response (2026-10-11) carried exactly `Name`, `AccessLevel`, `SpecialPermissions`, `Columns` per entry; there is no `Table_Name`. The match is exact and case-sensitive (the page's `Table_Name` and the `/tables` `Name` both come from MP's own table metadata, so they agree verbatim).
+
+There is **no fallback to `tables[0]`**: a near-miss would merge another table's columns into this page's layout. With no exact match it returns `null`, which `fetchPageFieldData` already handles — it merges no extra columns and tags no separators, so the editor shows only the page's existing `dp_Page_Fields` rows.
 
 ## updatePageFieldOrder — concurrency-capped
 
@@ -189,7 +189,7 @@ See `../mp-schema/required-procs.md` for full parameter/return docs.
 
 ## Gotchas
 - `updatePageFieldOrder` is not transactional. A mid-batch failure leaves `dp_Page_Fields` partially updated.
-- `getTableMetadata` falls back to `tables[0]` when there's no exact `Table_Name` match — this can misbehave if MP returns a prefix-matching unrelated table. Exact match is preferred; the caller assumes this is usually right.
+- `getTableMetadata` matches on `Name`, not `Table_Name` — `/tables` entries have no `Table_Name` key (the `PageListItem.Table_Name` from `dp_Pages` is a different shape). No exact match → `null`, never the first search result.
 - `getPages` shape is `result[0]` — not `result[0][0]`. Different from `getPageData` in ToolService (which returns a single row).
 
 ## Related docs
