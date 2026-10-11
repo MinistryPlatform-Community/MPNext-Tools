@@ -10,7 +10,7 @@ last_verified: 2026-10-10
 
 ## Purpose
 Every test file, grouped by area, with its case count from `vitest run`
-(2026-10-10): **118 files / 2,185 test cases**. See
+(2026-10-11): **120 files / 2,237 test cases**. See
 `../_meta/facts/2026-10-10.md`. Counts drift — trust a fresh `npx vitest run`
 over this table. Co-location rule: `foo.ts` is tested by `foo.test.ts` beside it.
 The "What It Covers" column is filled where it was verified; blank rows are
@@ -27,11 +27,11 @@ self-describing by file name.
 | `src/components/field-management` | 7 | 113 |
 | `src/components/group-wizard` | 12 | 159 |
 | `src/components/{layout,shared-actions,tool}` | 5 | 44 |
-| `src/contexts` | 2 | 13 |
-| `src/lib/providers/ministry-platform` | 14 | 481 |
+| `src/contexts` | 2 | 16 |
+| `src/lib/providers/ministry-platform` | 16 | 521 |
 | `src/lib/**` (excl. MP provider) | 14 | 255 |
-| `src/services` | 9 | 236 |
-| **Total** | **118** | **2,185** |
+| `src/services` | 9 | 245 |
+| **Total** | **120** | **2,237** |
 
 ## `src/app/**` (pages, route handler, providers) (22 files, 406 cases)
 
@@ -147,14 +147,14 @@ self-describing by file name.
 | `src/components/shared-actions/user.test.ts` | 6 | `getCurrentUserProfile` session-derived GUID lookup, `Unauthorized` on missing/empty `userGuid`, IDOR regression (caller-forged argument ignored), error propagation |
 | `src/components/tool/tool-framework.test.tsx` | 13 | `ToolContainer` / `ToolHeader` / `ToolFooter` optional-prop branches |
 
-## `src/contexts` (2 files, 13 cases)
+## `src/contexts` (2 files, 16 cases)
 
 | Test File | Cases | What It Covers |
 |---|---|---|
 | `src/contexts/use-app-session.test.ts` | 2 | `useAppSession` hook wrapper |
-| `src/contexts/user-context.test.tsx` | 11 | `UserProvider` lifecycle, profile loading, errors, edge branches |
+| `src/contexts/user-context.test.tsx` | 14 | `UserProvider` lifecycle, profile loading, errors, edge branches |
 
-## `src/lib/providers/ministry-platform` (14 files, 481 cases)
+## `src/lib/providers/ministry-platform` (16 files, 521 cases)
 
 | Test File | Cases | What It Covers |
 |---|---|---|
@@ -172,6 +172,8 @@ self-describing by file name.
 | `src/lib/providers/ministry-platform/services/table.service.test.ts` | 49 | CRUD + `copyRecord` + `copyRecordWithSubpages` |
 | `src/lib/providers/ministry-platform/utils/http-client.test.ts` | 104 | HTTP methods, URL building, FormData, error handling |
 | `src/lib/providers/ministry-platform/utils/logger.test.ts` | 4 | Debug vs production gating, error always logs |
+| `src/lib/providers/ministry-platform/scripts/generate-storedprocs.test.ts` | 4 |  |
+| `src/lib/providers/ministry-platform/scripts/generate-types.test.ts` | 36 |  |
 
 ## `src/lib/**` (excl. MP provider) (14 files, 255 cases)
 
@@ -192,7 +194,7 @@ self-describing by file name.
 | `src/lib/validation.test.ts` | 60 | GUID / positive int / column name / filter escaping |
 | `src/lib/zip-guard.test.ts` | 17 | `assertZipWithinLimits` / `ZipLimitError` |
 
-## `src/services` (9 files, 236 cases)
+## `src/services` (9 files, 245 cases)
 
 | Test File | Cases | What It Covers |
 |---|---|---|
@@ -200,8 +202,8 @@ self-describing by file name.
 | `src/services/authorizationService.test.ts` | 32 | `requireSecurityRole` / `hasSecurityRole`, `resolveRolePolicy`, `MP_SECURITY_ROLES` fails closed |
 | `src/services/domainTimezoneService.test.ts` | 22 | `resolveIanaTimezone`, `getMpTimezone`, `toMpSqlDatetime`, `parseMpDatetime` |
 | `src/services/familyService.test.ts` | 56 |  |
-| `src/services/fieldManagementService.test.ts` | 19 | Pages, fields, table metadata, batched order updates |
-| `src/services/googlePlacesService.test.ts` | 11 |  |
+| `src/services/fieldManagementService.test.ts` | 21 | Pages, fields, table metadata, batched order updates |
+| `src/services/googlePlacesService.test.ts` | 18 |  |
 | `src/services/groupService.test.ts` | 27 | Group CRUD, lookups, contact/group search |
 | `src/services/toolService.test.ts` | 53 | Page data, user tools, selection records, contact resolution, `listPages`, `listRoles`, `deployTool` |
 | `src/services/userService.test.ts` | 7 | `getUserProfile`: display fields only, single query, GUID validation, not-found, error propagation |

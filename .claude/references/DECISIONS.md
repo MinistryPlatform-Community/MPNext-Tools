@@ -208,7 +208,7 @@ Architectural decisions captured by the context-engineering review at SHA `971c4
 **Date:** 2026-04-17
 **Status:** Accepted
 **Context:** MP's database has hundreds of tables and stored procedures (current facts baseline: 603 generated model files). Hand-maintaining a catalog would drift constantly.
-**Decision:** `npm run mp:generate:models` produces `src/lib/providers/ministry-platform/models/*.ts` (TypeScript + Zod) using `--clean` to wipe the directory first; `npm run mp:generate:storedprocs` writes its default output to `.claude/references/ministryplatform.storedprocs.md`; the committed copies live at `mp-schema/tables.md` and `mp-schema/stored-procs.md`. `mp-schema/required-procs.md` is hand-written for the handful of procs the app actually invokes.
+**Decision:** `npm run mp:generate:models` produces `src/lib/providers/ministry-platform/models/*.ts` (TypeScript + Zod) using `--clean` to wipe the directory first; `npm run mp:generate:storedprocs` writes `mp-schema/stored-procs.md`, and the type generator writes `mp-schema/tables.md` (both keep their frontmatter; a `--search` run never overwrites the full catalog). `mp-schema/required-procs.md` is hand-written for the handful of procs the app actually invokes.
 **Consequences:** Schema reference docs stay in sync with MP after a regen (move the output into `mp-schema/`). `mp-schema/required-procs.md` must be manually updated whenever a service method wraps a new proc.
 **Alternatives considered:**
 - **Hand-maintained catalog** — untenable at MP's scale.

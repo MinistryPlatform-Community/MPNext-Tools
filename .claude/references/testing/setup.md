@@ -178,8 +178,8 @@ vi.stubEnv('NODE_ENV', 'test');
 - Run: `npm run test:coverage` or `npx vitest run --coverage --coverage.reportOnFailure`
 
 ## Counts (facts snapshot 2026-10-10)
-- **Test files:** 118
-- **Test cases:** 2,185 (from `vitest run`)
+- **Test files:** 120
+- **Test cases:** 2,237 (from `vitest run`, 2026-10-11)
 - See `../_meta/facts/2026-10-10.md`
 
 ## Conventions

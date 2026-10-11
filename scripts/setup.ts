@@ -1239,7 +1239,7 @@ async function runInteractiveSetup(options: SetupOptions): Promise<number> {
   printStepHeader(9, totalSteps, 'Generating stored procedure reference');
   console.log(
     chalk.gray(
-      '  Produces .claude/references/ministryplatform.storedprocs.md — used by Claude Code'
+      '  Produces .claude/references/mp-schema/stored-procs.md — used by Claude Code'
     )
   );
   console.log(chalk.gray('  for stored-proc query suggestions and authoring assistance.'));

@@ -5,7 +5,7 @@ domain: testing
 ---
 
 ## What's in this domain
-Vitest test runner config, global setup, mocking patterns, and inventory of 118 test files (2,185 cases) co-located next to source. Coverage over authored code is 99.13% statements / 99.80% lines (2026-10-10), enforced by thresholds (97 / 98) in `vitest.config.mts`.
+Vitest test runner config, global setup, mocking patterns, and inventory of 120 test files (2,237 cases) co-located next to source. Coverage over authored code is 99.13% statements / 99.80% lines (2026-10-10), enforced by thresholds (97 / 98) in `vitest.config.mts`.
 
 ## File map
 | File | Purpose | When to read |
@@ -13,7 +13,7 @@ Vitest test runner config, global setup, mocking patterns, and inventory of 118 
 | `setup.md` | `vitest.config.mts`, `src/test-setup.ts`, env vars, jsdom, v8 coverage, the `coverage.include` contract and enforced thresholds | Adding Vitest config or adjusting global setup |
 | `mocks.md` | Mandatory mock patterns (`vi.hoisted`, MPHelper mock class, singleton reset, `AuthorizationService` gate, auth/headers, fake timers) | Writing any new test that mocks an import |
 | `cookbook.md` | Copy-paste recipes pulled from real tests (service, server action, component, OAuth) | Writing a new test in an existing category |
-| `inventory.md` | All 118 test files grouped by area | Locating where a surface is tested |
+| `inventory.md` | All 120 test files grouped by area | Locating where a surface is tested |
 
 ## Code surfaces
 | Path | Role |
